@@ -48,32 +48,34 @@
             });
         });
         
-        // Test connessione GitHub
-        $('#fp-test-connection').on('click', function(e) {
+        // Controlla aggiornamenti per plugin specifico
+        $(document).on('click', '.fp-check-updates', function(e) {
             e.preventDefault();
             
             const $button = $(this);
+            const pluginId = $button.data('plugin-id');
             const originalText = $button.html();
             
             $button.prop('disabled', true);
-            $button.html('<span class="dashicons dashicons-update spin"></span> Test in corso...');
+            $button.html('<span class="dashicons dashicons-update spin"></span> Controllo...');
             
             $.ajax({
                 url: fpGitUpdater.ajax_url,
                 type: 'POST',
                 data: {
-                    action: 'fp_git_updater_test_connection',
+                    action: 'fp_git_updater_check_updates',
+                    plugin_id: pluginId,
                     nonce: fpGitUpdater.nonce
                 },
                 success: function(response) {
                     if (response.success) {
                         showNotice('success', response.data.message || response.data);
                     } else {
-                        showNotice('error', response.data.message || response.data || 'Errore durante il test di connessione.');
+                        showNotice('error', response.data.message || response.data || 'Errore durante il controllo aggiornamenti.');
                     }
                 },
                 error: function(xhr, status, error) {
-                    let errorMessage = 'Errore durante il test di connessione.';
+                    let errorMessage = 'Errore durante il controllo aggiornamenti.';
                     if (xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
                         errorMessage = xhr.responseJSON.data.message;
                     } else if (xhr.status === 400) {
@@ -90,25 +92,28 @@
             });
         });
         
-        // Aggiornamento manuale
-        $('#fp-manual-update').on('click', function(e) {
+        // Installa aggiornamento per plugin specifico
+        $(document).on('click', '.fp-install-update', function(e) {
             e.preventDefault();
             
-            if (!confirm('Sei sicuro di voler aggiornare il plugin adesso?')) {
+            const $button = $(this);
+            const pluginId = $button.data('plugin-id');
+            
+            if (!confirm('Sei sicuro di voler installare l\'aggiornamento per questo plugin?')) {
                 return;
             }
             
-            const $button = $(this);
             const originalText = $button.html();
             
             $button.prop('disabled', true);
-            $button.html('<span class="dashicons dashicons-update spin"></span> Aggiornamento in corso...');
+            $button.html('<span class="dashicons dashicons-update spin"></span> Installazione...');
             
             $.ajax({
                 url: fpGitUpdater.ajax_url,
                 type: 'POST',
                 data: {
-                    action: 'fp_git_updater_manual_update',
+                    action: 'fp_git_updater_install_update',
+                    plugin_id: pluginId,
                     nonce: fpGitUpdater.nonce
                 },
                 timeout: 120000, // 2 minuti
