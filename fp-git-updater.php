@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: FP Git Updater
- * Plugin URI: https://github.com/tuousername/fp-git-updater
+ * Plugin URI: https://www.francescopasseri.com
  * Description: Plugin personalizzato per aggiornamento automatico da GitHub tramite webhook. Si aggiorna automaticamente quando fai merge/push sul repository.
  * Version: 1.0.0
- * Author: Il Tuo Nome
- * Author URI: https://tuosito.com
+ * Author: Francesco Passeri
+ * Author URI: https://www.francescopasseri.com
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: fp-git-updater
