@@ -57,6 +57,7 @@ class FP_Git_Updater {
         require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-updater.php';
         require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-admin.php';
         require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-logger.php';
+        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-settings-backup.php';
     }
     
     /**
@@ -80,6 +81,7 @@ class FP_Git_Updater {
     public function init_components() {
         FP_Git_Updater_Webhook_Handler::get_instance();
         FP_Git_Updater_Updater::get_instance();
+        FP_Git_Updater_Settings_Backup::get_instance();
         
         if (is_admin()) {
             FP_Git_Updater_Admin::get_instance();
@@ -90,6 +92,21 @@ class FP_Git_Updater {
      * Attivazione plugin
      */
     public function activate() {
+        // Verifica se c'è un backup da ripristinare (dopo un aggiornamento)
+        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-settings-backup.php';
+        $backup_manager = FP_Git_Updater_Settings_Backup::get_instance();
+        
+        $existing_settings = get_option('fp_git_updater_settings');
+        $has_backup = $backup_manager->get_latest_backup();
+        
+        // Se le impostazioni sono vuote ma c'è un backup, ripristinalo
+        if ((empty($existing_settings) || empty($existing_settings['plugins'])) && !empty($has_backup)) {
+            require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-logger.php';
+            FP_Git_Updater_Logger::log('info', 'Ripristino impostazioni dal backup durante attivazione...');
+            $backup_manager->restore_backup();
+            $existing_settings = get_option('fp_git_updater_settings');
+        }
+        
         // Crea le opzioni di default
         $default_options = array(
             'plugins' => array(), // Lista di plugin da gestire
@@ -101,7 +118,6 @@ class FP_Git_Updater {
         );
         
         // Se esiste già una configurazione, migra i dati vecchi
-        $existing_settings = get_option('fp_git_updater_settings');
         if ($existing_settings && isset($existing_settings['github_repo']) && !empty($existing_settings['github_repo'])) {
             // Migra da configurazione singola a lista
             $default_options['plugins'][] = array(
@@ -121,12 +137,18 @@ class FP_Git_Updater {
             $default_options['notification_email'] = isset($existing_settings['notification_email']) ? $existing_settings['notification_email'] : get_option('admin_email');
             
             update_option('fp_git_updater_settings', $default_options);
-        } else {
+        } elseif (!$existing_settings || empty($existing_settings['plugins'])) {
+            // Solo se non ci sono impostazioni esistenti E non sono state ripristinate dal backup
             add_option('fp_git_updater_settings', $default_options);
         }
         
         // Crea la tabella per i log
         $this->create_log_table();
+        
+        // Crea un backup delle impostazioni correnti
+        if (!empty($existing_settings) && !empty($existing_settings['plugins'])) {
+            $backup_manager->create_backup(false);
+        }
         
         // Pulisci i rewrite rules
         flush_rewrite_rules();
