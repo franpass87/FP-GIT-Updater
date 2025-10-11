@@ -112,13 +112,87 @@ class FP_Git_Updater_Updater {
         $settings = get_option('fp_git_updater_settings');
         $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
         
+        // Sanitizza l'ID in input per evitare problemi di confronto
+        $plugin_id = trim($plugin_id);
+        
         foreach ($plugins as $plugin) {
-            if (isset($plugin['id']) && $plugin['id'] === $plugin_id) {
+            // Verifica che l'ID esista e confronta con trim per evitare problemi di spazi
+            if (isset($plugin['id']) && trim($plugin['id']) === $plugin_id) {
                 return $plugin;
             }
         }
         
+        // Log per debug se il plugin non viene trovato
+        FP_Git_Updater_Logger::log('error', 'Plugin non trovato con ID: ' . $plugin_id, array(
+            'plugin_id' => $plugin_id,
+            'available_plugins' => array_map(function($p) {
+                return isset($p['id']) ? $p['id'] : 'NO_ID';
+            }, $plugins)
+        ));
+        
         return null;
+    }
+    
+    /**
+     * Trova la directory root del plugin nella struttura estratta
+     * Cerca il file principale del plugin (con header "Plugin Name:")
+     */
+    private function find_plugin_root_dir($extracted_dir, $plugin) {
+        // Cerca prima direttamente nella directory estratta
+        $main_file = $this->find_plugin_main_file($extracted_dir);
+        if ($main_file) {
+            return dirname($main_file);
+        }
+        
+        // Se non trovato, cerca nelle sottocartelle (max 2 livelli)
+        $subdirs = glob($extracted_dir . '/*', GLOB_ONLYDIR);
+        foreach ($subdirs as $subdir) {
+            $main_file = $this->find_plugin_main_file($subdir);
+            if ($main_file) {
+                FP_Git_Updater_Logger::log('info', 'Plugin trovato in sottocartella: ' . basename($subdir));
+                return dirname($main_file);
+            }
+            
+            // Cerca anche un livello più in profondità
+            $subsubdirs = glob($subdir . '/*', GLOB_ONLYDIR);
+            foreach ($subsubdirs as $subsubdir) {
+                $main_file = $this->find_plugin_main_file($subsubdir);
+                if ($main_file) {
+                    FP_Git_Updater_Logger::log('info', 'Plugin trovato in sotto-sottocartella: ' . basename($subsubdir));
+                    return dirname($main_file);
+                }
+            }
+        }
+        
+        // Se non trova un file principale, usa la directory estratta come fallback
+        FP_Git_Updater_Logger::log('warning', 'File principale del plugin non trovato, uso directory estratta come fallback');
+        return $extracted_dir;
+    }
+    
+    /**
+     * Cerca il file principale del plugin in una directory
+     * Restituisce il path completo del file o false
+     */
+    private function find_plugin_main_file($dir) {
+        if (!is_dir($dir)) {
+            return false;
+        }
+        
+        // Cerca tutti i file PHP nella directory
+        $php_files = glob($dir . '/*.php');
+        
+        foreach ($php_files as $php_file) {
+            // Leggi le prime 8KB del file (sufficienti per l'header del plugin)
+            $file_data = file_get_contents($php_file, false, null, 0, 8192);
+            
+            // Controlla se contiene "Plugin Name:" nell'header
+            if ($file_data && preg_match('/Plugin Name:\s*(.+)/i', $file_data, $matches)) {
+                FP_Git_Updater_Logger::log('info', 'File principale del plugin trovato: ' . basename($php_file) . ' (Plugin: ' . trim($matches[1]) . ')');
+                return $php_file;
+            }
+        }
+        
+        return false;
     }
     
     /**
@@ -351,7 +425,23 @@ class FP_Git_Updater_Updater {
             return false;
         }
         
-        $source_dir = $extracted_dirs[0];
+        $github_extracted_dir = $extracted_dirs[0];
+        
+        // Cerca il file principale del plugin nella directory estratta
+        // Potrebbe essere direttamente nella directory o in una sottocartella
+        $source_dir = $this->find_plugin_root_dir($github_extracted_dir, $plugin);
+        
+        if (!$source_dir) {
+            FP_Git_Updater_Logger::log('error', 'File principale del plugin non trovato nella directory estratta', array(
+                'extracted_dir' => $github_extracted_dir,
+                'plugin_name' => $plugin['name']
+            ));
+            $wp_filesystem->delete($temp_extract_dir, true);
+            $this->send_notification('Errore aggiornamento', 'Struttura del plugin non valida nella directory estratta');
+            return false;
+        }
+        
+        FP_Git_Updater_Logger::log('info', 'Directory plugin trovata: ' . basename($source_dir));
         
         // Determina la directory del plugin da aggiornare
         // Se il plugin ha uno slug specificato, usa quello, altrimenti deduce dal repo
