@@ -1,0 +1,54 @@
+<?php
+/**
+ * Uninstall FP Git Updater
+ * 
+ * Pulisce tutte le opzioni e tabelle del database quando il plugin viene disinstallato
+ */
+
+// Se l'uninstall non è chiamato da WordPress, esci
+if (!defined('WP_UNINSTALL_PLUGIN')) {
+    exit;
+}
+
+// Rimuovi le opzioni
+delete_option('fp_git_updater_settings');
+delete_option('fp_git_updater_current_commit');
+delete_option('fp_git_updater_last_update');
+
+// Rimuovi i cron job schedulati
+$timestamp = wp_next_scheduled('fp_git_updater_check_update');
+if ($timestamp) {
+    wp_unschedule_event($timestamp, 'fp_git_updater_check_update');
+}
+
+wp_clear_scheduled_hook('fp_git_updater_run_update');
+wp_clear_scheduled_hook('fp_git_updater_cleanup_backup');
+
+// Rimuovi la tabella dei log
+global $wpdb;
+$table_name = $wpdb->prefix . 'fp_git_updater_logs';
+$wpdb->query("DROP TABLE IF EXISTS $table_name");
+
+// Pulisci i backup vecchi (opzionale - commentato di default)
+// Togli il commento se vuoi eliminare i backup quando disinstalli il plugin
+/*
+$backup_dir = WP_CONTENT_DIR . '/upgrade/';
+$backups = glob($backup_dir . 'fp-git-updater-backup-*');
+foreach ($backups as $backup) {
+    if (is_dir($backup)) {
+        // Elimina ricorsivamente
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($backup, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($files as $file) {
+            if ($file->isDir()) {
+                rmdir($file->getRealPath());
+            } else {
+                unlink($file->getRealPath());
+            }
+        }
+        rmdir($backup);
+    }
+}
+*/

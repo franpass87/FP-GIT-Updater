@@ -1,0 +1,181 @@
+/* FP Git Updater - Admin Styles */
+
+.fp-git-updater-wrap {
+    max-width: 1200px;
+}
+
+.fp-git-updater-wrap h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.fp-git-updater-wrap h1 .dashicons {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+}
+
+.fp-git-updater-header {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    margin: 20px 0;
+    padding: 20px;
+    border-radius: 4px;
+}
+
+.fp-status-box h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.fp-status-box p {
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+.fp-status-box button {
+    margin-right: 10px;
+    margin-top: 15px;
+}
+
+.fp-status-box button .dashicons {
+    line-height: 28px;
+}
+
+.fp-git-updater-instructions {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    margin: 20px 0;
+    padding: 20px;
+    border-radius: 4px;
+}
+
+.fp-git-updater-instructions h2 {
+    margin-top: 0;
+}
+
+.fp-git-updater-instructions ol {
+    line-height: 1.8;
+}
+
+.fp-git-updater-instructions li {
+    margin-bottom: 8px;
+}
+
+.fp-logs-actions {
+    margin: 20px 0;
+}
+
+.fp-logs-actions button {
+    margin-right: 10px;
+}
+
+.log-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #fff;
+}
+
+.log-badge-info {
+    background: #2271b1;
+}
+
+.log-badge-success {
+    background: #00a32a;
+}
+
+.log-badge-warning {
+    background: #dba617;
+}
+
+.log-badge-error {
+    background: #d63638;
+}
+
+.log-badge-webhook {
+    background: #8c5ed9;
+}
+
+/* Loading spinner */
+.fp-loading {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #2271b1;
+    border-radius: 50%;
+    animation: fp-spin 1s linear infinite;
+    vertical-align: middle;
+    margin-left: 8px;
+}
+
+@keyframes fp-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Notice styles */
+.fp-notice {
+    padding: 12px;
+    margin: 15px 0;
+    border-left: 4px solid;
+    border-radius: 0 4px 4px 0;
+    background: #fff;
+}
+
+.fp-notice-success {
+    border-left-color: #00a32a;
+    background: #f0f8f2;
+}
+
+.fp-notice-error {
+    border-left-color: #d63638;
+    background: #fcf0f1;
+}
+
+.fp-notice-info {
+    border-left-color: #2271b1;
+    background: #f0f6fc;
+}
+
+/* Form improvements */
+.form-table th {
+    font-weight: 600;
+}
+
+.form-table input[type="text"],
+.form-table input[type="password"],
+.form-table input[type="email"] {
+    padding: 8px 12px;
+}
+
+.form-table .description {
+    font-style: italic;
+    color: #666;
+}
+
+/* Button improvements */
+.button .dashicons {
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
+/* Table responsive */
+@media screen and (max-width: 782px) {
+    .fp-git-updater-wrap {
+        margin: 0 -10px;
+    }
+    
+    .fp-status-box button {
+        display: block;
+        width: 100%;
+        margin: 10px 0;
+    }
+}

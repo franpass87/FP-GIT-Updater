@@ -1,0 +1,129 @@
+name: Test Plugin
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  syntax-check:
+    name: Verifica Sintassi PHP
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        php-version: ['7.4', '8.0', '8.1', '8.2']
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: zip, mysqli
+          coverage: none
+      
+      - name: Verifica sintassi file PHP
+        run: |
+          echo "🔍 Verifica sintassi PHP ${{ matrix.php-version }}..."
+          
+          # Trova tutti i file PHP
+          find . -name "*.php" -not -path "./vendor/*" -not -path "./node_modules/*" | while read file; do
+            echo "Controllo: $file"
+            php -l "$file"
+            if [ $? -ne 0 ]; then
+              echo "❌ Errore in: $file"
+              exit 1
+            fi
+          done
+          
+          echo "✅ Tutti i file PHP sono corretti!"
+      
+      - name: Verifica struttura plugin
+        run: |
+          echo "📋 Verifica struttura del plugin..."
+          
+          # File obbligatori
+          REQUIRED_FILES=(
+            "fp-git-updater.php"
+            "includes/class-webhook-handler.php"
+            "includes/class-updater.php"
+            "includes/class-admin.php"
+            "includes/class-logger.php"
+            "README.md"
+            "LICENSE"
+          )
+          
+          for file in "${REQUIRED_FILES[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "❌ File mancante: $file"
+              exit 1
+            fi
+            echo "✅ $file"
+          done
+          
+          echo "✅ Struttura plugin corretta!"
+      
+      - name: Verifica header plugin
+        run: |
+          echo "📄 Verifica header plugin WordPress..."
+          
+          # Verifica che il file principale abbia gli header corretti
+          if ! grep -q "Plugin Name:" fp-git-updater.php; then
+            echo "❌ Header 'Plugin Name' mancante"
+            exit 1
+          fi
+          
+          if ! grep -q "Version:" fp-git-updater.php; then
+            echo "❌ Header 'Version' mancante"
+            exit 1
+          fi
+          
+          echo "✅ Header plugin corretti!"
+
+  code-quality:
+    name: Qualità Codice
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Conta linee di codice
+        run: |
+          echo "📊 Statistiche del codice:"
+          echo ""
+          
+          echo "File PHP:"
+          find . -name "*.php" -not -path "./vendor/*" | wc -l
+          
+          echo "Linee PHP:"
+          find . -name "*.php" -not -path "./vendor/*" -exec cat {} + | wc -l
+          
+          echo "File JavaScript:"
+          find . -name "*.js" -not -path "./node_modules/*" | wc -l
+          
+          echo "File CSS:"
+          find . -name "*.css" -not -path "./node_modules/*" | wc -l
+      
+      - name: Verifica documentazione
+        run: |
+          echo "📚 Verifica documentazione..."
+          
+          DOCS=(
+            "README.md"
+            "INSTALL.md"
+            "CHANGELOG.md"
+          )
+          
+          for doc in "${DOCS[@]}"; do
+            if [ -f "$doc" ]; then
+              lines=$(wc -l < "$doc")
+              echo "✅ $doc ($lines linee)"
+            else
+              echo "⚠️  $doc mancante"
+            fi
+          done

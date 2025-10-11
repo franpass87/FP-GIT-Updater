@@ -1,0 +1,102 @@
+name: Build e Release Plugin
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build Plugin ZIP
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Crea pacchetto ZIP
+        run: |
+          echo "📦 Creazione pacchetto plugin..."
+          
+          # Nome plugin
+          PLUGIN_NAME="fp-git-updater"
+          BUILD_DIR="build"
+          ZIP_NAME="${PLUGIN_NAME}.zip"
+          
+          # Crea directory build
+          mkdir -p "${BUILD_DIR}/${PLUGIN_NAME}"
+          
+          # Copia i file necessari
+          cp -r includes "${BUILD_DIR}/${PLUGIN_NAME}/"
+          cp -r assets "${BUILD_DIR}/${PLUGIN_NAME}/"
+          cp fp-git-updater.php "${BUILD_DIR}/${PLUGIN_NAME}/"
+          cp uninstall.php "${BUILD_DIR}/${PLUGIN_NAME}/"
+          cp README.md "${BUILD_DIR}/${PLUGIN_NAME}/"
+          cp LICENSE "${BUILD_DIR}/${PLUGIN_NAME}/"
+          
+          # Opzionali
+          cp INSTALL.md "${BUILD_DIR}/${PLUGIN_NAME}/" 2>/dev/null || true
+          cp CHANGELOG.md "${BUILD_DIR}/${PLUGIN_NAME}/" 2>/dev/null || true
+          
+          # Crea ZIP
+          cd "${BUILD_DIR}"
+          zip -r "../${ZIP_NAME}" "${PLUGIN_NAME}" -x "*.DS_Store" -x "__MACOSX" -x "*.git*"
+          cd ..
+          
+          # Info
+          ls -lh "${ZIP_NAME}"
+          echo "✅ Pacchetto creato: ${ZIP_NAME}"
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: fp-git-updater
+          path: fp-git-updater.zip
+          retention-days: 30
+      
+      - name: Verifica contenuto ZIP
+        run: |
+          echo "📋 Contenuto del pacchetto:"
+          unzip -l fp-git-updater.zip | head -20
+
+  release:
+    name: Crea GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Download artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: fp-git-updater
+      
+      - name: Estrai versione
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+      
+      - name: Crea Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: fp-git-updater.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Notifica successo
+        run: |
+          echo "🎉 Release v${{ steps.get_version.outputs.version }} creata con successo!"
+          echo "📦 Il file ZIP è disponibile nella release"
