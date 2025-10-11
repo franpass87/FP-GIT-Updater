@@ -24,6 +24,7 @@ class FP_Git_Updater_Updater {
         // Hook per l'aggiornamento schedulato
         add_action('fp_git_updater_run_update', array($this, 'run_update'));
         add_action('fp_git_updater_check_update', array($this, 'check_for_updates'));
+        add_action('fp_git_updater_cleanup_backup', array($this, 'cleanup_backup'));
         
         // Schedula controlli periodici se abilitati
         $this->schedule_update_checks();
@@ -161,21 +162,62 @@ class FP_Git_Updater_Updater {
         // Scarica il file zip
         FP_Git_Updater_Logger::log('info', 'Download dell\'aggiornamento...');
         
-        $temp_file = download_url($download_url, 300);
+        // Usa wp_remote_get per supportare headers personalizzati (per repository privati)
+        $response = wp_remote_get($download_url, $args);
         
-        if (is_wp_error($temp_file)) {
-            FP_Git_Updater_Logger::log('error', 'Errore download: ' . $temp_file->get_error_message());
-            $this->send_notification('Errore aggiornamento', 'Errore durante il download: ' . $temp_file->get_error_message());
+        if (is_wp_error($response)) {
+            FP_Git_Updater_Logger::log('error', 'Errore download: ' . $response->get_error_message());
+            $this->send_notification('Errore aggiornamento', 'Errore durante il download: ' . $response->get_error_message());
+            return false;
+        }
+        
+        $response_code = wp_remote_retrieve_response_code($response);
+        
+        if ($response_code !== 200) {
+            FP_Git_Updater_Logger::log('error', 'Errore download: HTTP ' . $response_code);
+            $this->send_notification('Errore aggiornamento', 'Errore HTTP durante il download: ' . $response_code);
+            return false;
+        }
+        
+        // Salva il contenuto in un file temporaneo
+        $temp_file = wp_tempnam('fp-git-updater-');
+        $body = wp_remote_retrieve_body($response);
+        
+        if (empty($body)) {
+            FP_Git_Updater_Logger::log('error', 'Errore download: file vuoto');
+            $this->send_notification('Errore aggiornamento', 'Il file scaricato è vuoto');
+            return false;
+        }
+        
+        global $wp_filesystem;
+        if (!$wp_filesystem) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+            WP_Filesystem();
+        }
+        
+        if (!$wp_filesystem->put_contents($temp_file, $body, FS_CHMOD_FILE)) {
+            FP_Git_Updater_Logger::log('error', 'Errore nel salvare il file temporaneo');
+            $this->send_notification('Errore aggiornamento', 'Impossibile salvare il file temporaneo');
             return false;
         }
         
         // Unzip il file
         FP_Git_Updater_Logger::log('info', 'Estrazione dell\'aggiornamento...');
         
-        require_once ABSPATH . 'wp-admin/includes/file.php';
-        WP_Filesystem();
+        // Crea directory upgrade se non esiste
+        $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
+        if (!file_exists($upgrade_dir)) {
+            wp_mkdir_p($upgrade_dir);
+        }
         
-        $unzip_result = unzip_file($temp_file, WP_CONTENT_DIR . '/upgrade/fp-git-updater-temp');
+        $temp_extract_dir = $upgrade_dir . '/fp-git-updater-temp';
+        
+        // Rimuovi directory temporanea se esiste già
+        if (file_exists($temp_extract_dir)) {
+            $wp_filesystem->delete($temp_extract_dir, true);
+        }
+        
+        $unzip_result = unzip_file($temp_file, $temp_extract_dir);
         
         // Rimuovi il file temporaneo
         @unlink($temp_file);
@@ -187,11 +229,11 @@ class FP_Git_Updater_Updater {
         }
         
         // Trova la directory estratta (GitHub crea una directory con nome casuale)
-        $temp_dir = WP_CONTENT_DIR . '/upgrade/fp-git-updater-temp';
-        $extracted_dirs = glob($temp_dir . '/*', GLOB_ONLYDIR);
+        $extracted_dirs = glob($temp_extract_dir . '/*', GLOB_ONLYDIR);
         
         if (empty($extracted_dirs)) {
             FP_Git_Updater_Logger::log('error', 'Directory estratta non trovata');
+            $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Directory estratta non trovata');
             return false;
         }
@@ -203,8 +245,13 @@ class FP_Git_Updater_Updater {
         FP_Git_Updater_Logger::log('info', 'Creazione backup...');
         $backup_dir = WP_CONTENT_DIR . '/upgrade/fp-git-updater-backup-' . time();
         
-        global $wp_filesystem;
-        $wp_filesystem->move($plugin_dir, $backup_dir);
+        // Usa rename() nativo che è più affidabile per operazioni atomiche
+        if (!@rename($plugin_dir, $backup_dir)) {
+            FP_Git_Updater_Logger::log('error', 'Impossibile creare backup');
+            $wp_filesystem->delete($temp_extract_dir, true);
+            $this->send_notification('Errore aggiornamento', 'Impossibile creare backup della versione corrente');
+            return false;
+        }
         
         // Copia i nuovi file
         FP_Git_Updater_Logger::log('info', 'Installazione nuovi file...');
@@ -213,13 +260,14 @@ class FP_Git_Updater_Updater {
         if (is_wp_error($copy_result)) {
             // Ripristina il backup
             FP_Git_Updater_Logger::log('error', 'Errore installazione: ' . $copy_result->get_error_message());
-            $wp_filesystem->move($backup_dir, $plugin_dir);
+            @rename($backup_dir, $plugin_dir);
+            $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Errore durante l\'installazione. Backup ripristinato.');
             return false;
         }
         
         // Pulisci
-        $wp_filesystem->delete($temp_dir, true);
+        $wp_filesystem->delete($temp_extract_dir, true);
         
         // Salva il commit corrente
         if ($commit_sha) {
@@ -240,6 +288,22 @@ class FP_Git_Updater_Updater {
         wp_schedule_single_event(time() + (7 * DAY_IN_SECONDS), 'fp_git_updater_cleanup_backup', array($backup_dir));
         
         return true;
+    }
+    
+    /**
+     * Pulisci un backup specifico
+     */
+    public function cleanup_backup($backup_dir) {
+        if (file_exists($backup_dir) && is_dir($backup_dir)) {
+            global $wp_filesystem;
+            if (!$wp_filesystem) {
+                require_once ABSPATH . 'wp-admin/includes/file.php';
+                WP_Filesystem();
+            }
+            
+            $wp_filesystem->delete($backup_dir, true);
+            FP_Git_Updater_Logger::log('info', 'Backup eliminato: ' . basename($backup_dir));
+        }
     }
     
     /**
