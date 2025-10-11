@@ -61,14 +61,14 @@ class FP_Git_Updater_Webhook_Handler {
     public function handle_webhook($request) {
         try {
             // Log della richiesta
-            FP_Git_Updater_Logger::log('webhook', 'Webhook ricevuto da GitHub');
+            FP_Git_Updater_Logger::log('webhook', __('Webhook ricevuto da GitHub', 'fp-git-updater'));
             
             // Verifica la firma del webhook
             if (!$this->verify_signature($request)) {
-                FP_Git_Updater_Logger::log('error', 'Webhook: firma non valida');
+                FP_Git_Updater_Logger::log('error', __('Webhook: firma non valida', 'fp-git-updater'));
                 return new WP_REST_Response(array(
                     'success' => false,
-                    'message' => 'Firma webhook non valida'
+                    'message' => __('Firma webhook non valida', 'fp-git-updater')
                 ), 401);
             }
             
@@ -76,10 +76,10 @@ class FP_Git_Updater_Webhook_Handler {
             $payload = $request->get_json_params();
             
             if (empty($payload)) {
-                FP_Git_Updater_Logger::log('error', 'Webhook: payload vuoto');
+                FP_Git_Updater_Logger::log('error', __('Webhook: payload vuoto', 'fp-git-updater'));
                 return new WP_REST_Response(array(
                     'success' => false,
-                    'message' => 'Payload vuoto'
+                    'message' => __('Payload vuoto', 'fp-git-updater')
                 ), 400);
             }
         

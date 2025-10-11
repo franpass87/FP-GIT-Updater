@@ -54,6 +54,7 @@ class FP_Git_Updater {
      */
     private function load_dependencies() {
         require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-logger.php';
+        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-i18n-helper.php';
         require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-encryption.php';
         require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-rate-limiter.php';
         require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-api-cache.php';

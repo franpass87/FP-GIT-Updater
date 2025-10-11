@@ -245,6 +245,15 @@ class FP_Git_Updater_Admin {
         $pending_updates = $updater->get_pending_updates();
         $auto_update_enabled = isset($settings['auto_update']) ? $settings['auto_update'] : false;
         
+        // Usa il template separato
+        include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/settings-page.php';
+    }
+    
+    /**
+     * Render pagina impostazioni (OLD - Deprecato, mantenuto per riferimento)
+     * Ora usa i template in includes/admin-templates/
+     */
+    private function render_settings_page_old() {
         ?>
         <div class="wrap fp-git-updater-wrap">
             <h1>

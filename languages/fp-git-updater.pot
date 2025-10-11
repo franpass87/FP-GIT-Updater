@@ -1,0 +1,439 @@
+# Copyright (C) 2025 FP Git Updater
+# This file is distributed under the GPL v2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: FP Git Updater 1.2.0\n"
+"Report-Msgid-Bugs-To: info@francescopasseri.com\n"
+"POT-Creation-Date: 2025-10-11 16:00+0000\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language-Team: Francesco Passeri <info@francescopasseri.com>\n"
+"X-Generator: Manual\n"
+"X-Domain: fp-git-updater\n"
+
+#: includes/class-admin.php:131
+msgid "Plugin senza nome"
+msgstr ""
+
+#: includes/class-admin.php:198
+msgid "Impostazioni"
+msgstr ""
+
+#: includes/admin-templates/settings-page.php:19
+msgid "FP Git Updater - Impostazioni"
+msgstr ""
+
+#: includes/admin-templates/settings-page.php:26
+msgid "Plugin Gestiti"
+msgstr ""
+
+#: includes/admin-templates/settings-page.php:27
+msgid "Aggiungi e gestisci i plugin che vuoi aggiornare automaticamente da GitHub."
+msgstr ""
+
+#: includes/admin-templates/settings-page.php:46
+msgid "Nessun plugin configurato. Aggiungi il primo plugin qui sotto."
+msgstr ""
+
+#: includes/admin-templates/settings-page.php:52
+msgid "Aggiungi Plugin"
+msgstr ""
+
+#: includes/admin-templates/settings-page.php:59
+msgid "Salva Impostazioni"
+msgstr ""
+
+#: includes/admin-templates/partials/pending-updates-notice.php:15
+#, php-format
+msgid "Aggiornamento Disponibile (%d)"
+msgid_plural "Aggiornamenti Disponibili (%d)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/admin-templates/partials/pending-updates-notice.php:24
+msgid "I seguenti plugin hanno aggiornamenti pronti per essere installati:"
+msgstr ""
+
+#: includes/admin-templates/partials/pending-updates-notice.php:28
+msgid "Commit:"
+msgstr ""
+
+#: includes/admin-templates/partials/pending-updates-notice.php:32
+#, php-format
+msgid "da %s"
+msgstr ""
+
+#: includes/admin-templates/partials/pending-updates-notice.php:35
+#, php-format
+msgid "Ricevuto: %s"
+msgstr ""
+
+#: includes/admin-templates/partials/pending-updates-notice.php:40
+msgid "Azione richiesta:"
+msgstr ""
+
+#: includes/admin-templates/partials/pending-updates-notice.php:41
+msgid "Scorri in basso e clicca su \"Installa Aggiornamento\" per ogni plugin che vuoi aggiornare."
+msgstr ""
+
+#: includes/admin-templates/partials/update-mode-notice.php:14
+msgid "Modalità Aggiornamento Manuale Attiva"
+msgstr ""
+
+#: includes/admin-templates/partials/update-mode-notice.php:15
+msgid "Gli aggiornamenti non verranno installati automaticamente. Riceverai una notifica quando sono disponibili e potrai installarli manualmente quando sei pronto."
+msgstr ""
+
+#: includes/admin-templates/partials/update-mode-notice.php:20
+msgid "Attenzione:"
+msgstr ""
+
+#: includes/admin-templates/partials/update-mode-notice.php:21
+msgid "Aggiornamento Automatico Attivo - I plugin verranno aggiornati automaticamente quando ricevi un push da GitHub."
+msgstr ""
+
+#: includes/admin-templates/partials/update-mode-notice.php:22
+msgid "Se vuoi maggiore controllo e sicurezza per i siti dei tuoi clienti, disabilita questa opzione qui sotto."
+msgstr ""
+
+#: includes/admin-templates/partials/general-settings.php:26
+msgid "Impostazioni Generali"
+msgstr ""
+
+#: includes/admin-templates/partials/general-settings.php:32
+msgid "Webhook Secret"
+msgstr ""
+
+#: includes/admin-templates/partials/general-settings.php:42
+msgid "Copia questo secret nelle impostazioni del webhook su GitHub"
+msgstr ""
+
+#: includes/admin-templates/partials/general-settings.php:48
+msgid "URL Webhook"
+msgstr ""
+
+#: includes/admin-templates/partials/general-settings.php:56
+msgid "Copia"
+msgstr ""
+
+#: includes/admin-templates/partials/general-settings.php:59
+msgid "Usa questo URL quando configuri il webhook su GitHub per tutti i repository"
+msgstr ""
+
+#: includes/admin-templates/partials/general-settings.php:65
+msgid "Aggiornamento Automatico"
+msgstr ""
+
+#: includes/admin-templates/partials/general-settings.php:71
+msgid "Aggiorna automaticamente quando ricevi un push su GitHub"
+msgstr ""
+
+#: includes/admin-templates/partials/general-settings.php:78
+msgid "Intervallo Controllo Aggiornamenti"
+msgstr ""
+
+#: includes/admin-templates/partials/general-settings.php:94
+msgid "Frequenza di controllo per nuovi aggiornamenti (oltre ai webhook)"
+msgstr ""
+
+#: includes/admin-templates/partials/general-settings.php:99
+msgid "Notifiche Email"
+msgstr ""
+
+#: includes/admin-templates/partials/general-settings.php:105
+msgid "Invia notifiche email per gli aggiornamenti"
+msgstr ""
+
+#: includes/admin-templates/partials/general-settings.php:111
+msgid "Email Notifiche"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:26
+msgid "AGGIORNAMENTO DISPONIBILE"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:32
+msgid "Modifica"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:35
+msgid "Rimuovi"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:42
+msgid "Nuovo aggiornamento pronto!"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:54
+msgid "Repository:"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:55
+msgid "Branch:"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:58
+msgid "Abilitato"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:59
+msgid "Disabilitato"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:65
+msgid "Controlla Aggiornamenti"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:71
+msgid "Installa Aggiornamento Ora"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:72
+msgid "Installa Aggiornamento"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:81
+msgid "Nome Plugin"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:91
+msgid "Repository GitHub"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:99
+msgid "Es: tuousername/mio-plugin"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:104
+msgid "Slug Plugin"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:113
+msgid "Nome della cartella del plugin in wp-content/plugins/ (es: mio-plugin). Se vuoto, verrà dedotto dal nome del repository."
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:128
+msgid "Branch da cui scaricare gli aggiornamenti"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:133
+msgid "GitHub Token"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:142
+msgid "Opzionale, per repository privati"
+msgstr ""
+
+#: includes/admin-templates/partials/plugin-item.php:153
+msgid "Abilita aggiornamenti per questo plugin"
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:12
+msgid "Come Funziona"
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:14
+msgid "Aggiornamento Manuale (Consigliato per Siti di Produzione)"
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:15
+msgid "Con l'aggiornamento manuale disabilitato (opzione sopra), il plugin funziona in questo modo:"
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:17
+msgid "Quando fai push/merge su GitHub, il webhook notifica questo sito"
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:18
+msgid "Il plugin registra l'aggiornamento come \"disponibile\" ma NON lo installa automaticamente"
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:19
+msgid "Ricevi una notifica visibile nel menu admin e nella pagina delle impostazioni"
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:20
+msgid "Tu decidi quando installare l'aggiornamento cliccando sul pulsante \"Installa Aggiornamento\""
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:21
+msgid "Questo ti permette di testare prima gli aggiornamenti su un sito di staging"
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:23
+msgid "Vantaggi:"
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:23
+msgid "Protezione totale da aggiornamenti problematici, controllo completo, ideale per siti di clienti."
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:25
+msgid "Aggiornamento Automatico"
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:26
+msgid "Se abiliti l'opzione \"Aggiornamento Automatico\" sopra:"
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:29
+msgid "Gli aggiornamenti vengono installati immediatamente quando ricevi un push da GitHub"
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:30
+msgid "Utile per ambienti di sviluppo o plugin molto stabili"
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:31
+msgid "Un aggiornamento con bug andrà automaticamente in produzione"
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:34
+msgid "Configurazione Webhook su GitHub"
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:35
+msgid "Importante:"
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:35
+msgid "Devi configurare il webhook per ogni repository che hai aggiunto sopra."
+msgstr ""
+
+#: includes/admin-templates/partials/instructions.php:37
+msgid "Vai sul repository GitHub del plugin che vuoi aggiornare"
+msgstr ""
+
+#: includes/class-i18n-helper.php:86
+msgid "Mai"
+msgstr ""
+
+#: includes/class-i18n-helper.php:91
+#, php-format
+msgid "%s fa"
+msgstr ""
+
+#: includes/class-i18n-helper.php:110
+msgid "Aggiornamento completato con successo!"
+msgstr ""
+
+#: includes/class-i18n-helper.php:111
+msgid "Backup creato con successo"
+msgstr ""
+
+#: includes/class-i18n-helper.php:112
+msgid "Impostazioni salvate con successo"
+msgstr ""
+
+#: includes/class-i18n-helper.php:115
+msgid "Errore durante l'aggiornamento"
+msgstr ""
+
+#: includes/class-i18n-helper.php:116
+msgid "Impossibile creare il backup"
+msgstr ""
+
+#: includes/class-i18n-helper.php:117
+msgid "Impossibile connettersi a GitHub"
+msgstr ""
+
+#: includes/class-i18n-helper.php:118
+msgid "Permessi insufficienti"
+msgstr ""
+
+#: includes/class-i18n-helper.php:121
+msgid "Nessun aggiornamento disponibile"
+msgstr ""
+
+#: includes/class-i18n-helper.php:122
+msgid "Aggiornamento automatico attivo"
+msgstr ""
+
+#: includes/class-i18n-helper.php:123
+msgid "Aggiornamento manuale richiesto"
+msgstr ""
+
+#: includes/class-i18n-helper.php:126
+msgid "Controllo aggiornamenti in corso..."
+msgstr ""
+
+#: includes/class-i18n-helper.php:127
+msgid "Installazione aggiornamento in corso..."
+msgstr ""
+
+#: includes/class-i18n-helper.php:128
+msgid "Creazione backup in corso..."
+msgstr ""
+
+#: includes/class-i18n-helper.php:141
+msgid "Info"
+msgstr ""
+
+#: includes/class-i18n-helper.php:142
+msgid "Successo"
+msgstr ""
+
+#: includes/class-i18n-helper.php:143
+msgid "Avviso"
+msgstr ""
+
+#: includes/class-i18n-helper.php:144
+msgid "Errore"
+msgstr ""
+
+#: includes/class-i18n-helper.php:145
+msgid "Webhook"
+msgstr ""
+
+#: includes/class-i18n-helper.php:160
+msgid "B"
+msgstr ""
+
+#: includes/class-i18n-helper.php:161
+msgid "KB"
+msgstr ""
+
+#: includes/class-i18n-helper.php:162
+msgid "MB"
+msgstr ""
+
+#: includes/class-i18n-helper.php:163
+msgid "GB"
+msgstr ""
+
+#: includes/class-i18n-helper.php:191
+msgid "Ogni ora"
+msgstr ""
+
+#: includes/class-i18n-helper.php:192
+msgid "Due volte al giorno"
+msgstr ""
+
+#: includes/class-i18n-helper.php:193
+msgid "Una volta al giorno"
+msgstr ""
+
+#: includes/class-i18n-helper.php:194
+msgid "Una volta a settimana"
+msgstr ""
+
+#: includes/class-webhook-handler.php:44
+msgid "Webhook ricevuto da GitHub"
+msgstr ""
+
+#: includes/class-webhook-handler.php:48
+msgid "Webhook: firma non valida"
+msgstr ""
+
+#: includes/class-webhook-handler.php:51
+msgid "Firma webhook non valida"
+msgstr ""
+
+#: includes/class-webhook-handler.php:59
+msgid "Webhook: payload vuoto"
+msgstr ""
+
+#: includes/class-webhook-handler.php:62
+msgid "Payload vuoto"
+msgstr ""
