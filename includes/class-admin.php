@@ -397,6 +397,19 @@ class FP_Git_Updater_Admin {
                 <?php submit_button('Salva Impostazioni'); ?>
             </form>
             
+            <div class="fp-git-updater-header">
+                <h2>Azioni Rapide</h2>
+                <div class="fp-status-box">
+                    <p>Usa questi pulsanti per testare la connessione con GitHub e verificare gli aggiornamenti disponibili.</p>
+                    <button type="button" id="fp-test-connection" class="button button-primary">
+                        <span class="dashicons dashicons-cloud"></span> Testa Connessione GitHub
+                    </button>
+                    <button type="button" id="fp-manual-update" class="button button-secondary">
+                        <span class="dashicons dashicons-update"></span> Aggiorna Ora
+                    </button>
+                </div>
+            </div>
+            
             <div class="fp-git-updater-instructions">
                 <h2>Come configurare il webhook su GitHub</h2>
                 <p><strong>Importante:</strong> Devi configurare il webhook per ogni repository che hai aggiunto sopra.</p>
