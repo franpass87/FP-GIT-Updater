@@ -180,7 +180,6 @@ class FP_Git_Updater_Updater {
         }
         
         // Salva il contenuto in un file temporaneo
-        $temp_file = wp_tempnam('fp-git-updater-');
         $body = wp_remote_retrieve_body($response);
         
         if (empty($body)) {
@@ -189,13 +188,17 @@ class FP_Git_Updater_Updater {
             return false;
         }
         
-        global $wp_filesystem;
-        if (!$wp_filesystem) {
-            require_once ABSPATH . 'wp-admin/includes/file.php';
-            WP_Filesystem();
+        // Crea directory upgrade se non esiste
+        $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
+        if (!file_exists($upgrade_dir)) {
+            wp_mkdir_p($upgrade_dir);
         }
         
-        if (!$wp_filesystem->put_contents($temp_file, $body, FS_CHMOD_FILE)) {
+        // Salva in un file temporaneo nella directory upgrade
+        $temp_file = $upgrade_dir . '/fp-git-updater-download-' . time() . '.zip';
+        
+        // Usa file_put_contents che è più affidabile per questa operazione
+        if (!file_put_contents($temp_file, $body)) {
             FP_Git_Updater_Logger::log('error', 'Errore nel salvare il file temporaneo');
             $this->send_notification('Errore aggiornamento', 'Impossibile salvare il file temporaneo');
             return false;
@@ -204,10 +207,11 @@ class FP_Git_Updater_Updater {
         // Unzip il file
         FP_Git_Updater_Logger::log('info', 'Estrazione dell\'aggiornamento...');
         
-        // Crea directory upgrade se non esiste
-        $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
-        if (!file_exists($upgrade_dir)) {
-            wp_mkdir_p($upgrade_dir);
+        // Inizializza WP_Filesystem per unzip
+        global $wp_filesystem;
+        if (!$wp_filesystem) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+            WP_Filesystem();
         }
         
         $temp_extract_dir = $upgrade_dir . '/fp-git-updater-temp';
