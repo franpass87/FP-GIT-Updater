@@ -31,8 +31,28 @@ class FP_Git_Updater_Webhook_Handler {
         register_rest_route('fp-git-updater/v1', '/webhook', array(
             'methods' => 'POST',
             'callback' => array($this, 'handle_webhook'),
-            'permission_callback' => '__return_true', // La sicurezza è gestita dal secret
+            'permission_callback' => array($this, 'verify_webhook_permission'),
         ));
+    }
+    
+    /**
+     * Verifica i permessi per il webhook (rate limiting + signature)
+     */
+    public function verify_webhook_permission($request) {
+        // Controlla rate limiting
+        $rate_limiter = FP_Git_Updater_Rate_Limiter::get_instance();
+        $identifier = $rate_limiter->get_request_identifier();
+        
+        if (!$rate_limiter->is_allowed($identifier)) {
+            FP_Git_Updater_Logger::log('warning', 'Richiesta webhook bloccata per rate limiting', array(
+                'ip' => $identifier
+            ));
+            return false;
+        }
+        
+        // La verifica della firma sarà fatta nel callback handle_webhook
+        // per avere accesso al body della richiesta
+        return true;
     }
     
     /**
@@ -41,14 +61,14 @@ class FP_Git_Updater_Webhook_Handler {
     public function handle_webhook($request) {
         try {
             // Log della richiesta
-            FP_Git_Updater_Logger::log('webhook', 'Webhook ricevuto da GitHub');
+            FP_Git_Updater_Logger::log('webhook', __('Webhook ricevuto da GitHub', 'fp-git-updater'));
             
             // Verifica la firma del webhook
             if (!$this->verify_signature($request)) {
-                FP_Git_Updater_Logger::log('error', 'Webhook: firma non valida');
+                FP_Git_Updater_Logger::log('error', __('Webhook: firma non valida', 'fp-git-updater'));
                 return new WP_REST_Response(array(
                     'success' => false,
-                    'message' => 'Firma webhook non valida'
+                    'message' => __('Firma webhook non valida', 'fp-git-updater')
                 ), 401);
             }
             
@@ -56,10 +76,10 @@ class FP_Git_Updater_Webhook_Handler {
             $payload = $request->get_json_params();
             
             if (empty($payload)) {
-                FP_Git_Updater_Logger::log('error', 'Webhook: payload vuoto');
+                FP_Git_Updater_Logger::log('error', __('Webhook: payload vuoto', 'fp-git-updater'));
                 return new WP_REST_Response(array(
                     'success' => false,
-                    'message' => 'Payload vuoto'
+                    'message' => __('Payload vuoto', 'fp-git-updater')
                 ), 400);
             }
         
@@ -178,24 +198,40 @@ class FP_Git_Updater_Webhook_Handler {
      */
     private function verify_signature($request) {
         $settings = get_option('fp_git_updater_settings');
-        $secret = isset($settings['webhook_secret']) ? $settings['webhook_secret'] : '';
+        $encrypted_secret = isset($settings['webhook_secret']) ? $settings['webhook_secret'] : '';
         
-        if (empty($secret)) {
-            // Se non c'è un secret configurato, accetta tutte le richieste (non sicuro!)
-            FP_Git_Updater_Logger::log('warning', 'Webhook: nessun secret configurato');
-            return true;
+        if (empty($encrypted_secret)) {
+            // Se non c'è un secret configurato, rifiuta la richiesta per sicurezza
+            FP_Git_Updater_Logger::log('error', 'Webhook: nessun secret configurato - richiesta rifiutata');
+            return false;
+        }
+        
+        // Decripta il secret
+        $encryption = FP_Git_Updater_Encryption::get_instance();
+        $secret = $encryption->decrypt($encrypted_secret);
+        
+        if ($secret === false) {
+            FP_Git_Updater_Logger::log('error', 'Webhook: impossibile decriptare il secret');
+            return false;
         }
         
         $signature = $request->get_header('X-Hub-Signature-256');
         
         if (empty($signature)) {
+            FP_Git_Updater_Logger::log('warning', 'Webhook: firma mancante nell\'header');
             return false;
         }
         
         $body = $request->get_body();
         $expected_signature = 'sha256=' . hash_hmac('sha256', $body, $secret);
         
-        return hash_equals($expected_signature, $signature);
+        $is_valid = hash_equals($expected_signature, $signature);
+        
+        if (!$is_valid) {
+            FP_Git_Updater_Logger::log('error', 'Webhook: firma non valida - possibile tentativo di accesso non autorizzato');
+        }
+        
+        return $is_valid;
     }
     
     /**

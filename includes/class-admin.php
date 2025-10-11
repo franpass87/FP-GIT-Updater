@@ -109,19 +109,30 @@ class FP_Git_Updater_Admin {
         }
         
         $output = array();
+        $encryption = FP_Git_Updater_Encryption::get_instance();
         
         // Sanitizza la lista di plugin
         if (isset($input['plugins']) && is_array($input['plugins'])) {
             $output['plugins'] = array();
             foreach ($input['plugins'] as $plugin) {
                 if (!empty($plugin['github_repo'])) {
+                    // Cripta il token GitHub se presente e non è vuoto
+                    $github_token = isset($plugin['github_token']) ? sanitize_text_field($plugin['github_token']) : '';
+                    if (!empty($github_token)) {
+                        // Se il token non è già criptato, criptalo
+                        if (!$encryption->is_encrypted($github_token)) {
+                            $encrypted_token = $encryption->encrypt($github_token);
+                            $github_token = $encrypted_token !== false ? $encrypted_token : $github_token;
+                        }
+                    }
+                    
                     $output['plugins'][] = array(
                         'id' => isset($plugin['id']) ? sanitize_text_field($plugin['id']) : uniqid('plugin_'),
-                        'name' => isset($plugin['name']) ? sanitize_text_field($plugin['name']) : 'Plugin senza nome',
+                        'name' => isset($plugin['name']) ? sanitize_text_field($plugin['name']) : __('Plugin senza nome', 'fp-git-updater'),
                         'github_repo' => sanitize_text_field($plugin['github_repo']),
                         'plugin_slug' => isset($plugin['plugin_slug']) ? sanitize_text_field($plugin['plugin_slug']) : '',
                         'branch' => isset($plugin['branch']) ? sanitize_text_field($plugin['branch']) : 'main',
-                        'github_token' => isset($plugin['github_token']) ? sanitize_text_field($plugin['github_token']) : '',
+                        'github_token' => $github_token,
                         'enabled' => isset($plugin['enabled']) ? true : false,
                     );
                 }
@@ -130,8 +141,15 @@ class FP_Git_Updater_Admin {
             $output['plugins'] = array();
         }
         
+        // Cripta il webhook secret se non è già criptato
         if (isset($input['webhook_secret'])) {
-            $output['webhook_secret'] = sanitize_text_field($input['webhook_secret']);
+            $webhook_secret = sanitize_text_field($input['webhook_secret']);
+            if (!empty($webhook_secret) && !$encryption->is_encrypted($webhook_secret)) {
+                $encrypted_secret = $encryption->encrypt($webhook_secret);
+                $output['webhook_secret'] = $encrypted_secret !== false ? $encrypted_secret : $webhook_secret;
+            } else {
+                $output['webhook_secret'] = $webhook_secret;
+            }
         }
         
         $output['auto_update'] = isset($input['auto_update']) ? true : false;
@@ -227,6 +245,15 @@ class FP_Git_Updater_Admin {
         $pending_updates = $updater->get_pending_updates();
         $auto_update_enabled = isset($settings['auto_update']) ? $settings['auto_update'] : false;
         
+        // Usa il template separato
+        include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/settings-page.php';
+    }
+    
+    /**
+     * Render pagina impostazioni (OLD - Deprecato, mantenuto per riferimento)
+     * Ora usa i template in includes/admin-templates/
+     */
+    private function render_settings_page_old() {
         ?>
         <div class="wrap fp-git-updater-wrap">
             <h1>

@@ -22,9 +22,10 @@ class FP_Git_Updater_Updater {
     
     private function __construct() {
         // Hook per l'aggiornamento schedulato
-        add_action('fp_git_updater_run_update', array($this, 'run_update'));
+        add_action('fp_git_updater_run_update', array($this, 'run_update'), 10, 2);
         add_action('fp_git_updater_check_update', array($this, 'check_for_updates'));
         add_action('fp_git_updater_cleanup_backup', array($this, 'cleanup_backup'));
+        add_action('fp_git_updater_cleanup_old_logs', array('FP_Git_Updater_Logger', 'clear_old_logs'));
         
         // Schedula controlli periodici se abilitati
         $this->schedule_update_checks();
@@ -287,7 +288,7 @@ class FP_Git_Updater_Updater {
     private function get_latest_commit($plugin) {
         $repo = $plugin['github_repo'];
         $branch = isset($plugin['branch']) ? $plugin['branch'] : 'main';
-        $token = isset($plugin['github_token']) ? $plugin['github_token'] : '';
+        $encrypted_token = isset($plugin['github_token']) ? $plugin['github_token'] : '';
         
         // URL API GitHub per ottenere l'ultimo commit
         $api_url = "https://api.github.com/repos/{$repo}/commits/{$branch}";
@@ -300,12 +301,19 @@ class FP_Git_Updater_Updater {
             'timeout' => 30,
         );
         
-        // Aggiungi il token se presente
-        if (!empty($token)) {
-            $args['headers']['Authorization'] = 'token ' . $token;
+        // Decripta e aggiungi il token se presente
+        if (!empty($encrypted_token)) {
+            $encryption = FP_Git_Updater_Encryption::get_instance();
+            $token = $encryption->decrypt($encrypted_token);
+            
+            if ($token !== false && !empty($token)) {
+                $args['headers']['Authorization'] = 'token ' . $token;
+            }
         }
         
-        $response = wp_remote_get($api_url, $args);
+        // Usa la cache per le chiamate API
+        $api_cache = FP_Git_Updater_API_Cache::get_instance();
+        $response = $api_cache->cached_api_call($api_url, $args, 300); // Cache per 5 minuti
         
         if (is_wp_error($response)) {
             return $response;
@@ -364,34 +372,44 @@ class FP_Git_Updater_Updater {
      * Esegue l'aggiornamento di un plugin specifico
      */
     private function run_plugin_update($commit_sha = null, $plugin) {
-        FP_Git_Updater_Logger::log('info', 'Inizio aggiornamento per: ' . $plugin['name']);
-        
-        // Notifica inizio aggiornamento
-        $this->send_notification('Inizio aggiornamento ' . $plugin['name'], 'L\'aggiornamento è iniziato...');
-        
-        $repo = $plugin['github_repo'];
-        $branch = isset($plugin['branch']) ? $plugin['branch'] : 'main';
-        $token = isset($plugin['github_token']) ? $plugin['github_token'] : '';
-        
-        if (empty($repo)) {
-            FP_Git_Updater_Logger::log('error', 'Repository non configurato per ' . $plugin['name']);
-            $this->send_notification('Errore aggiornamento', 'Repository non configurato per ' . $plugin['name']);
+        try {
+            FP_Git_Updater_Logger::log('info', 'Inizio aggiornamento per: ' . $plugin['name']);
+            
+            // Notifica inizio aggiornamento
+            $this->send_notification('Inizio aggiornamento ' . $plugin['name'], 'L\'aggiornamento è iniziato...');
+            
+            $repo = $plugin['github_repo'];
+            $branch = isset($plugin['branch']) ? $plugin['branch'] : 'main';
+            $encrypted_token = isset($plugin['github_token']) ? $plugin['github_token'] : '';
+            
+            if (empty($repo)) {
+                throw new Exception('Repository non configurato per ' . $plugin['name']);
+            }
+            
+            // URL per scaricare il file zip del repository
+            $download_url = "https://api.github.com/repos/{$repo}/zipball/{$branch}";
+            
+            $args = array(
+                'timeout' => 300,
+                'headers' => array(
+                    'Accept' => 'application/vnd.github.v3+json',
+                    'User-Agent' => 'FP-Git-Updater/' . FP_GIT_UPDATER_VERSION,
+                ),
+            );
+            
+            // Decripta e aggiungi il token se presente
+            if (!empty($encrypted_token)) {
+                $encryption = FP_Git_Updater_Encryption::get_instance();
+                $token = $encryption->decrypt($encrypted_token);
+                
+                if ($token !== false && !empty($token)) {
+                    $args['headers']['Authorization'] = 'token ' . $token;
+                }
+            }
+        } catch (Exception $e) {
+            FP_Git_Updater_Logger::log('error', 'Errore durante preparazione aggiornamento: ' . $e->getMessage());
+            $this->send_notification('Errore aggiornamento', $e->getMessage());
             return false;
-        }
-        
-        // URL per scaricare il file zip del repository
-        $download_url = "https://api.github.com/repos/{$repo}/zipball/{$branch}";
-        
-        $args = array(
-            'timeout' => 300,
-            'headers' => array(
-                'Accept' => 'application/vnd.github.v3+json',
-                'User-Agent' => 'FP-Git-Updater/' . FP_GIT_UPDATER_VERSION,
-            ),
-        );
-        
-        if (!empty($token)) {
-            $args['headers']['Authorization'] = 'token ' . $token;
         }
         
         // Scarica il file zip
