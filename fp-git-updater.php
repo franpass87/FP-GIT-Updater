@@ -92,17 +92,38 @@ class FP_Git_Updater {
     public function activate() {
         // Crea le opzioni di default
         $default_options = array(
-            'github_repo' => '',
-            'github_token' => '',
+            'plugins' => array(), // Lista di plugin da gestire
             'webhook_secret' => wp_generate_password(32, false),
             'auto_update' => true,
-            'branch' => 'main',
             'update_check_interval' => 'hourly',
             'enable_notifications' => true,
             'notification_email' => get_option('admin_email'),
         );
         
-        add_option('fp_git_updater_settings', $default_options);
+        // Se esiste già una configurazione, migra i dati vecchi
+        $existing_settings = get_option('fp_git_updater_settings');
+        if ($existing_settings && isset($existing_settings['github_repo']) && !empty($existing_settings['github_repo'])) {
+            // Migra da configurazione singola a lista
+            $default_options['plugins'][] = array(
+                'id' => uniqid('plugin_'),
+                'name' => 'FP Git Updater',
+                'github_repo' => $existing_settings['github_repo'],
+                'plugin_slug' => 'fp-git-updater',
+                'branch' => isset($existing_settings['branch']) ? $existing_settings['branch'] : 'main',
+                'github_token' => isset($existing_settings['github_token']) ? $existing_settings['github_token'] : '',
+                'enabled' => true,
+            );
+            // Mantieni le altre impostazioni
+            $default_options['webhook_secret'] = isset($existing_settings['webhook_secret']) ? $existing_settings['webhook_secret'] : $default_options['webhook_secret'];
+            $default_options['auto_update'] = isset($existing_settings['auto_update']) ? $existing_settings['auto_update'] : true;
+            $default_options['update_check_interval'] = isset($existing_settings['update_check_interval']) ? $existing_settings['update_check_interval'] : 'hourly';
+            $default_options['enable_notifications'] = isset($existing_settings['enable_notifications']) ? $existing_settings['enable_notifications'] : true;
+            $default_options['notification_email'] = isset($existing_settings['notification_email']) ? $existing_settings['notification_email'] : get_option('admin_email');
+            
+            update_option('fp_git_updater_settings', $default_options);
+        } else {
+            add_option('fp_git_updater_settings', $default_options);
+        }
         
         // Crea la tabella per i log
         $this->create_log_table();

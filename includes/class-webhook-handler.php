@@ -67,15 +67,42 @@ class FP_Git_Updater_Webhook_Handler {
             ), 200);
         }
         
-        // Verifica il branch
+        // Identifica il plugin basandosi sul repository
         $settings = get_option('fp_git_updater_settings');
-        $target_branch = isset($settings['branch']) ? $settings['branch'] : 'main';
+        $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
+        
+        $repository = isset($payload['repository']['full_name']) ? $payload['repository']['full_name'] : '';
+        
+        if (empty($repository)) {
+            FP_Git_Updater_Logger::log('error', 'Webhook: repository non identificato nel payload');
+            return new WP_Error('invalid_payload', 'Repository non identificato', array('status' => 400));
+        }
+        
+        // Trova il plugin corrispondente al repository
+        $matched_plugin = null;
+        foreach ($plugins as $plugin) {
+            if ($plugin['github_repo'] === $repository && isset($plugin['enabled']) && $plugin['enabled']) {
+                $matched_plugin = $plugin;
+                break;
+            }
+        }
+        
+        if (!$matched_plugin) {
+            FP_Git_Updater_Logger::log('info', 'Webhook: nessun plugin configurato per il repository ' . $repository);
+            return new WP_REST_Response(array(
+                'success' => true,
+                'message' => 'Repository non configurato o disabilitato: ' . $repository
+            ), 200);
+        }
+        
+        // Verifica il branch
+        $target_branch = isset($matched_plugin['branch']) ? $matched_plugin['branch'] : 'main';
         
         $ref = isset($payload['ref']) ? $payload['ref'] : '';
         $branch = str_replace('refs/heads/', '', $ref);
         
         if ($branch !== $target_branch) {
-            FP_Git_Updater_Logger::log('info', 'Webhook: branch ignorato - ' . $branch);
+            FP_Git_Updater_Logger::log('info', 'Webhook: branch ignorato - ' . $branch . ' per ' . $matched_plugin['name']);
             return new WP_REST_Response(array(
                 'success' => true,
                 'message' => 'Branch ignorato: ' . $branch
@@ -85,25 +112,27 @@ class FP_Git_Updater_Webhook_Handler {
         // Log dei dettagli del push
         $commit_message = isset($payload['head_commit']['message']) ? $payload['head_commit']['message'] : 'N/A';
         $commit_author = isset($payload['head_commit']['author']['name']) ? $payload['head_commit']['author']['name'] : 'N/A';
-        $commit_sha = isset($payload['head_commit']['id']) ? substr($payload['head_commit']['id'], 0, 7) : 'N/A';
+        $commit_sha = isset($payload['head_commit']['id']) ? $payload['head_commit']['id'] : '';
+        $commit_sha_short = substr($commit_sha, 0, 7);
         
-        FP_Git_Updater_Logger::log('info', 'Push ricevuto sul branch ' . $branch, array(
-            'commit' => $commit_sha,
+        FP_Git_Updater_Logger::log('info', 'Push ricevuto per ' . $matched_plugin['name'] . ' sul branch ' . $branch, array(
+            'commit' => $commit_sha_short,
             'author' => $commit_author,
             'message' => $commit_message,
         ));
         
         // Se l'aggiornamento automatico è abilitato, avvia l'aggiornamento
         if (isset($settings['auto_update']) && $settings['auto_update']) {
-            // Schedula l'aggiornamento (eseguilo in background)
-            wp_schedule_single_event(time(), 'fp_git_updater_run_update', array($commit_sha));
+            // Schedula l'aggiornamento (eseguilo in background) passando il plugin come parametro
+            wp_schedule_single_event(time(), 'fp_git_updater_run_update', array($commit_sha, $matched_plugin));
             
-            FP_Git_Updater_Logger::log('info', 'Aggiornamento schedulato per il commit ' . $commit_sha);
+            FP_Git_Updater_Logger::log('info', 'Aggiornamento schedulato per ' . $matched_plugin['name'] . ' al commit ' . $commit_sha_short);
             
             return new WP_REST_Response(array(
                 'success' => true,
-                'message' => 'Aggiornamento schedulato',
-                'commit' => $commit_sha
+                'message' => 'Aggiornamento schedulato per ' . $matched_plugin['name'],
+                'commit' => $commit_sha_short,
+                'plugin' => $matched_plugin['name']
             ), 200);
         }
         
