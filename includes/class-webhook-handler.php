@@ -128,24 +128,41 @@ class FP_Git_Updater_Webhook_Handler {
             'message' => $commit_message,
         ));
         
+            // Registra l'aggiornamento disponibile
+            update_option('fp_git_updater_pending_update_' . $matched_plugin['id'], array(
+                'commit_sha' => $commit_sha,
+                'commit_sha_short' => $commit_sha_short,
+                'commit_message' => $commit_message,
+                'commit_author' => $commit_author,
+                'branch' => $branch,
+                'timestamp' => current_time('mysql'),
+                'plugin_name' => $matched_plugin['name'],
+            ));
+            
             // Se l'aggiornamento automatico è abilitato, avvia l'aggiornamento
             if (isset($settings['auto_update']) && $settings['auto_update']) {
                 // Schedula l'aggiornamento (eseguilo in background) passando il plugin come parametro
                 wp_schedule_single_event(time(), 'fp_git_updater_run_update', array($commit_sha, $matched_plugin));
                 
-                FP_Git_Updater_Logger::log('info', 'Aggiornamento schedulato per ' . $matched_plugin['name'] . ' al commit ' . $commit_sha_short);
+                FP_Git_Updater_Logger::log('info', 'Aggiornamento automatico schedulato per ' . $matched_plugin['name'] . ' al commit ' . $commit_sha_short);
                 
                 return new WP_REST_Response(array(
                     'success' => true,
-                    'message' => 'Aggiornamento schedulato per ' . $matched_plugin['name'],
+                    'message' => 'Aggiornamento automatico schedulato per ' . $matched_plugin['name'],
                     'commit' => $commit_sha_short,
                     'plugin' => $matched_plugin['name']
                 ), 200);
             }
             
+            // Aggiornamento manuale: notifica disponibilità
+            FP_Git_Updater_Logger::log('info', 'Nuovo aggiornamento disponibile per ' . $matched_plugin['name'] . ' (commit: ' . $commit_sha_short . '). Installazione manuale richiesta.');
+            
             return new WP_REST_Response(array(
                 'success' => true,
-                'message' => 'Webhook ricevuto ma aggiornamento automatico disabilitato'
+                'message' => 'Aggiornamento disponibile per ' . $matched_plugin['name'] . '. Accedi al pannello admin per installarlo manualmente.',
+                'commit' => $commit_sha_short,
+                'plugin' => $matched_plugin['name'],
+                'mode' => 'manual'
             ), 200);
         } catch (Exception $e) {
             FP_Git_Updater_Logger::log('error', 'Errore nel webhook handler: ' . $e->getMessage());

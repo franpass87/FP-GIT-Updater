@@ -102,7 +102,44 @@ class FP_Git_Updater_Updater {
             return new WP_Error('plugin_disabled', 'Plugin disabilitato');
         }
         
-        return $this->run_plugin_update(null, $plugin);
+        // Ottieni il commit dal pending update se esiste
+        $pending = get_option('fp_git_updater_pending_update_' . $plugin_id);
+        $commit_sha = $pending && isset($pending['commit_sha']) ? $pending['commit_sha'] : null;
+        
+        $result = $this->run_plugin_update($commit_sha, $plugin);
+        
+        // Se l'aggiornamento ha successo, rimuovi il pending update
+        if ($result && !is_wp_error($result)) {
+            delete_option('fp_git_updater_pending_update_' . $plugin_id);
+        }
+        
+        return $result;
+    }
+    
+    /**
+     * Ottiene tutti gli aggiornamenti pending
+     */
+    public function get_pending_updates() {
+        $settings = get_option('fp_git_updater_settings');
+        $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
+        $pending_updates = array();
+        
+        foreach ($plugins as $plugin) {
+            $pending = get_option('fp_git_updater_pending_update_' . $plugin['id']);
+            if ($pending) {
+                $pending['plugin'] = $plugin;
+                $pending_updates[] = $pending;
+            }
+        }
+        
+        return $pending_updates;
+    }
+    
+    /**
+     * Rimuove un pending update
+     */
+    public function clear_pending_update($plugin_id) {
+        return delete_option('fp_git_updater_pending_update_' . $plugin_id);
     }
     
     /**
@@ -217,10 +254,25 @@ class FP_Git_Updater_Updater {
         if ($latest_commit !== $current_commit) {
             FP_Git_Updater_Logger::log('info', 'Nuovo aggiornamento disponibile per ' . $plugin['name'] . ': ' . $latest_commit);
             
+            // Registra l'aggiornamento come pending
+            $commit_short = substr($latest_commit, 0, 7);
+            update_option('fp_git_updater_pending_update_' . $plugin['id'], array(
+                'commit_sha' => $latest_commit,
+                'commit_sha_short' => $commit_short,
+                'commit_message' => 'Aggiornamento rilevato dal controllo schedulato',
+                'commit_author' => 'Sistema',
+                'branch' => isset($plugin['branch']) ? $plugin['branch'] : 'main',
+                'timestamp' => current_time('mysql'),
+                'plugin_name' => $plugin['name'],
+            ));
+            
             // Se l'aggiornamento automatico è abilitato, eseguilo
             $settings = get_option('fp_git_updater_settings');
             if (isset($settings['auto_update']) && $settings['auto_update']) {
+                FP_Git_Updater_Logger::log('info', 'Aggiornamento automatico in corso per ' . $plugin['name']);
                 $this->run_update($latest_commit, $plugin);
+            } else {
+                FP_Git_Updater_Logger::log('info', 'Aggiornamento disponibile per ' . $plugin['name'] . ' ma installazione manuale richiesta (auto_update disabilitato)');
             }
             
             return true;
@@ -501,6 +553,9 @@ class FP_Git_Updater_Updater {
         }
         
         update_option('fp_git_updater_last_update_' . $plugin['id'], current_time('mysql'));
+        
+        // Rimuovi il pending update se esiste
+        delete_option('fp_git_updater_pending_update_' . $plugin['id']);
         
         FP_Git_Updater_Logger::log('success', 'Aggiornamento completato con successo per: ' . $plugin['name']);
         $this->send_notification('Aggiornamento completato', 'Il plugin ' . $plugin['name'] . ' è stato aggiornato con successo!');

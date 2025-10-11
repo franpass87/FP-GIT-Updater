@@ -121,6 +121,36 @@
     100% { transform: rotate(360deg); }
 }
 
+/* Pulse animation for update buttons */
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(210, 54, 56, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(210, 54, 56, 0);
+    }
+}
+
+/* Update count badge in title */
+.update-count {
+    display: inline-block;
+    background: #d63638;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 12px;
+    line-height: 1;
+    vertical-align: middle;
+    margin-left: 10px;
+}
+
+/* Highlight plugin items with pending updates */
+.fp-plugin-item.has-update {
+    border-left-width: 4px;
+    border-left-color: #d63638;
+}
+
 /* Notice styles */
 .fp-notice {
     padding: 12px;

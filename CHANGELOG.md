@@ -5,6 +5,46 @@ Tutte le modifiche importanti a questo progetto saranno documentate in questo fi
 Il formato è basato su [Keep a Changelog](https://keepachangelog.com/it/1.0.0/),
 e questo progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
 
+## [1.1.0] - 2025-10-11
+
+### 🎯 Aggiunto
+- **Sistema di Aggiornamento Manuale Sicuro**: Implementato sistema completo di "pending updates" per proteggere i siti di produzione
+  - Gli aggiornamenti disponibili vengono registrati ma NON installati automaticamente quando `auto_update` è disabilitato
+  - Badge di notifica nel menu WordPress mostra il numero di aggiornamenti disponibili
+  - Banner prominente nella pagina delle impostazioni elenca tutti gli aggiornamenti pending
+  - Indicatori visivi (badge rossi, bordi colorati, animazioni) sui plugin con aggiornamenti disponibili
+  - Informazioni dettagliate per ogni aggiornamento: commit SHA, messaggio, autore, timestamp
+
+### 🔒 Migliorato
+- **Sicurezza**: Default `auto_update` cambiato a `false` per nuove installazioni (maggiore controllo)
+- **Interfaccia Utente**: Completamente rinnovata con notifiche chiare e indicatori visivi
+  - Modalità manuale: badge verde con icona shield
+  - Modalità automatica: avviso giallo di attenzione
+  - Pulsante "Installa Aggiornamento" con animazione pulse quando ci sono aggiornamenti
+- **Documentazione**: Istruzioni chiare su entrambe le modalità (manuale vs automatica)
+- **Logging**: Log più dettagliati che distinguono tra aggiornamenti automatici e notifiche
+
+### 🛠️ Modificato
+- **class-webhook-handler.php**: Ora registra sempre gli aggiornamenti come pending prima di decidere se installarli
+- **class-updater.php**: Aggiunto sistema di tracking degli aggiornamenti pending con metodi dedicati
+- **class-admin.php**: Interfaccia completamente aggiornata con visualizzazione pending updates
+- **Versione plugin**: 1.0.0 → 1.1.0
+
+### 🎨 CSS
+- Aggiunta animazione `@keyframes pulse` per effetti visivi
+- Nuovi stili per badge update-count
+- Evidenziazione plugin con aggiornamenti pending
+
+### ✅ Compatibilità
+- Retrocompatibile con installazioni esistenti
+- Le impostazioni `auto_update` esistenti vengono preservate durante l'upgrade
+- Nessuna breaking change
+
+### 📝 Note per gli Sviluppatori
+- Nuovi metodi API disponibili: `get_pending_updates()`, `clear_pending_update($plugin_id)`
+- I pending updates sono salvati come option WordPress: `fp_git_updater_pending_update_{plugin_id}`
+- Viene automaticamente rimosso il pending update dopo installazione riuscita
+
 ## [1.0.0] - 2025-10-11
 
 ### Aggiunto

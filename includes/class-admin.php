@@ -38,9 +38,20 @@ class FP_Git_Updater_Admin {
      * Aggiungi menu admin
      */
     public function add_admin_menu() {
+        // Conta gli aggiornamenti pending
+        $updater = FP_Git_Updater_Updater::get_instance();
+        $pending_updates = $updater->get_pending_updates();
+        $pending_count = count($pending_updates);
+        
+        // Crea il titolo del menu con badge se ci sono aggiornamenti
+        $menu_title = 'Git Updater';
+        if ($pending_count > 0) {
+            $menu_title .= ' <span class="update-plugins count-' . $pending_count . '"><span class="update-count">' . $pending_count . '</span></span>';
+        }
+        
         add_menu_page(
             'FP Git Updater',
-            'Git Updater',
+            $menu_title,
             'manage_options',
             'fp-git-updater',
             array($this, 'render_settings_page'),
@@ -211,12 +222,63 @@ class FP_Git_Updater_Admin {
         $webhook_url = FP_Git_Updater_Webhook_Handler::get_webhook_url();
         $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
         
+        // Ottieni gli aggiornamenti pending
+        $updater = FP_Git_Updater_Updater::get_instance();
+        $pending_updates = $updater->get_pending_updates();
+        $auto_update_enabled = isset($settings['auto_update']) ? $settings['auto_update'] : false;
+        
         ?>
         <div class="wrap fp-git-updater-wrap">
             <h1>
                 <span class="dashicons dashicons-update"></span>
                 FP Git Updater - Impostazioni
+                <?php if (!empty($pending_updates)): ?>
+                    <span class="update-count"><?php echo count($pending_updates); ?></span>
+                <?php endif; ?>
             </h1>
+            
+            <?php if (!empty($pending_updates)): ?>
+                <div class="fp-notice fp-notice-info" style="border-left-color: #d63638; background: #fcf0f1;">
+                    <h3 style="margin-top: 0;">⚠️ Aggiornamenti Disponibili (<?php echo count($pending_updates); ?>)</h3>
+                    <p><strong>I seguenti plugin hanno aggiornamenti pronti per essere installati:</strong></p>
+                    <ul style="margin-left: 20px;">
+                        <?php foreach ($pending_updates as $pending): ?>
+                            <li>
+                                <strong><?php echo esc_html($pending['plugin_name']); ?></strong> - 
+                                Commit: <code><?php echo esc_html($pending['commit_sha_short']); ?></code>
+                                <?php if (!empty($pending['commit_message']) && $pending['commit_message'] !== 'Aggiornamento rilevato dal controllo schedulato'): ?>
+                                    <br><em style="color: #666;"><?php echo esc_html($pending['commit_message']); ?></em>
+                                    <?php if (!empty($pending['commit_author']) && $pending['commit_author'] !== 'Sistema'): ?>
+                                        - da <?php echo esc_html($pending['commit_author']); ?>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+                                <br><small>Ricevuto: <?php echo esc_html($pending['timestamp']); ?></small>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <p style="margin-bottom: 0;">
+                        <strong>Azione richiesta:</strong> Scorri in basso e clicca su "Installa Aggiornamento" per ogni plugin che vuoi aggiornare.
+                    </p>
+                </div>
+            <?php endif; ?>
+            
+            <?php if (!$auto_update_enabled): ?>
+                <div class="fp-notice fp-notice-info">
+                    <p>
+                        <span class="dashicons dashicons-shield-alt" style="color: #2271b1;"></span>
+                        <strong>Modalità Aggiornamento Manuale Attiva</strong> - Gli aggiornamenti non verranno installati automaticamente. 
+                        Riceverai una notifica quando sono disponibili e potrai installarli manualmente quando sei pronto.
+                    </p>
+                </div>
+            <?php else: ?>
+                <div class="fp-notice fp-notice-info" style="border-left-color: #dba617; background: #fcf9e8;">
+                    <p>
+                        <span class="dashicons dashicons-warning" style="color: #dba617;"></span>
+                        <strong>Attenzione:</strong> Aggiornamento Automatico Attivo - I plugin verranno aggiornati automaticamente quando ricevi un push da GitHub.
+                        <br>Se vuoi maggiore controllo e sicurezza per i siti dei tuoi clienti, disabilita questa opzione qui sotto.
+                    </p>
+                </div>
+            <?php endif; ?>
             
             <form method="post" action="options.php">
                 <?php settings_fields('fp_git_updater_settings_group'); ?>
@@ -226,10 +288,26 @@ class FP_Git_Updater_Admin {
                 
                 <div id="fp-plugins-list">
                     <?php if (!empty($plugins)): ?>
-                        <?php foreach ($plugins as $index => $plugin): ?>
-                            <div class="fp-plugin-item" data-index="<?php echo $index; ?>">
+                        <?php foreach ($plugins as $index => $plugin): 
+                            // Controlla se questo plugin ha un aggiornamento pending
+                            $has_pending_update = false;
+                            $pending_info = null;
+                            foreach ($pending_updates as $pending) {
+                                if ($pending['plugin']['id'] === $plugin['id']) {
+                                    $has_pending_update = true;
+                                    $pending_info = $pending;
+                                    break;
+                                }
+                            }
+                        ?>
+                            <div class="fp-plugin-item <?php echo $has_pending_update ? 'has-update' : ''; ?>" data-index="<?php echo $index; ?>" <?php echo $has_pending_update ? 'style="border-left: 4px solid #d63638;"' : ''; ?>>
                                 <div class="fp-plugin-header">
-                                    <h3><?php echo esc_html($plugin['name']); ?></h3>
+                                    <h3>
+                                        <?php echo esc_html($plugin['name']); ?>
+                                        <?php if ($has_pending_update): ?>
+                                            <span class="log-badge" style="background: #d63638; margin-left: 10px;">AGGIORNAMENTO DISPONIBILE</span>
+                                        <?php endif; ?>
+                                    </h3>
                                     <div class="fp-plugin-actions">
                                         <button type="button" class="button fp-toggle-plugin" data-target="plugin-details-<?php echo $index; ?>">
                                             <span class="dashicons dashicons-edit"></span> Modifica
@@ -239,6 +317,20 @@ class FP_Git_Updater_Admin {
                                         </button>
                                     </div>
                                 </div>
+                                <?php if ($has_pending_update && $pending_info): ?>
+                                    <div class="fp-notice fp-notice-error" style="margin: 10px 0; padding: 10px; border-left-color: #d63638; background: #fcf0f1;">
+                                        <p style="margin: 0;">
+                                            <strong>🔄 Nuovo aggiornamento pronto!</strong><br>
+                                            <small>
+                                                Commit: <code><?php echo esc_html($pending_info['commit_sha_short']); ?></code>
+                                                <?php if (!empty($pending_info['commit_message']) && $pending_info['commit_message'] !== 'Aggiornamento rilevato dal controllo schedulato'): ?>
+                                                    - <?php echo esc_html($pending_info['commit_message']); ?>
+                                                <?php endif; ?>
+                                                <br>Ricevuto: <?php echo esc_html($pending_info['timestamp']); ?>
+                                            </small>
+                                        </p>
+                                    </div>
+                                <?php endif; ?>
                                 <div class="fp-plugin-info">
                                     <span><strong>Repository:</strong> <?php echo esc_html($plugin['github_repo']); ?></span>
                                     <span><strong>Branch:</strong> <?php echo esc_html($plugin['branch']); ?></span>
@@ -250,8 +342,9 @@ class FP_Git_Updater_Admin {
                                     <button type="button" class="button button-small fp-check-updates" data-plugin-id="<?php echo esc_attr($plugin['id']); ?>">
                                         <span class="dashicons dashicons-cloud"></span> Controlla Aggiornamenti
                                     </button>
-                                    <button type="button" class="button button-small button-primary fp-install-update" data-plugin-id="<?php echo esc_attr($plugin['id']); ?>">
-                                        <span class="dashicons dashicons-update"></span> Installa Aggiornamento
+                                    <button type="button" class="button button-small <?php echo $has_pending_update ? 'button-primary' : ''; ?> fp-install-update" data-plugin-id="<?php echo esc_attr($plugin['id']); ?>" <?php echo $has_pending_update ? 'style="animation: pulse 2s infinite;"' : ''; ?>>
+                                        <span class="dashicons dashicons-<?php echo $has_pending_update ? 'download' : 'update'; ?>"></span> 
+                                        <?php echo $has_pending_update ? 'Installa Aggiornamento Ora' : 'Installa Aggiornamento'; ?>
                                     </button>
                                 </div>
                                 <div id="plugin-details-<?php echo $index; ?>" class="fp-plugin-details" style="display: none;">
@@ -426,7 +519,28 @@ class FP_Git_Updater_Admin {
             </form>
             
             <div class="fp-git-updater-instructions">
-                <h2>Come configurare il webhook su GitHub</h2>
+                <h2>📋 Come Funziona</h2>
+                
+                <h3>🔒 Aggiornamento Manuale (Consigliato per Siti di Produzione)</h3>
+                <p>Con l'aggiornamento manuale disabilitato (opzione sopra), il plugin funziona in questo modo:</p>
+                <ol>
+                    <li>Quando fai push/merge su GitHub, il webhook notifica questo sito</li>
+                    <li>Il plugin registra l'aggiornamento come "disponibile" ma <strong>NON lo installa automaticamente</strong></li>
+                    <li>Ricevi una notifica visibile nel menu admin e nella pagina delle impostazioni</li>
+                    <li><strong>Tu decidi quando installare</strong> l'aggiornamento cliccando sul pulsante "Installa Aggiornamento"</li>
+                    <li>Questo ti permette di <strong>testare prima gli aggiornamenti</strong> su un sito di staging</li>
+                </ol>
+                <p><strong style="color: #00a32a;">✓ Vantaggi:</strong> Protezione totale da aggiornamenti problematici, controllo completo, ideale per siti di clienti.</p>
+                
+                <h3 style="margin-top: 20px;">⚡ Aggiornamento Automatico</h3>
+                <p>Se abiliti l'opzione "Aggiornamento Automatico" sopra:</p>
+                <ul style="padding-left: 20px;">
+                    <li>Gli aggiornamenti vengono installati immediatamente quando ricevi un push da GitHub</li>
+                    <li>Utile per ambienti di sviluppo o plugin molto stabili</li>
+                    <li><strong style="color: #d63638;">⚠ Attenzione:</strong> Un aggiornamento con bug andrà automaticamente in produzione</li>
+                </ul>
+                
+                <h3 style="margin-top: 20px;">🔗 Configurazione Webhook su GitHub</h3>
                 <p><strong>Importante:</strong> Devi configurare il webhook per ogni repository che hai aggiunto sopra.</p>
                 <ol>
                     <li>Vai sul repository GitHub del plugin che vuoi aggiornare</li>
@@ -438,7 +552,6 @@ class FP_Git_Updater_Admin {
                     <li>Clicca su <strong>Add webhook</strong></li>
                     <li>Ripeti per ogni repository che hai configurato</li>
                 </ol>
-                <p>Ora ogni volta che fai push o merge sul branch configurato di qualsiasi repository, il plugin corrispondente si aggiornerà automaticamente!</p>
             </div>
         </div>
         
