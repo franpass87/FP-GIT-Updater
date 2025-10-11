@@ -187,7 +187,9 @@ GPL v2 o successiva
 
 ## 👤 Autore
 
-Creato per uso personale - personalizza a piacere!
+**Francesco Passeri**
+- Website: [www.francescopasseri.com](https://www.francescopasseri.com)
+- Email: info@francescopasseri.com
 
 ## 🆘 Supporto
 
