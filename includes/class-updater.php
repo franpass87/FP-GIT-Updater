@@ -138,7 +138,13 @@ class FP_Git_Updater_Updater {
         $code = wp_remote_retrieve_response_code($response);
         
         if ($code !== 200) {
-            return new WP_Error('api_error', 'Errore API GitHub: ' . $code);
+            $error_message = 'Errore API GitHub: ' . $code;
+            if ($code === 404) {
+                $error_message .= ' - Repository o branch non trovato. Verifica: ' . $repo . ' (branch: ' . $branch . ')';
+            } elseif ($code === 401 || $code === 403) {
+                $error_message .= ' - Accesso negato. Verifica il token GitHub.';
+            }
+            return new WP_Error('api_error', $error_message);
         }
         
         $body = wp_remote_retrieve_body($response);
@@ -305,16 +311,22 @@ class FP_Git_Updater_Updater {
         
         $plugin_dir = WP_PLUGIN_DIR . '/' . $plugin_slug;
         
-        // Backup della versione attuale
-        FP_Git_Updater_Logger::log('info', 'Creazione backup...');
-        $backup_dir = WP_CONTENT_DIR . '/upgrade/fp-git-updater-backup-' . time();
-        
-        // Usa rename() nativo che è più affidabile per operazioni atomiche
-        if (!@rename($plugin_dir, $backup_dir)) {
-            FP_Git_Updater_Logger::log('error', 'Impossibile creare backup');
-            $wp_filesystem->delete($temp_extract_dir, true);
-            $this->send_notification('Errore aggiornamento', 'Impossibile creare backup della versione corrente');
-            return false;
+        // Backup della versione attuale (solo se la directory esiste)
+        $backup_dir = null;
+        if (file_exists($plugin_dir) && is_dir($plugin_dir)) {
+            FP_Git_Updater_Logger::log('info', 'Creazione backup...');
+            $backup_dir = WP_CONTENT_DIR . '/upgrade/fp-git-updater-backup-' . time();
+            
+            // Usa rename() nativo che è più affidabile per operazioni atomiche
+            if (!@rename($plugin_dir, $backup_dir)) {
+                FP_Git_Updater_Logger::log('error', 'Impossibile creare backup: verifica i permessi della directory');
+                $wp_filesystem->delete($temp_extract_dir, true);
+                $this->send_notification('Errore aggiornamento', 'Impossibile creare backup della versione corrente. Verifica i permessi.');
+                return false;
+            }
+            FP_Git_Updater_Logger::log('info', 'Backup creato con successo');
+        } else {
+            FP_Git_Updater_Logger::log('info', 'Prima installazione, backup non necessario');
         }
         
         // Copia i nuovi file
@@ -322,11 +334,16 @@ class FP_Git_Updater_Updater {
         $copy_result = copy_dir($source_dir, $plugin_dir);
         
         if (is_wp_error($copy_result)) {
-            // Ripristina il backup
+            // Ripristina il backup se esiste
             FP_Git_Updater_Logger::log('error', 'Errore installazione: ' . $copy_result->get_error_message());
-            @rename($backup_dir, $plugin_dir);
+            if ($backup_dir && file_exists($backup_dir)) {
+                @rename($backup_dir, $plugin_dir);
+                FP_Git_Updater_Logger::log('info', 'Backup ripristinato');
+                $this->send_notification('Errore aggiornamento', 'Errore durante l\'installazione. Backup ripristinato.');
+            } else {
+                $this->send_notification('Errore aggiornamento', 'Errore durante l\'installazione.');
+            }
             $wp_filesystem->delete($temp_extract_dir, true);
-            $this->send_notification('Errore aggiornamento', 'Errore durante l\'installazione. Backup ripristinato.');
             return false;
         }
         
@@ -348,8 +365,10 @@ class FP_Git_Updater_Updater {
         FP_Git_Updater_Logger::log('success', 'Aggiornamento completato con successo per: ' . $plugin['name']);
         $this->send_notification('Aggiornamento completato', 'Il plugin ' . $plugin['name'] . ' è stato aggiornato con successo!');
         
-        // Mantieni il backup per 7 giorni
-        wp_schedule_single_event(time() + (7 * DAY_IN_SECONDS), 'fp_git_updater_cleanup_backup', array($backup_dir));
+        // Mantieni il backup per 7 giorni (se è stato creato)
+        if ($backup_dir && file_exists($backup_dir)) {
+            wp_schedule_single_event(time() + (7 * DAY_IN_SECONDS), 'fp_git_updater_cleanup_backup', array($backup_dir));
+        }
         
         return true;
     }
