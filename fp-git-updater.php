@@ -53,10 +53,14 @@ class FP_Git_Updater {
      * Carica le dipendenze
      */
     private function load_dependencies() {
+        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-logger.php';
+        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-encryption.php';
+        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-rate-limiter.php';
+        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-api-cache.php';
+        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-migration.php';
         require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-webhook-handler.php';
         require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-updater.php';
         require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-admin.php';
-        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-logger.php';
         require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-settings-backup.php';
     }
     
@@ -70,15 +74,34 @@ class FP_Git_Updater {
         
         // Inizializza i componenti
         add_action('plugins_loaded', array($this, 'init_components'));
+        add_action('init', array($this, 'load_textdomain'));
         
         // Aggiungi link alle impostazioni nella pagina dei plugin
         add_filter('plugin_action_links_' . FP_GIT_UPDATER_PLUGIN_BASENAME, array($this, 'add_action_links'));
     }
     
     /**
+     * Carica le traduzioni
+     */
+    public function load_textdomain() {
+        load_plugin_textdomain(
+            'fp-git-updater',
+            false,
+            dirname(FP_GIT_UPDATER_PLUGIN_BASENAME) . '/languages'
+        );
+    }
+    
+    /**
      * Inizializza i componenti del plugin
      */
     public function init_components() {
+        // Inizializza utility classes
+        FP_Git_Updater_Encryption::get_instance();
+        FP_Git_Updater_Rate_Limiter::get_instance();
+        FP_Git_Updater_API_Cache::get_instance();
+        FP_Git_Updater_Migration::get_instance();
+        
+        // Inizializza componenti principali
         FP_Git_Updater_Webhook_Handler::get_instance();
         FP_Git_Updater_Updater::get_instance();
         FP_Git_Updater_Settings_Backup::get_instance();
@@ -162,6 +185,11 @@ class FP_Git_Updater {
         $timestamp = wp_next_scheduled('fp_git_updater_check_update');
         if ($timestamp) {
             wp_unschedule_event($timestamp, 'fp_git_updater_check_update');
+        }
+        
+        $timestamp = wp_next_scheduled('fp_git_updater_cleanup_old_logs');
+        if ($timestamp) {
+            wp_unschedule_event($timestamp, 'fp_git_updater_cleanup_old_logs');
         }
         
         flush_rewrite_rules();
