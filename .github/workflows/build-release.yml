@@ -17,7 +17,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Crea pacchetto ZIP
         run: |
@@ -53,7 +53,7 @@ jobs:
           echo "✅ Pacchetto creato: ${ZIP_NAME}"
       
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: fp-git-updater
           path: fp-git-updater.zip
@@ -72,10 +72,10 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Download artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: fp-git-updater
       
