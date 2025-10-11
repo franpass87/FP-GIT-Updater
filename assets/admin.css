@@ -167,6 +167,102 @@
     margin-right: 4px;
 }
 
+/* Plugin list styles */
+#fp-plugins-list {
+    margin: 20px 0;
+}
+
+.fp-plugin-item {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    padding: 15px;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    transition: all 0.3s ease;
+}
+
+.fp-plugin-item:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,.08);
+}
+
+.fp-plugin-item.new-plugin {
+    border-color: #2271b1;
+    border-width: 2px;
+}
+
+.fp-plugin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.fp-plugin-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.fp-plugin-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.fp-plugin-actions button {
+    padding: 4px 8px;
+    height: auto;
+    line-height: 1.4;
+}
+
+.fp-plugin-info {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding: 10px 0;
+    font-size: 13px;
+    color: #666;
+}
+
+.fp-plugin-status {
+    font-weight: 600;
+}
+
+.fp-plugin-status.enabled {
+    color: #00a32a;
+}
+
+.fp-plugin-status.disabled {
+    color: #d63638;
+}
+
+.fp-plugin-details {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+}
+
+.fp-plugin-details .form-table {
+    margin-top: 0;
+}
+
+.fp-plugin-details .form-table th {
+    width: 180px;
+    padding: 10px;
+}
+
+.fp-plugin-details .form-table td {
+    padding: 10px;
+}
+
+#fp-add-plugin {
+    margin: 20px 0;
+}
+
+/* Template hidden */
+#fp-plugin-template {
+    display: none;
+}
+
 /* Table responsive */
 @media screen and (max-width: 782px) {
     .fp-git-updater-wrap {
@@ -177,5 +273,24 @@
         display: block;
         width: 100%;
         margin: 10px 0;
+    }
+    
+    .fp-plugin-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .fp-plugin-info {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .fp-plugin-actions {
+        width: 100%;
+    }
+    
+    .fp-plugin-actions button {
+        flex: 1;
     }
 }

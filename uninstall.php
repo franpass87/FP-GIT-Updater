@@ -10,10 +10,24 @@ if (!defined('WP_UNINSTALL_PLUGIN')) {
     exit;
 }
 
-// Rimuovi le opzioni
-delete_option('fp_git_updater_settings');
+// Rimuovi le opzioni principali
+$settings = get_option('fp_git_updater_settings');
+if ($settings && isset($settings['plugins'])) {
+    // Rimuovi le opzioni per ogni plugin
+    foreach ($settings['plugins'] as $plugin) {
+        if (isset($plugin['id'])) {
+            delete_option('fp_git_updater_current_commit_' . $plugin['id']);
+            delete_option('fp_git_updater_last_update_' . $plugin['id']);
+        }
+    }
+}
+
+// Rimuovi anche le vecchie opzioni (per retrocompatibilità)
 delete_option('fp_git_updater_current_commit');
 delete_option('fp_git_updater_last_update');
+
+// Rimuovi le impostazioni
+delete_option('fp_git_updater_settings');
 
 // Rimuovi i cron job schedulati
 $timestamp = wp_next_scheduled('fp_git_updater_check_update');

@@ -43,32 +43,60 @@ class FP_Git_Updater_Updater {
     }
     
     /**
-     * Controlla se ci sono aggiornamenti disponibili
+     * Controlla se ci sono aggiornamenti disponibili per tutti i plugin
      */
     public function check_for_updates() {
         $settings = get_option('fp_git_updater_settings');
+        $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
         
-        if (empty($settings['github_repo'])) {
+        if (empty($plugins)) {
             return false;
         }
         
-        FP_Git_Updater_Logger::log('info', 'Controllo aggiornamenti...');
+        FP_Git_Updater_Logger::log('info', 'Controllo aggiornamenti per tutti i plugin...');
         
-        $latest_commit = $this->get_latest_commit();
+        $updates_available = false;
+        
+        foreach ($plugins as $plugin) {
+            if (!isset($plugin['enabled']) || !$plugin['enabled']) {
+                continue;
+            }
+            
+            $result = $this->check_plugin_for_updates($plugin);
+            if ($result) {
+                $updates_available = true;
+            }
+        }
+        
+        return $updates_available;
+    }
+    
+    /**
+     * Controlla se ci sono aggiornamenti per un plugin specifico
+     */
+    private function check_plugin_for_updates($plugin) {
+        if (empty($plugin['github_repo'])) {
+            return false;
+        }
+        
+        FP_Git_Updater_Logger::log('info', 'Controllo aggiornamenti per: ' . $plugin['name']);
+        
+        $latest_commit = $this->get_latest_commit($plugin);
         
         if (is_wp_error($latest_commit)) {
-            FP_Git_Updater_Logger::log('error', 'Errore nel controllo aggiornamenti: ' . $latest_commit->get_error_message());
+            FP_Git_Updater_Logger::log('error', 'Errore nel controllo aggiornamenti per ' . $plugin['name'] . ': ' . $latest_commit->get_error_message());
             return false;
         }
         
-        $current_commit = get_option('fp_git_updater_current_commit', '');
+        $current_commit = get_option('fp_git_updater_current_commit_' . $plugin['id'], '');
         
         if ($latest_commit !== $current_commit) {
-            FP_Git_Updater_Logger::log('info', 'Nuovo aggiornamento disponibile: ' . $latest_commit);
+            FP_Git_Updater_Logger::log('info', 'Nuovo aggiornamento disponibile per ' . $plugin['name'] . ': ' . $latest_commit);
             
             // Se l'aggiornamento automatico è abilitato, eseguilo
+            $settings = get_option('fp_git_updater_settings');
             if (isset($settings['auto_update']) && $settings['auto_update']) {
-                $this->run_update($latest_commit);
+                $this->run_update($latest_commit, $plugin);
             }
             
             return true;
@@ -78,13 +106,12 @@ class FP_Git_Updater_Updater {
     }
     
     /**
-     * Ottieni l'ultimo commit dal repository GitHub
+     * Ottieni l'ultimo commit dal repository GitHub per un plugin specifico
      */
-    private function get_latest_commit() {
-        $settings = get_option('fp_git_updater_settings');
-        $repo = $settings['github_repo'];
-        $branch = isset($settings['branch']) ? $settings['branch'] : 'main';
-        $token = isset($settings['github_token']) ? $settings['github_token'] : '';
+    private function get_latest_commit($plugin) {
+        $repo = $plugin['github_repo'];
+        $branch = isset($plugin['branch']) ? $plugin['branch'] : 'main';
+        $token = isset($plugin['github_token']) ? $plugin['github_token'] : '';
         
         // URL API GitHub per ottenere l'ultimo commit
         $api_url = "https://api.github.com/repos/{$repo}/commits/{$branch}";
@@ -127,20 +154,46 @@ class FP_Git_Updater_Updater {
     /**
      * Esegue l'aggiornamento del plugin
      */
-    public function run_update($commit_sha = null) {
-        FP_Git_Updater_Logger::log('info', 'Inizio aggiornamento...');
+    public function run_update($commit_sha = null, $plugin = null) {
+        // Se non viene passato un plugin specifico, aggiorna tutti i plugin abilitati
+        if ($plugin === null) {
+            $settings = get_option('fp_git_updater_settings');
+            $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
+            
+            $success = true;
+            foreach ($plugins as $p) {
+                if (!isset($p['enabled']) || !$p['enabled']) {
+                    continue;
+                }
+                
+                $result = $this->run_plugin_update(null, $p);
+                if (!$result) {
+                    $success = false;
+                }
+            }
+            
+            return $success;
+        }
+        
+        return $this->run_plugin_update($commit_sha, $plugin);
+    }
+    
+    /**
+     * Esegue l'aggiornamento di un plugin specifico
+     */
+    private function run_plugin_update($commit_sha = null, $plugin) {
+        FP_Git_Updater_Logger::log('info', 'Inizio aggiornamento per: ' . $plugin['name']);
         
         // Notifica inizio aggiornamento
-        $this->send_notification('Inizio aggiornamento plugin FP Git Updater', 'L\'aggiornamento è iniziato...');
+        $this->send_notification('Inizio aggiornamento ' . $plugin['name'], 'L\'aggiornamento è iniziato...');
         
-        $settings = get_option('fp_git_updater_settings');
-        $repo = $settings['github_repo'];
-        $branch = isset($settings['branch']) ? $settings['branch'] : 'main';
-        $token = isset($settings['github_token']) ? $settings['github_token'] : '';
+        $repo = $plugin['github_repo'];
+        $branch = isset($plugin['branch']) ? $plugin['branch'] : 'main';
+        $token = isset($plugin['github_token']) ? $plugin['github_token'] : '';
         
         if (empty($repo)) {
-            FP_Git_Updater_Logger::log('error', 'Repository non configurato');
-            $this->send_notification('Errore aggiornamento', 'Repository non configurato');
+            FP_Git_Updater_Logger::log('error', 'Repository non configurato per ' . $plugin['name']);
+            $this->send_notification('Errore aggiornamento', 'Repository non configurato per ' . $plugin['name']);
             return false;
         }
         
@@ -243,7 +296,14 @@ class FP_Git_Updater_Updater {
         }
         
         $source_dir = $extracted_dirs[0];
-        $plugin_dir = FP_GIT_UPDATER_PLUGIN_DIR;
+        
+        // Determina la directory del plugin da aggiornare
+        // Se il plugin ha uno slug specificato, usa quello, altrimenti deduce dal repo
+        $plugin_slug = isset($plugin['plugin_slug']) && !empty($plugin['plugin_slug']) 
+            ? $plugin['plugin_slug'] 
+            : basename($repo);
+        
+        $plugin_dir = WP_PLUGIN_DIR . '/' . $plugin_slug;
         
         // Backup della versione attuale
         FP_Git_Updater_Logger::log('info', 'Creazione backup...');
@@ -273,20 +333,20 @@ class FP_Git_Updater_Updater {
         // Pulisci
         $wp_filesystem->delete($temp_extract_dir, true);
         
-        // Salva il commit corrente
+        // Salva il commit corrente per questo plugin
         if ($commit_sha) {
-            update_option('fp_git_updater_current_commit', $commit_sha);
+            update_option('fp_git_updater_current_commit_' . $plugin['id'], $commit_sha);
         } else {
-            $latest_commit = $this->get_latest_commit();
+            $latest_commit = $this->get_latest_commit($plugin);
             if (!is_wp_error($latest_commit)) {
-                update_option('fp_git_updater_current_commit', $latest_commit);
+                update_option('fp_git_updater_current_commit_' . $plugin['id'], $latest_commit);
             }
         }
         
-        update_option('fp_git_updater_last_update', current_time('mysql'));
+        update_option('fp_git_updater_last_update_' . $plugin['id'], current_time('mysql'));
         
-        FP_Git_Updater_Logger::log('success', 'Aggiornamento completato con successo!');
-        $this->send_notification('Aggiornamento completato', 'Il plugin è stato aggiornato con successo!');
+        FP_Git_Updater_Logger::log('success', 'Aggiornamento completato con successo per: ' . $plugin['name']);
+        $this->send_notification('Aggiornamento completato', 'Il plugin ' . $plugin['name'] . ' è stato aggiornato con successo!');
         
         // Mantieni il backup per 7 giorni
         wp_schedule_single_event(time() + (7 * DAY_IN_SECONDS), 'fp_git_updater_cleanup_backup', array($backup_dir));

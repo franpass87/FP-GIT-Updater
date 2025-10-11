@@ -79,20 +79,28 @@ class FP_Git_Updater_Admin {
     public function sanitize_settings($input) {
         $output = array();
         
-        if (isset($input['github_repo'])) {
-            $output['github_repo'] = sanitize_text_field($input['github_repo']);
-        }
-        
-        if (isset($input['github_token'])) {
-            $output['github_token'] = sanitize_text_field($input['github_token']);
+        // Sanitizza la lista di plugin
+        if (isset($input['plugins']) && is_array($input['plugins'])) {
+            $output['plugins'] = array();
+            foreach ($input['plugins'] as $plugin) {
+                if (!empty($plugin['github_repo'])) {
+                    $output['plugins'][] = array(
+                        'id' => isset($plugin['id']) ? sanitize_text_field($plugin['id']) : uniqid('plugin_'),
+                        'name' => isset($plugin['name']) ? sanitize_text_field($plugin['name']) : 'Plugin senza nome',
+                        'github_repo' => sanitize_text_field($plugin['github_repo']),
+                        'plugin_slug' => isset($plugin['plugin_slug']) ? sanitize_text_field($plugin['plugin_slug']) : '',
+                        'branch' => isset($plugin['branch']) ? sanitize_text_field($plugin['branch']) : 'main',
+                        'github_token' => isset($plugin['github_token']) ? sanitize_text_field($plugin['github_token']) : '',
+                        'enabled' => isset($plugin['enabled']) ? true : false,
+                    );
+                }
+            }
+        } else {
+            $output['plugins'] = array();
         }
         
         if (isset($input['webhook_secret'])) {
             $output['webhook_secret'] = sanitize_text_field($input['webhook_secret']);
-        }
-        
-        if (isset($input['branch'])) {
-            $output['branch'] = sanitize_text_field($input['branch']);
         }
         
         $output['auto_update'] = isset($input['auto_update']) ? true : false;
@@ -121,13 +129,16 @@ class FP_Git_Updater_Admin {
         $css_file = FP_GIT_UPDATER_PLUGIN_DIR . 'assets/admin.css';
         $js_file = FP_GIT_UPDATER_PLUGIN_DIR . 'assets/admin.js';
         
+        // Carica CSS con fallback inline
         if (file_exists($css_file)) {
             wp_enqueue_style('fp-git-updater-admin', FP_GIT_UPDATER_PLUGIN_URL . 'assets/admin.css', array(), FP_GIT_UPDATER_VERSION);
         } else {
-            // Log se il file CSS non esiste
-            FP_Git_Updater_Logger::log('error', 'File CSS non trovato: ' . $css_file);
+            // Fallback: carica CSS inline
+            add_action('admin_head', array($this, 'enqueue_inline_css'));
+            FP_Git_Updater_Logger::log('warning', 'File admin.css non trovato, uso CSS inline come fallback', array('path' => $css_file));
         }
         
+        // Carica JS con controllo esistenza e logging migliorato
         if (file_exists($js_file)) {
             wp_enqueue_script('fp-git-updater-admin', FP_GIT_UPDATER_PLUGIN_URL . 'assets/admin.js', array('jquery'), FP_GIT_UPDATER_VERSION, true);
             
@@ -142,13 +153,43 @@ class FP_Git_Updater_Admin {
     }
     
     /**
+     * Enqueue CSS inline come fallback
+     */
+    public function enqueue_inline_css() {
+        $css_file_path = FP_GIT_UPDATER_PLUGIN_DIR . 'assets/admin.css';
+        
+        if (file_exists($css_file_path)) {
+            $css_content = file_get_contents($css_file_path);
+            echo '<style id="fp-git-updater-admin-css">' . $css_content . '</style>';
+        } else {
+            // CSS minimo di emergenza
+            echo '<style id="fp-git-updater-admin-fallback-css">
+.fp-git-updater-wrap { max-width: 1200px; }
+.fp-git-updater-wrap h1 { display: flex; align-items: center; gap: 10px; }
+.fp-git-updater-header { background: #fff; border: 1px solid #ccd0d4; margin: 20px 0; padding: 20px; border-radius: 4px; }
+.fp-status-box button { margin-right: 10px; margin-top: 15px; }
+.fp-git-updater-instructions { background: #fff; border: 1px solid #ccd0d4; margin: 20px 0; padding: 20px; border-radius: 4px; }
+.log-badge { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #fff; }
+.log-badge-info { background: #2271b1; }
+.log-badge-success { background: #00a32a; }
+.log-badge-warning { background: #dba617; }
+.log-badge-error { background: #d63638; }
+.log-badge-webhook { background: #8c5ed9; }
+.fp-notice { padding: 12px; margin: 15px 0; border-left: 4px solid; border-radius: 0 4px 4px 0; background: #fff; }
+.fp-notice-success { border-left-color: #00a32a; background: #f0f8f2; }
+.fp-notice-error { border-left-color: #d63638; background: #fcf0f1; }
+.fp-notice-info { border-left-color: #2271b1; background: #f0f6fc; }
+</style>';
+        }
+    }
+    
+    /**
      * Render pagina impostazioni
      */
     public function render_settings_page() {
         $settings = get_option('fp_git_updater_settings');
         $webhook_url = FP_Git_Updater_Webhook_Handler::get_webhook_url();
-        $current_commit = get_option('fp_git_updater_current_commit', 'N/A');
-        $last_update = get_option('fp_git_updater_last_update', 'Mai');
+        $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
         
         ?>
         <div class="wrap fp-git-updater-wrap">
@@ -157,69 +198,120 @@ class FP_Git_Updater_Admin {
                 FP Git Updater - Impostazioni
             </h1>
             
-            <div class="fp-git-updater-header">
-                <div class="fp-status-box">
-                    <h3>Stato Aggiornamento</h3>
-                    <p><strong>Ultimo commit:</strong> <?php echo esc_html(substr($current_commit, 0, 7)); ?></p>
-                    <p><strong>Ultimo aggiornamento:</strong> <?php echo esc_html($last_update); ?></p>
-                    <button type="button" id="fp-manual-update" class="button button-primary">
-                        <span class="dashicons dashicons-update"></span> Aggiorna Ora
-                    </button>
-                    <button type="button" id="fp-test-connection" class="button">
-                        <span class="dashicons dashicons-yes"></span> Test Connessione
-                    </button>
-                </div>
-            </div>
-            
             <form method="post" action="options.php">
                 <?php settings_fields('fp_git_updater_settings_group'); ?>
                 
+                <h2>Plugin Gestiti</h2>
+                <p>Aggiungi e gestisci i plugin che vuoi aggiornare automaticamente da GitHub.</p>
+                
+                <div id="fp-plugins-list">
+                    <?php if (!empty($plugins)): ?>
+                        <?php foreach ($plugins as $index => $plugin): ?>
+                            <div class="fp-plugin-item" data-index="<?php echo $index; ?>">
+                                <div class="fp-plugin-header">
+                                    <h3><?php echo esc_html($plugin['name']); ?></h3>
+                                    <div class="fp-plugin-actions">
+                                        <button type="button" class="button fp-toggle-plugin" data-target="plugin-details-<?php echo $index; ?>">
+                                            <span class="dashicons dashicons-edit"></span> Modifica
+                                        </button>
+                                        <button type="button" class="button fp-remove-plugin" data-index="<?php echo $index; ?>">
+                                            <span class="dashicons dashicons-trash"></span> Rimuovi
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="fp-plugin-info">
+                                    <span><strong>Repository:</strong> <?php echo esc_html($plugin['github_repo']); ?></span>
+                                    <span><strong>Branch:</strong> <?php echo esc_html($plugin['branch']); ?></span>
+                                    <span class="fp-plugin-status <?php echo $plugin['enabled'] ? 'enabled' : 'disabled'; ?>">
+                                        <?php echo $plugin['enabled'] ? '● Abilitato' : '○ Disabilitato'; ?>
+                                    </span>
+                                </div>
+                                <div id="plugin-details-<?php echo $index; ?>" class="fp-plugin-details" style="display: none;">
+                                    <input type="hidden" name="fp_git_updater_settings[plugins][<?php echo $index; ?>][id]" value="<?php echo esc_attr($plugin['id']); ?>">
+                                    
+                                    <table class="form-table">
+                                        <tr>
+                                            <th><label>Nome Plugin</label></th>
+                                            <td>
+                                                <input type="text" 
+                                                       name="fp_git_updater_settings[plugins][<?php echo $index; ?>][name]" 
+                                                       value="<?php echo esc_attr($plugin['name']); ?>" 
+                                                       class="regular-text" required>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label>Repository GitHub</label></th>
+                                            <td>
+                                                <input type="text" 
+                                                       name="fp_git_updater_settings[plugins][<?php echo $index; ?>][github_repo]" 
+                                                       value="<?php echo esc_attr($plugin['github_repo']); ?>" 
+                                                       class="regular-text" 
+                                                       placeholder="username/repository" required>
+                                                <p class="description">Es: tuousername/mio-plugin</p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label>Slug Plugin</label></th>
+                                            <td>
+                                                <input type="text" 
+                                                       name="fp_git_updater_settings[plugins][<?php echo $index; ?>][plugin_slug]" 
+                                                       value="<?php echo esc_attr($plugin['plugin_slug'] ?? ''); ?>" 
+                                                       class="regular-text" 
+                                                       placeholder="nome-cartella-plugin">
+                                                <p class="description">Nome della cartella del plugin in wp-content/plugins/ (es: mio-plugin). Se vuoto, verrà dedotto dal nome del repository.</p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label>Branch</label></th>
+                                            <td>
+                                                <input type="text" 
+                                                       name="fp_git_updater_settings[plugins][<?php echo $index; ?>][branch]" 
+                                                       value="<?php echo esc_attr($plugin['branch']); ?>" 
+                                                       class="regular-text">
+                                                <p class="description">Branch da cui scaricare gli aggiornamenti</p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label>GitHub Token</label></th>
+                                            <td>
+                                                <input type="password" 
+                                                       name="fp_git_updater_settings[plugins][<?php echo $index; ?>][github_token]" 
+                                                       value="<?php echo esc_attr($plugin['github_token']); ?>" 
+                                                       class="regular-text" 
+                                                       placeholder="ghp_...">
+                                                <p class="description">Opzionale, per repository privati</p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th><label>Abilitato</label></th>
+                                            <td>
+                                                <label>
+                                                    <input type="checkbox" 
+                                                           name="fp_git_updater_settings[plugins][<?php echo $index; ?>][enabled]" 
+                                                           value="1" 
+                                                           <?php checked($plugin['enabled'], true); ?>>
+                                                    Abilita aggiornamenti per questo plugin
+                                                </label>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <p class="description">Nessun plugin configurato. Aggiungi il primo plugin qui sotto.</p>
+                    <?php endif; ?>
+                </div>
+                
+                <button type="button" id="fp-add-plugin" class="button button-secondary">
+                    <span class="dashicons dashicons-plus-alt"></span> Aggiungi Plugin
+                </button>
+                
+                <hr style="margin: 30px 0;">
+                
+                <h2>Impostazioni Generali</h2>
                 <table class="form-table">
                     <tbody>
-                        <tr>
-                            <th scope="row">
-                                <label for="github_repo">Repository GitHub</label>
-                            </th>
-                            <td>
-                                <input type="text" 
-                                       id="github_repo" 
-                                       name="fp_git_updater_settings[github_repo]" 
-                                       value="<?php echo esc_attr($settings['github_repo'] ?? ''); ?>" 
-                                       class="regular-text"
-                                       placeholder="username/repository">
-                                <p class="description">Es: tuousername/mio-plugin</p>
-                            </td>
-                        </tr>
-                        
-                        <tr>
-                            <th scope="row">
-                                <label for="branch">Branch</label>
-                            </th>
-                            <td>
-                                <input type="text" 
-                                       id="branch" 
-                                       name="fp_git_updater_settings[branch]" 
-                                       value="<?php echo esc_attr($settings['branch'] ?? 'main'); ?>" 
-                                       class="regular-text">
-                                <p class="description">Branch da cui scaricare gli aggiornamenti (default: main)</p>
-                            </td>
-                        </tr>
-                        
-                        <tr>
-                            <th scope="row">
-                                <label for="github_token">GitHub Token (opzionale)</label>
-                            </th>
-                            <td>
-                                <input type="password" 
-                                       id="github_token" 
-                                       name="fp_git_updater_settings[github_token]" 
-                                       value="<?php echo esc_attr($settings['github_token'] ?? ''); ?>" 
-                                       class="regular-text"
-                                       placeholder="ghp_...">
-                                <p class="description">Token per repository privati. Creane uno su GitHub → Settings → Developer settings → Personal access tokens</p>
-                            </td>
-                        </tr>
-                        
                         <tr>
                             <th scope="row">
                                 <label for="webhook_secret">Webhook Secret</label>
@@ -243,7 +335,7 @@ class FP_Git_Updater_Admin {
                                 <button type="button" class="button" onclick="navigator.clipboard.writeText('<?php echo esc_js($webhook_url); ?>')">
                                     <span class="dashicons dashicons-clipboard"></span> Copia
                                 </button>
-                                <p class="description">Usa questo URL quando configuri il webhook su GitHub</p>
+                                <p class="description">Usa questo URL quando configuri il webhook su GitHub per tutti i repository</p>
                             </td>
                         </tr>
                         
@@ -307,18 +399,110 @@ class FP_Git_Updater_Admin {
             
             <div class="fp-git-updater-instructions">
                 <h2>Come configurare il webhook su GitHub</h2>
+                <p><strong>Importante:</strong> Devi configurare il webhook per ogni repository che hai aggiunto sopra.</p>
                 <ol>
-                    <li>Vai sul tuo repository GitHub</li>
+                    <li>Vai sul repository GitHub del plugin che vuoi aggiornare</li>
                     <li>Clicca su <strong>Settings</strong> → <strong>Webhooks</strong> → <strong>Add webhook</strong></li>
                     <li>Incolla l'URL webhook qui sopra nel campo <strong>Payload URL</strong></li>
                     <li>Seleziona <strong>Content type: application/json</strong></li>
                     <li>Incolla il Webhook Secret nel campo <strong>Secret</strong></li>
                     <li>In <strong>Which events would you like to trigger this webhook?</strong> seleziona <strong>Just the push event</strong></li>
                     <li>Clicca su <strong>Add webhook</strong></li>
+                    <li>Ripeti per ogni repository che hai configurato</li>
                 </ol>
-                <p>Ora ogni volta che fai push o merge sul branch configurato, il plugin si aggiornerà automaticamente!</p>
+                <p>Ora ogni volta che fai push o merge sul branch configurato di qualsiasi repository, il plugin corrispondente si aggiornerà automaticamente!</p>
             </div>
         </div>
+        
+        <!-- Template per nuovo plugin (nascosto, usato da JS) -->
+        <script type="text/template" id="fp-plugin-template">
+            <div class="fp-plugin-item new-plugin" data-index="{{INDEX}}">
+                <div class="fp-plugin-header">
+                    <h3>Nuovo Plugin</h3>
+                    <div class="fp-plugin-actions">
+                        <button type="button" class="button fp-toggle-plugin" data-target="plugin-details-{{INDEX}}">
+                            <span class="dashicons dashicons-edit"></span> Modifica
+                        </button>
+                        <button type="button" class="button fp-remove-plugin" data-index="{{INDEX}}">
+                            <span class="dashicons dashicons-trash"></span> Rimuovi
+                        </button>
+                    </div>
+                </div>
+                <div class="fp-plugin-info">
+                    <span class="description">Configura i dettagli del plugin</span>
+                </div>
+                <div id="plugin-details-{{INDEX}}" class="fp-plugin-details" style="display: block;">
+                    <input type="hidden" name="fp_git_updater_settings[plugins][{{INDEX}}][id]" value="{{ID}}">
+                    
+                    <table class="form-table">
+                        <tr>
+                            <th><label>Nome Plugin</label></th>
+                            <td>
+                                <input type="text" 
+                                       name="fp_git_updater_settings[plugins][{{INDEX}}][name]" 
+                                       value="" 
+                                       class="regular-text" 
+                                       placeholder="Es: Il mio plugin" required>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th><label>Repository GitHub</label></th>
+                            <td>
+                                <input type="text" 
+                                       name="fp_git_updater_settings[plugins][{{INDEX}}][github_repo]" 
+                                       value="" 
+                                       class="regular-text" 
+                                       placeholder="username/repository" required>
+                                <p class="description">Es: tuousername/mio-plugin</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th><label>Slug Plugin</label></th>
+                            <td>
+                                <input type="text" 
+                                       name="fp_git_updater_settings[plugins][{{INDEX}}][plugin_slug]" 
+                                       value="" 
+                                       class="regular-text" 
+                                       placeholder="nome-cartella-plugin">
+                                <p class="description">Nome della cartella del plugin in wp-content/plugins/ (es: mio-plugin). Se vuoto, verrà dedotto dal nome del repository.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th><label>Branch</label></th>
+                            <td>
+                                <input type="text" 
+                                       name="fp_git_updater_settings[plugins][{{INDEX}}][branch]" 
+                                       value="main" 
+                                       class="regular-text">
+                                <p class="description">Branch da cui scaricare gli aggiornamenti</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th><label>GitHub Token</label></th>
+                            <td>
+                                <input type="password" 
+                                       name="fp_git_updater_settings[plugins][{{INDEX}}][github_token]" 
+                                       value="" 
+                                       class="regular-text" 
+                                       placeholder="ghp_...">
+                                <p class="description">Opzionale, per repository privati</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th><label>Abilitato</label></th>
+                            <td>
+                                <label>
+                                    <input type="checkbox" 
+                                           name="fp_git_updater_settings[plugins][{{INDEX}}][enabled]" 
+                                           value="1" checked>
+                                    Abilita aggiornamenti per questo plugin
+                                </label>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </script>
         <?php
     }
     

@@ -7,6 +7,47 @@
     
     $(document).ready(function() {
         
+        let pluginIndex = $('.fp-plugin-item').length;
+        
+        // Aggiungi nuovo plugin
+        $('#fp-add-plugin').on('click', function(e) {
+            e.preventDefault();
+            
+            const template = $('#fp-plugin-template').html();
+            const newId = 'plugin_' + Date.now();
+            const newPlugin = template
+                .replace(/\{\{INDEX\}\}/g, pluginIndex)
+                .replace(/\{\{ID\}\}/g, newId);
+            
+            $('#fp-plugins-list').append(newPlugin);
+            pluginIndex++;
+            
+            // Scroll al nuovo plugin
+            $('html, body').animate({
+                scrollTop: $('.fp-plugin-item:last').offset().top - 100
+            }, 500);
+        });
+        
+        // Toggle dettagli plugin
+        $(document).on('click', '.fp-toggle-plugin', function(e) {
+            e.preventDefault();
+            const target = $(this).data('target');
+            $('#' + target).slideToggle();
+        });
+        
+        // Rimuovi plugin
+        $(document).on('click', '.fp-remove-plugin', function(e) {
+            e.preventDefault();
+            
+            if (!confirm('Sei sicuro di voler rimuovere questo plugin?')) {
+                return;
+            }
+            
+            $(this).closest('.fp-plugin-item').fadeOut(function() {
+                $(this).remove();
+            });
+        });
+        
         // Test connessione GitHub
         $('#fp-test-connection').on('click', function(e) {
             e.preventDefault();
