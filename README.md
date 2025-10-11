@@ -19,6 +19,7 @@ Plugin WordPress personalizzato per l'aggiornamento automatico da GitHub tramite
 - ✅ **Sistema di logging** completo per tracciare tutti gli aggiornamenti
 - ✅ **Notifiche email** per aggiornamenti completati
 - ✅ **Backup automatico** della versione precedente
+- ✅ **Backup e ripristino impostazioni** automatico e manuale
 - ✅ **Rollback sicuro** in caso di errori
 - ✅ **Controlli periodici** per aggiornamenti (oltre ai webhook)
 - ✅ **Interfaccia moderna** con dashboard WordPress
@@ -113,10 +114,31 @@ Nella pagina **Impostazioni** puoi vedere:
 
 - ✅ **Webhook firmato**: Ogni richiesta webhook è verificata con HMAC SHA-256
 - ✅ **Token sicuro**: Il token GitHub non viene mai esposto
-- ✅ **Backup automatico**: Ogni aggiornamento crea un backup
+- ✅ **Backup automatico**: Ogni aggiornamento crea un backup del codice e delle impostazioni
+- ✅ **Protezione impostazioni**: Backup automatico prima di ogni modifica con ripristino automatico
 - ✅ **Rollback automatico**: In caso di errore, viene ripristinata la versione precedente
 - ✅ **Validazione input**: Tutti gli input sono sanitizzati
 - ✅ **Permessi WordPress**: Solo gli amministratori possono accedere alle impostazioni
+
+## 🔄 Backup e Ripristino Impostazioni
+
+Il plugin include un sistema avanzato di backup e ripristino per proteggere la tua configurazione:
+
+### Backup Automatici
+- **Prima degli aggiornamenti**: Backup automatico prima di ogni aggiornamento del plugin
+- **Prima delle modifiche**: Backup automatico prima di salvare nuove impostazioni
+- **Dopo attivazione**: Ripristino automatico se le impostazioni sono state resettate
+
+### Gestione Backup
+Vai su **Git Updater → Backup e Ripristino** per:
+- ✅ Creare backup manuali in qualsiasi momento
+- ✅ Visualizzare la cronologia degli ultimi 10 backup
+- ✅ Ripristinare backup specifici
+- ✅ Vedere i dettagli di ogni backup (data, versione, plugin salvati)
+- ✅ Ricevere notifiche se le impostazioni sono state resettate
+
+### Quando viene ripristinato automaticamente?
+Il sistema rileva automaticamente se le tue impostazioni sono state perse (ad esempio dopo un aggiornamento di WordPress o del plugin) e le ripristina dal backup più recente.
 
 ## 🛠️ Risoluzione Problemi
 
@@ -167,7 +189,8 @@ fp-git-updater/
 │   ├── class-webhook-handler.php   # Gestione webhook GitHub
 │   ├── class-updater.php           # Sistema di aggiornamento
 │   ├── class-admin.php             # Pannello amministrazione
-│   └── class-logger.php            # Sistema di logging
+│   ├── class-logger.php            # Sistema di logging
+│   └── class-settings-backup.php   # Sistema backup/ripristino impostazioni
 ├── assets/
 │   ├── admin.css                   # Stili interfaccia admin
 │   └── admin.js                    # JavaScript interfaccia admin
@@ -198,14 +221,20 @@ Per supporto:
 2. Consulta questa documentazione
 3. Verifica le "Recent Deliveries" del webhook su GitHub
 
-## 🎉 Prossimi Miglioramenti
+## 🎉 Miglioramenti Recenti
 
-- [ ] Supporto per più repository
+- [x] ✨ **Backup e ripristino automatico delle impostazioni** - Le tue configurazioni sono al sicuro!
+- [x] **Supporto per più repository** - Gestisci più plugin contemporaneamente
+- [x] **Pannello backup dedicato** - Controlla e gestisci tutti i tuoi backup
+
+## 🎯 Prossimi Miglioramenti
+
 - [ ] Aggiornamento selettivo per sito
 - [ ] Integrazione con CI/CD
 - [ ] Dashboard statistiche
 - [ ] Supporto tag/release specifiche
 - [ ] API REST per controllo esterno
+- [ ] Export/Import configurazioni
 
 ---
 

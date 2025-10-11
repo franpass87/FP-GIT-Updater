@@ -65,6 +65,32 @@ e questo progetto aderisce a [Semantic Versioning](https://semver.org/lang/it/).
 
 ## [Unreleased]
 
+### Aggiunto
+- ✨ **Sistema di backup e ripristino automatico delle impostazioni**
+  - Backup automatico prima di ogni aggiornamento del plugin
+  - Backup automatico prima di salvare nuove impostazioni
+  - Ripristino automatico se le impostazioni vengono resettate dopo un aggiornamento
+  - Nuova pagina "Backup e Ripristino" nel pannello admin
+  - Cronologia degli ultimi 10 backup con dettagli completi
+  - Possibilità di creare backup manuali
+  - Ripristino da backup specifici
+  - Notifiche automatiche se le impostazioni sono state resettate
+- Nuova classe `FP_Git_Updater_Settings_Backup` per gestire backup e ripristini
+- Hook `upgrader_process_complete` per backup pre-aggiornamento
+- Hook `activated_plugin` per ripristino automatico post-attivazione
+- AJAX handlers per operazioni di backup (crea, ripristina, elimina)
+
+### Modificato
+- Metodo `activate()` ora controlla e ripristina automaticamente le impostazioni dal backup
+- Metodo `sanitize_settings()` ora crea un backup prima di salvare modifiche
+- Documentazione aggiornata con sezione dedicata al sistema di backup
+
+### Corretto
+- **Problema principale risolto**: Le impostazioni non vengono più perse dopo gli aggiornamenti
+- Protezione completa della configurazione dei plugin
+
+## [1.0.0] - 2025-10-11
+
 ### Pianificato per versioni future
 - [ ] Supporto per più repository contemporaneamente
 - [ ] Aggiornamento selettivo per sito specifico

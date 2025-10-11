@@ -29,6 +29,9 @@ class FP_Git_Updater_Admin {
         add_action('wp_ajax_fp_git_updater_check_updates', array($this, 'ajax_check_updates'));
         add_action('wp_ajax_fp_git_updater_install_update', array($this, 'ajax_install_update'));
         add_action('wp_ajax_fp_git_updater_clear_logs', array($this, 'ajax_clear_logs'));
+        add_action('wp_ajax_fp_git_updater_create_backup', array($this, 'ajax_create_backup'));
+        add_action('wp_ajax_fp_git_updater_restore_backup', array($this, 'ajax_restore_backup'));
+        add_action('wp_ajax_fp_git_updater_delete_backup', array($this, 'ajax_delete_backup'));
     }
     
     /**
@@ -56,6 +59,15 @@ class FP_Git_Updater_Admin {
         
         add_submenu_page(
             'fp-git-updater',
+            'Backup e Ripristino',
+            'Backup e Ripristino',
+            'manage_options',
+            'fp-git-updater-backup',
+            array($this, 'render_backup_page')
+        );
+        
+        add_submenu_page(
+            'fp-git-updater',
             'Log',
             'Log',
             'manage_options',
@@ -77,6 +89,14 @@ class FP_Git_Updater_Admin {
      * Sanitizza le impostazioni
      */
     public function sanitize_settings($input) {
+        // Crea un backup prima di salvare nuove impostazioni
+        $backup_manager = FP_Git_Updater_Settings_Backup::get_instance();
+        $current_settings = get_option('fp_git_updater_settings');
+        
+        if (!empty($current_settings) && !empty($current_settings['plugins'])) {
+            $backup_manager->create_backup(false);
+        }
+        
         $output = array();
         
         // Sanitizza la lista di plugin
@@ -678,5 +698,331 @@ class FP_Git_Updater_Admin {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
         wp_die();
+    }
+    
+    /**
+     * AJAX: Crea backup manuale
+     */
+    public function ajax_create_backup() {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'fp_git_updater_nonce')) {
+            wp_send_json_error(array('message' => 'Nonce non valido'), 400);
+            wp_die();
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
+            wp_die();
+        }
+        
+        try {
+            $backup_manager = FP_Git_Updater_Settings_Backup::get_instance();
+            $result = $backup_manager->create_backup(true);
+            
+            if ($result) {
+                wp_send_json_success(array('message' => 'Backup creato con successo!'));
+            } else {
+                wp_send_json_error(array('message' => 'Impossibile creare il backup. Assicurati di avere impostazioni da salvare.'), 500);
+            }
+        } catch (Exception $e) {
+            wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
+        }
+        wp_die();
+    }
+    
+    /**
+     * AJAX: Ripristina backup
+     */
+    public function ajax_restore_backup() {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'fp_git_updater_nonce')) {
+            wp_send_json_error(array('message' => 'Nonce non valido'), 400);
+            wp_die();
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
+            wp_die();
+        }
+        
+        $backup_index = isset($_POST['backup_index']) ? intval($_POST['backup_index']) : null;
+        
+        try {
+            $backup_manager = FP_Git_Updater_Settings_Backup::get_instance();
+            $result = $backup_manager->restore_backup($backup_index);
+            
+            if ($result) {
+                wp_send_json_success(array('message' => 'Impostazioni ripristinate con successo!'));
+            } else {
+                wp_send_json_error(array('message' => 'Nessun backup disponibile da ripristinare.'), 404);
+            }
+        } catch (Exception $e) {
+            wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
+        }
+        wp_die();
+    }
+    
+    /**
+     * AJAX: Elimina backup
+     */
+    public function ajax_delete_backup() {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'fp_git_updater_nonce')) {
+            wp_send_json_error(array('message' => 'Nonce non valido'), 400);
+            wp_die();
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
+            wp_die();
+        }
+        
+        $backup_index = isset($_POST['backup_index']) ? intval($_POST['backup_index']) : null;
+        
+        if ($backup_index === null) {
+            wp_send_json_error(array('message' => 'Indice backup non fornito'), 400);
+            wp_die();
+        }
+        
+        try {
+            $backup_manager = FP_Git_Updater_Settings_Backup::get_instance();
+            $result = $backup_manager->delete_backup($backup_index);
+            
+            if ($result) {
+                wp_send_json_success(array('message' => 'Backup eliminato con successo!'));
+            } else {
+                wp_send_json_error(array('message' => 'Backup non trovato.'), 404);
+            }
+        } catch (Exception $e) {
+            wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
+        }
+        wp_die();
+    }
+    
+    /**
+     * Render pagina backup
+     */
+    public function render_backup_page() {
+        $backup_manager = FP_Git_Updater_Settings_Backup::get_instance();
+        $latest_backup = $backup_manager->get_latest_backup();
+        $backup_history = $backup_manager->get_backup_history();
+        $current_settings = get_option('fp_git_updater_settings');
+        $has_settings_reset = $backup_manager->check_if_settings_reset();
+        
+        ?>
+        <div class="wrap fp-git-updater-wrap">
+            <h1>
+                <span class="dashicons dashicons-database"></span>
+                FP Git Updater - Backup e Ripristino
+            </h1>
+            
+            <?php if ($has_settings_reset): ?>
+                <div class="notice notice-warning">
+                    <p><strong>Attenzione!</strong> Le tue impostazioni sembrano essere state resettate. È disponibile un backup che puoi ripristinare.</p>
+                    <p>
+                        <button type="button" id="fp-quick-restore" class="button button-primary">
+                            <span class="dashicons dashicons-backup"></span> Ripristina Ora
+                        </button>
+                    </p>
+                </div>
+            <?php endif; ?>
+            
+            <div class="fp-git-updater-header">
+                <h2>Stato Attuale</h2>
+                <table class="form-table">
+                    <tr>
+                        <th style="width: 200px;">Plugin Configurati:</th>
+                        <td><strong><?php echo count($current_settings['plugins'] ?? array()); ?></strong> plugin</td>
+                    </tr>
+                    <tr>
+                        <th>Ultimo Backup:</th>
+                        <td>
+                            <?php if ($latest_backup): ?>
+                                <?php echo esc_html($latest_backup['timestamp']); ?>
+                                (<?php echo $latest_backup['manual'] ? 'Manuale' : 'Automatico'; ?>)
+                            <?php else: ?>
+                                <em>Nessun backup disponibile</em>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                </table>
+                
+                <div style="margin-top: 20px;">
+                    <button type="button" id="fp-create-backup" class="button button-primary">
+                        <span class="dashicons dashicons-database-add"></span> Crea Backup Manuale
+                    </button>
+                    <?php if ($latest_backup): ?>
+                        <button type="button" id="fp-restore-latest" class="button">
+                            <span class="dashicons dashicons-backup"></span> Ripristina Ultimo Backup
+                        </button>
+                    <?php endif; ?>
+                </div>
+            </div>
+            
+            <div class="fp-git-updater-instructions" style="margin-top: 20px;">
+                <h2>Cronologia Backup</h2>
+                
+                <?php if (empty($backup_history)): ?>
+                    <p class="description">Nessun backup disponibile nella cronologia.</p>
+                <?php else: ?>
+                    <table class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th style="width: 150px">Data/Ora</th>
+                                <th style="width: 100px">Tipo</th>
+                                <th style="width: 100px">Versione</th>
+                                <th>Plugin Salvati</th>
+                                <th style="width: 200px">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($backup_history as $index => $backup): ?>
+                                <tr>
+                                    <td><?php echo esc_html($backup['timestamp']); ?></td>
+                                    <td>
+                                        <span class="log-badge log-badge-<?php echo $backup['manual'] ? 'info' : 'success'; ?>">
+                                            <?php echo $backup['manual'] ? 'Manuale' : 'Automatico'; ?>
+                                        </span>
+                                    </td>
+                                    <td><?php echo esc_html($backup['version'] ?? 'N/A'); ?></td>
+                                    <td>
+                                        <strong><?php echo count($backup['settings']['plugins'] ?? array()); ?></strong> plugin
+                                        <?php if (!empty($backup['settings']['plugins'])): ?>
+                                            <details style="margin-top: 5px;">
+                                                <summary style="cursor: pointer; color: #666;">Vedi dettagli</summary>
+                                                <ul style="margin-top: 10px; padding-left: 20px;">
+                                                    <?php foreach ($backup['settings']['plugins'] as $plugin): ?>
+                                                        <li>
+                                                            <strong><?php echo esc_html($plugin['name']); ?></strong><br>
+                                                            <small>Repository: <?php echo esc_html($plugin['github_repo']); ?></small>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            </details>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="button button-small fp-restore-backup-btn" data-backup-index="<?php echo $index; ?>">
+                                            <span class="dashicons dashicons-backup"></span> Ripristina
+                                        </button>
+                                        <button type="button" class="button button-small fp-delete-backup-btn" data-backup-index="<?php echo $index; ?>">
+                                            <span class="dashicons dashicons-trash"></span> Elimina
+                                        </button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php endif; ?>
+            </div>
+            
+            <div class="fp-git-updater-instructions" style="margin-top: 20px;">
+                <h2>Come Funziona il Backup Automatico</h2>
+                <p>Il sistema di backup protegge automaticamente le tue impostazioni:</p>
+                <ul style="padding-left: 20px;">
+                    <li><strong>Prima degli aggiornamenti:</strong> Viene creato automaticamente un backup prima di ogni aggiornamento del plugin</li>
+                    <li><strong>Dopo l'attivazione:</strong> Se le impostazioni sono state resettate, vengono ripristinate automaticamente dal backup</li>
+                    <li><strong>Backup manuali:</strong> Puoi creare backup manuali in qualsiasi momento usando il pulsante sopra</li>
+                    <li><strong>Cronologia:</strong> Vengono conservati gli ultimi 10 backup per sicurezza</li>
+                </ul>
+                
+                <h3 style="margin-top: 15px;">Quando usare il ripristino manuale</h3>
+                <ul style="padding-left: 20px;">
+                    <li>Se il ripristino automatico non è andato a buon fine</li>
+                    <li>Se vuoi tornare a una configurazione precedente specifica</li>
+                    <li>Se hai accidentalmente cancellato delle impostazioni</li>
+                </ul>
+            </div>
+        </div>
+        
+        <script type="text/javascript">
+        jQuery(document).ready(function($) {
+            // Crea backup manuale
+            $('#fp-create-backup').on('click', function() {
+                if (!confirm('Creare un backup delle impostazioni correnti?')) return;
+                
+                var $btn = $(this);
+                $btn.prop('disabled', true).text('Creazione in corso...');
+                
+                $.post(ajaxurl, {
+                    action: 'fp_git_updater_create_backup',
+                    nonce: fpGitUpdater.nonce
+                }, function(response) {
+                    if (response.success) {
+                        alert(response.data.message);
+                        location.reload();
+                    } else {
+                        alert('Errore: ' + (response.data ? response.data.message : 'Errore sconosciuto'));
+                        $btn.prop('disabled', false).html('<span class="dashicons dashicons-database-add"></span> Crea Backup Manuale');
+                    }
+                });
+            });
+            
+            // Ripristina ultimo backup
+            $('#fp-restore-latest, #fp-quick-restore').on('click', function() {
+                if (!confirm('Ripristinare le impostazioni dall\'ultimo backup? Le impostazioni correnti saranno sovrascritte.')) return;
+                
+                var $btn = $(this);
+                $btn.prop('disabled', true).text('Ripristino in corso...');
+                
+                $.post(ajaxurl, {
+                    action: 'fp_git_updater_restore_backup',
+                    nonce: fpGitUpdater.nonce
+                }, function(response) {
+                    if (response.success) {
+                        alert(response.data.message);
+                        location.reload();
+                    } else {
+                        alert('Errore: ' + (response.data ? response.data.message : 'Errore sconosciuto'));
+                        $btn.prop('disabled', false);
+                    }
+                });
+            });
+            
+            // Ripristina backup specifico
+            $('.fp-restore-backup-btn').on('click', function() {
+                if (!confirm('Ripristinare questo backup? Le impostazioni correnti saranno sovrascritte.')) return;
+                
+                var $btn = $(this);
+                var backupIndex = $btn.data('backup-index');
+                $btn.prop('disabled', true).text('Ripristino...');
+                
+                $.post(ajaxurl, {
+                    action: 'fp_git_updater_restore_backup',
+                    backup_index: backupIndex,
+                    nonce: fpGitUpdater.nonce
+                }, function(response) {
+                    if (response.success) {
+                        alert(response.data.message);
+                        location.reload();
+                    } else {
+                        alert('Errore: ' + (response.data ? response.data.message : 'Errore sconosciuto'));
+                        $btn.prop('disabled', false).html('<span class="dashicons dashicons-backup"></span> Ripristina');
+                    }
+                });
+            });
+            
+            // Elimina backup
+            $('.fp-delete-backup-btn').on('click', function() {
+                if (!confirm('Eliminare questo backup? Questa azione non può essere annullata.')) return;
+                
+                var $btn = $(this);
+                var backupIndex = $btn.data('backup-index');
+                $btn.prop('disabled', true).text('Eliminazione...');
+                
+                $.post(ajaxurl, {
+                    action: 'fp_git_updater_delete_backup',
+                    backup_index: backupIndex,
+                    nonce: fpGitUpdater.nonce
+                }, function(response) {
+                    if (response.success) {
+                        alert(response.data.message);
+                        location.reload();
+                    } else {
+                        alert('Errore: ' + (response.data ? response.data.message : 'Errore sconosciuto'));
+                        $btn.prop('disabled', false).html('<span class="dashicons dashicons-trash"></span> Elimina');
+                    }
+                });
+            });
+        });
+        </script>
+        <?php
     }
 }
