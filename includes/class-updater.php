@@ -112,11 +112,23 @@ class FP_Git_Updater_Updater {
         $settings = get_option('fp_git_updater_settings');
         $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
         
+        // Sanitizza l'ID in input per evitare problemi di confronto
+        $plugin_id = trim($plugin_id);
+        
         foreach ($plugins as $plugin) {
-            if (isset($plugin['id']) && $plugin['id'] === $plugin_id) {
+            // Verifica che l'ID esista e confronta con trim per evitare problemi di spazi
+            if (isset($plugin['id']) && trim($plugin['id']) === $plugin_id) {
                 return $plugin;
             }
         }
+        
+        // Log per debug se il plugin non viene trovato
+        FP_Git_Updater_Logger::log('error', 'Plugin non trovato con ID: ' . $plugin_id, array(
+            'plugin_id' => $plugin_id,
+            'available_plugins' => array_map(function($p) {
+                return isset($p['id']) ? $p['id'] : 'NO_ID';
+            }, $plugins)
+        ));
         
         return null;
     }
