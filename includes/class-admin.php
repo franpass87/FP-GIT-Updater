@@ -117,13 +117,53 @@ class FP_Git_Updater_Admin {
             return;
         }
         
-        wp_enqueue_style('fp-git-updater-admin', FP_GIT_UPDATER_PLUGIN_URL . 'assets/admin.css', array(), FP_GIT_UPDATER_VERSION);
+        // Verifica se il file CSS esiste, altrimenti usa CSS inline come fallback
+        $css_file_path = FP_GIT_UPDATER_PLUGIN_DIR . 'assets/admin.css';
+        if (file_exists($css_file_path)) {
+            wp_enqueue_style('fp-git-updater-admin', FP_GIT_UPDATER_PLUGIN_URL . 'assets/admin.css', array(), FP_GIT_UPDATER_VERSION);
+        } else {
+            // Fallback: carica CSS inline
+            add_action('admin_head', array($this, 'enqueue_inline_css'));
+            FP_Git_Updater_Logger::log('warning', 'File admin.css non trovato, uso CSS inline come fallback', array('path' => $css_file_path));
+        }
+        
         wp_enqueue_script('fp-git-updater-admin', FP_GIT_UPDATER_PLUGIN_URL . 'assets/admin.js', array('jquery'), FP_GIT_UPDATER_VERSION, true);
         
         wp_localize_script('fp-git-updater-admin', 'fpGitUpdater', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('fp_git_updater_nonce'),
         ));
+    }
+    
+    /**
+     * Enqueue CSS inline come fallback
+     */
+    public function enqueue_inline_css() {
+        $css_file_path = FP_GIT_UPDATER_PLUGIN_DIR . 'assets/admin.css';
+        
+        if (file_exists($css_file_path)) {
+            $css_content = file_get_contents($css_file_path);
+            echo '<style id="fp-git-updater-admin-css">' . $css_content . '</style>';
+        } else {
+            // CSS minimo di emergenza
+            echo '<style id="fp-git-updater-admin-fallback-css">
+.fp-git-updater-wrap { max-width: 1200px; }
+.fp-git-updater-wrap h1 { display: flex; align-items: center; gap: 10px; }
+.fp-git-updater-header { background: #fff; border: 1px solid #ccd0d4; margin: 20px 0; padding: 20px; border-radius: 4px; }
+.fp-status-box button { margin-right: 10px; margin-top: 15px; }
+.fp-git-updater-instructions { background: #fff; border: 1px solid #ccd0d4; margin: 20px 0; padding: 20px; border-radius: 4px; }
+.log-badge { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; text-transform: uppercase; color: #fff; }
+.log-badge-info { background: #2271b1; }
+.log-badge-success { background: #00a32a; }
+.log-badge-warning { background: #dba617; }
+.log-badge-error { background: #d63638; }
+.log-badge-webhook { background: #8c5ed9; }
+.fp-notice { padding: 12px; margin: 15px 0; border-left: 4px solid; border-radius: 0 4px 4px 0; background: #fff; }
+.fp-notice-success { border-left-color: #00a32a; background: #f0f8f2; }
+.fp-notice-error { border-left-color: #d63638; background: #fcf0f1; }
+.fp-notice-info { border-left-color: #2271b1; background: #f0f6fc; }
+</style>';
+        }
     }
     
     /**
