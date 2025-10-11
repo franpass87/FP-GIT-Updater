@@ -72,6 +72,56 @@ class FP_Git_Updater_Updater {
     }
     
     /**
+     * Controlla aggiornamenti per un plugin specifico dato il suo ID
+     */
+    public function check_plugin_update_by_id($plugin_id) {
+        $plugin = $this->get_plugin_by_id($plugin_id);
+        
+        if (!$plugin) {
+            return new WP_Error('plugin_not_found', 'Plugin non trovato');
+        }
+        
+        if (!isset($plugin['enabled']) || !$plugin['enabled']) {
+            return new WP_Error('plugin_disabled', 'Plugin disabilitato');
+        }
+        
+        return $this->check_plugin_for_updates($plugin);
+    }
+    
+    /**
+     * Esegue l'aggiornamento per un plugin specifico dato il suo ID
+     */
+    public function run_update_by_id($plugin_id) {
+        $plugin = $this->get_plugin_by_id($plugin_id);
+        
+        if (!$plugin) {
+            return new WP_Error('plugin_not_found', 'Plugin non trovato');
+        }
+        
+        if (!isset($plugin['enabled']) || !$plugin['enabled']) {
+            return new WP_Error('plugin_disabled', 'Plugin disabilitato');
+        }
+        
+        return $this->run_plugin_update(null, $plugin);
+    }
+    
+    /**
+     * Ottiene un plugin dalla configurazione dato il suo ID
+     */
+    private function get_plugin_by_id($plugin_id) {
+        $settings = get_option('fp_git_updater_settings');
+        $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
+        
+        foreach ($plugins as $plugin) {
+            if (isset($plugin['id']) && $plugin['id'] === $plugin_id) {
+                return $plugin;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
      * Controlla se ci sono aggiornamenti per un plugin specifico
      */
     private function check_plugin_for_updates($plugin) {

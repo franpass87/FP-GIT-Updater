@@ -26,8 +26,8 @@ class FP_Git_Updater_Admin {
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
         
         // AJAX handlers
-        add_action('wp_ajax_fp_git_updater_test_connection', array($this, 'ajax_test_connection'));
-        add_action('wp_ajax_fp_git_updater_manual_update', array($this, 'ajax_manual_update'));
+        add_action('wp_ajax_fp_git_updater_check_updates', array($this, 'ajax_check_updates'));
+        add_action('wp_ajax_fp_git_updater_install_update', array($this, 'ajax_install_update'));
         add_action('wp_ajax_fp_git_updater_clear_logs', array($this, 'ajax_clear_logs'));
     }
     
@@ -226,6 +226,14 @@ class FP_Git_Updater_Admin {
                                         <?php echo $plugin['enabled'] ? '● Abilitato' : '○ Disabilitato'; ?>
                                     </span>
                                 </div>
+                                <div class="fp-plugin-quick-actions">
+                                    <button type="button" class="button button-small fp-check-updates" data-plugin-id="<?php echo esc_attr($plugin['id']); ?>">
+                                        <span class="dashicons dashicons-cloud"></span> Controlla Aggiornamenti
+                                    </button>
+                                    <button type="button" class="button button-small button-primary fp-install-update" data-plugin-id="<?php echo esc_attr($plugin['id']); ?>">
+                                        <span class="dashicons dashicons-update"></span> Installa Aggiornamento
+                                    </button>
+                                </div>
                                 <div id="plugin-details-<?php echo $index; ?>" class="fp-plugin-details" style="display: none;">
                                     <input type="hidden" name="fp_git_updater_settings[plugins][<?php echo $index; ?>][id]" value="<?php echo esc_attr($plugin['id']); ?>">
                                     
@@ -396,19 +404,6 @@ class FP_Git_Updater_Admin {
                 
                 <?php submit_button('Salva Impostazioni'); ?>
             </form>
-            
-            <div class="fp-git-updater-header">
-                <h2>Azioni Rapide</h2>
-                <div class="fp-status-box">
-                    <p>Usa questi pulsanti per testare la connessione con GitHub e verificare gli aggiornamenti disponibili.</p>
-                    <button type="button" id="fp-test-connection" class="button button-primary">
-                        <span class="dashicons dashicons-cloud"></span> Testa Connessione GitHub
-                    </button>
-                    <button type="button" id="fp-manual-update" class="button button-secondary">
-                        <span class="dashicons dashicons-update"></span> Aggiorna Ora
-                    </button>
-                </div>
-            </div>
             
             <div class="fp-git-updater-instructions">
                 <h2>Come configurare il webhook su GitHub</h2>
@@ -584,9 +579,9 @@ class FP_Git_Updater_Admin {
     }
     
     /**
-     * AJAX: Test connessione GitHub
+     * AJAX: Controlla aggiornamenti per un plugin specifico
      */
-    public function ajax_test_connection() {
+    public function ajax_check_updates() {
         // Verifica il nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'fp_git_updater_nonce')) {
             wp_send_json_error(array('message' => 'Nonce non valido'), 400);
@@ -598,14 +593,23 @@ class FP_Git_Updater_Admin {
             wp_die();
         }
         
+        $plugin_id = isset($_POST['plugin_id']) ? sanitize_text_field($_POST['plugin_id']) : '';
+        
+        if (empty($plugin_id)) {
+            wp_send_json_error(array('message' => 'ID plugin non fornito'), 400);
+            wp_die();
+        }
+        
         try {
             $updater = FP_Git_Updater_Updater::get_instance();
-            $result = $updater->check_for_updates();
+            $result = $updater->check_plugin_update_by_id($plugin_id);
             
-            if ($result) {
-                wp_send_json_success(array('message' => 'Connessione riuscita! Aggiornamenti disponibili.'));
+            if (is_wp_error($result)) {
+                wp_send_json_error(array('message' => $result->get_error_message()), 500);
+            } elseif ($result) {
+                wp_send_json_success(array('message' => 'Aggiornamento disponibile per questo plugin!'));
             } else {
-                wp_send_json_success(array('message' => 'Connessione riuscita! Nessun aggiornamento disponibile.'));
+                wp_send_json_success(array('message' => 'Il plugin è già aggiornato.'));
             }
         } catch (Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
@@ -614,9 +618,9 @@ class FP_Git_Updater_Admin {
     }
     
     /**
-     * AJAX: Aggiornamento manuale
+     * AJAX: Installa aggiornamento per un plugin specifico
      */
-    public function ajax_manual_update() {
+    public function ajax_install_update() {
         // Verifica il nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'fp_git_updater_nonce')) {
             wp_send_json_error(array('message' => 'Nonce non valido'), 400);
@@ -628,11 +632,20 @@ class FP_Git_Updater_Admin {
             wp_die();
         }
         
+        $plugin_id = isset($_POST['plugin_id']) ? sanitize_text_field($_POST['plugin_id']) : '';
+        
+        if (empty($plugin_id)) {
+            wp_send_json_error(array('message' => 'ID plugin non fornito'), 400);
+            wp_die();
+        }
+        
         try {
             $updater = FP_Git_Updater_Updater::get_instance();
-            $result = $updater->run_update();
+            $result = $updater->run_update_by_id($plugin_id);
             
-            if ($result) {
+            if (is_wp_error($result)) {
+                wp_send_json_error(array('message' => $result->get_error_message()), 500);
+            } elseif ($result) {
                 wp_send_json_success(array('message' => 'Aggiornamento completato con successo!'));
             } else {
                 wp_send_json_error(array('message' => 'Errore durante l\'aggiornamento. Controlla i log.'), 500);

@@ -223,6 +223,24 @@
     color: #666;
 }
 
+.fp-plugin-quick-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.fp-plugin-quick-actions .button {
+    font-size: 13px;
+}
+
+.fp-plugin-quick-actions .button .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
 .fp-plugin-status {
     font-weight: 600;
 }
@@ -292,5 +310,14 @@
     
     .fp-plugin-actions button {
         flex: 1;
+    }
+    
+    .fp-plugin-quick-actions {
+        flex-direction: column;
+    }
+    
+    .fp-plugin-quick-actions .button {
+        width: 100%;
+        justify-content: center;
     }
 }
