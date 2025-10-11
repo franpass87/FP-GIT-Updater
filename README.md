@@ -1,6 +1,14 @@
 # FP Git Updater
 
+[![Build](https://github.com/TUOUSERNAME/fp-git-updater/actions/workflows/build-release.yml/badge.svg)](https://github.com/TUOUSERNAME/fp-git-updater/actions/workflows/build-release.yml)
+[![Test](https://github.com/TUOUSERNAME/fp-git-updater/actions/workflows/test.yml/badge.svg)](https://github.com/TUOUSERNAME/fp-git-updater/actions/workflows/test.yml)
+[![License](https://img.shields.io/badge/license-GPL%20v2-blue.svg)](LICENSE)
+[![WordPress](https://img.shields.io/badge/wordpress-5.0%2B-blue.svg)](https://wordpress.org/)
+[![PHP](https://img.shields.io/badge/php-7.4%2B-blue.svg)](https://php.net/)
+
 Plugin WordPress personalizzato per l'aggiornamento automatico da GitHub tramite webhook. Ogni volta che fai push o merge sul tuo repository GitHub, il plugin si aggiorna automaticamente su tutti i siti dove è installato.
+
+**✨ Novità**: Build automatico con GitHub Actions ad ogni push!
 
 ## 🚀 Caratteristiche
 

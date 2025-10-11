@@ -1,0 +1,39 @@
+name: Trigger Plugin Update
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  notify-sites:
+    name: Notifica Siti WordPress
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      
+      - name: Invia notifica a siti (opzionale)
+        run: |
+          echo "🔔 Push completato sul branch main"
+          echo "📡 GitHub invierà automaticamente il webhook ai siti configurati"
+          echo ""
+          echo "Commit: ${{ github.sha }}"
+          echo "Autore: ${{ github.actor }}"
+          echo "Messaggio: ${{ github.event.head_commit.message }}"
+          echo ""
+          echo "✅ I siti WordPress con il plugin installato riceveranno l'aggiornamento automaticamente!"
+      
+      # Opzionale: Invia notifica a Slack/Discord
+      # - name: Notifica Slack
+      #   uses: 8398a7/action-slack@v3
+      #   with:
+      #     status: custom
+      #     custom_payload: |
+      #       {
+      #         text: "🚀 Plugin aggiornato! Commit: ${{ github.event.head_commit.message }}"
+      #       }
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
