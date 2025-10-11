@@ -67,13 +67,21 @@
                 },
                 success: function(response) {
                     if (response.success) {
-                        showNotice('success', response.data);
+                        showNotice('success', response.data.message || response.data);
                     } else {
-                        showNotice('error', response.data);
+                        showNotice('error', response.data.message || response.data || 'Errore durante il test di connessione.');
                     }
                 },
-                error: function() {
-                    showNotice('error', 'Errore durante il test di connessione.');
+                error: function(xhr, status, error) {
+                    let errorMessage = 'Errore durante il test di connessione.';
+                    if (xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
+                        errorMessage = xhr.responseJSON.data.message;
+                    } else if (xhr.status === 400) {
+                        errorMessage = 'Richiesta non valida. Prova a ricaricare la pagina.';
+                    } else if (xhr.status === 403) {
+                        errorMessage = 'Permessi insufficienti.';
+                    }
+                    showNotice('error', errorMessage);
                 },
                 complete: function() {
                     $button.prop('disabled', false);
@@ -106,12 +114,14 @@
                 timeout: 120000, // 2 minuti
                 success: function(response) {
                     if (response.success) {
-                        showNotice('success', response.data + ' La pagina si ricaricherà tra 3 secondi...');
+                        let message = response.data.message || response.data || 'Aggiornamento completato!';
+                        showNotice('success', message + ' La pagina si ricaricherà tra 3 secondi...');
                         setTimeout(function() {
                             location.reload();
                         }, 3000);
                     } else {
-                        showNotice('error', response.data);
+                        let errorMessage = response.data.message || response.data || 'Errore durante l\'aggiornamento.';
+                        showNotice('error', errorMessage);
                         $button.prop('disabled', false);
                         $button.html(originalText);
                     }
@@ -120,6 +130,14 @@
                     let message = 'Errore durante l\'aggiornamento.';
                     if (status === 'timeout') {
                         message = 'Timeout: l\'aggiornamento potrebbe essere ancora in corso. Controlla i log.';
+                    } else if (xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
+                        message = xhr.responseJSON.data.message;
+                    } else if (xhr.status === 400) {
+                        message = 'Richiesta non valida. Prova a ricaricare la pagina.';
+                    } else if (xhr.status === 403) {
+                        message = 'Permessi insufficienti.';
+                    } else if (xhr.status === 500) {
+                        message = 'Errore del server. Controlla i log per maggiori dettagli.';
                     }
                     showNotice('error', message);
                     $button.prop('disabled', false);
@@ -151,16 +169,24 @@
                 },
                 success: function(response) {
                     if (response.success) {
-                        showNotice('success', response.data);
+                        showNotice('success', response.data.message || response.data);
                         setTimeout(function() {
                             location.reload();
                         }, 1000);
                     } else {
-                        showNotice('error', response.data);
+                        showNotice('error', response.data.message || response.data || 'Errore durante la pulizia dei log.');
                     }
                 },
-                error: function() {
-                    showNotice('error', 'Errore durante la pulizia dei log.');
+                error: function(xhr, status, error) {
+                    let errorMessage = 'Errore durante la pulizia dei log.';
+                    if (xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
+                        errorMessage = xhr.responseJSON.data.message;
+                    } else if (xhr.status === 400) {
+                        errorMessage = 'Richiesta non valida. Prova a ricaricare la pagina.';
+                    } else if (xhr.status === 403) {
+                        errorMessage = 'Permessi insufficienti.';
+                    }
+                    showNotice('error', errorMessage);
                 },
                 complete: function() {
                     $button.prop('disabled', false);
