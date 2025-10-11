@@ -117,13 +117,28 @@ class FP_Git_Updater_Admin {
             return;
         }
         
-        wp_enqueue_style('fp-git-updater-admin', FP_GIT_UPDATER_PLUGIN_URL . 'assets/admin.css', array(), FP_GIT_UPDATER_VERSION);
-        wp_enqueue_script('fp-git-updater-admin', FP_GIT_UPDATER_PLUGIN_URL . 'assets/admin.js', array('jquery'), FP_GIT_UPDATER_VERSION, true);
+        // Verifica che i file esistano prima di caricarli
+        $css_file = FP_GIT_UPDATER_PLUGIN_DIR . 'assets/admin.css';
+        $js_file = FP_GIT_UPDATER_PLUGIN_DIR . 'assets/admin.js';
         
-        wp_localize_script('fp-git-updater-admin', 'fpGitUpdater', array(
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('fp_git_updater_nonce'),
-        ));
+        if (file_exists($css_file)) {
+            wp_enqueue_style('fp-git-updater-admin', FP_GIT_UPDATER_PLUGIN_URL . 'assets/admin.css', array(), FP_GIT_UPDATER_VERSION);
+        } else {
+            // Log se il file CSS non esiste
+            FP_Git_Updater_Logger::log('error', 'File CSS non trovato: ' . $css_file);
+        }
+        
+        if (file_exists($js_file)) {
+            wp_enqueue_script('fp-git-updater-admin', FP_GIT_UPDATER_PLUGIN_URL . 'assets/admin.js', array('jquery'), FP_GIT_UPDATER_VERSION, true);
+            
+            wp_localize_script('fp-git-updater-admin', 'fpGitUpdater', array(
+                'ajax_url' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('fp_git_updater_nonce'),
+            ));
+        } else {
+            // Log se il file JS non esiste
+            FP_Git_Updater_Logger::log('error', 'File JS non trovato: ' . $js_file);
+        }
     }
     
     /**
@@ -375,53 +390,83 @@ class FP_Git_Updater_Admin {
      * AJAX: Test connessione GitHub
      */
     public function ajax_test_connection() {
-        check_ajax_referer('fp_git_updater_nonce', 'nonce');
+        // Verifica il nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'fp_git_updater_nonce')) {
+            wp_send_json_error(array('message' => 'Nonce non valido'), 400);
+            wp_die();
+        }
         
         if (!current_user_can('manage_options')) {
-            wp_send_json_error('Permessi insufficienti');
+            wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
+            wp_die();
         }
         
-        $updater = FP_Git_Updater_Updater::get_instance();
-        $result = $updater->check_for_updates();
-        
-        if ($result) {
-            wp_send_json_success('Connessione riuscita! Aggiornamenti disponibili.');
-        } else {
-            wp_send_json_success('Connessione riuscita! Nessun aggiornamento disponibile.');
+        try {
+            $updater = FP_Git_Updater_Updater::get_instance();
+            $result = $updater->check_for_updates();
+            
+            if ($result) {
+                wp_send_json_success(array('message' => 'Connessione riuscita! Aggiornamenti disponibili.'));
+            } else {
+                wp_send_json_success(array('message' => 'Connessione riuscita! Nessun aggiornamento disponibile.'));
+            }
+        } catch (Exception $e) {
+            wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
+        wp_die();
     }
     
     /**
      * AJAX: Aggiornamento manuale
      */
     public function ajax_manual_update() {
-        check_ajax_referer('fp_git_updater_nonce', 'nonce');
+        // Verifica il nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'fp_git_updater_nonce')) {
+            wp_send_json_error(array('message' => 'Nonce non valido'), 400);
+            wp_die();
+        }
         
         if (!current_user_can('manage_options')) {
-            wp_send_json_error('Permessi insufficienti');
+            wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
+            wp_die();
         }
         
-        $updater = FP_Git_Updater_Updater::get_instance();
-        $result = $updater->run_update();
-        
-        if ($result) {
-            wp_send_json_success('Aggiornamento completato con successo!');
-        } else {
-            wp_send_json_error('Errore durante l\'aggiornamento. Controlla i log.');
+        try {
+            $updater = FP_Git_Updater_Updater::get_instance();
+            $result = $updater->run_update();
+            
+            if ($result) {
+                wp_send_json_success(array('message' => 'Aggiornamento completato con successo!'));
+            } else {
+                wp_send_json_error(array('message' => 'Errore durante l\'aggiornamento. Controlla i log.'), 500);
+            }
+        } catch (Exception $e) {
+            wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
+        wp_die();
     }
     
     /**
      * AJAX: Pulisci log
      */
     public function ajax_clear_logs() {
-        check_ajax_referer('fp_git_updater_nonce', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error('Permessi insufficienti');
+        // Verifica il nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'fp_git_updater_nonce')) {
+            wp_send_json_error(array('message' => 'Nonce non valido'), 400);
+            wp_die();
         }
         
-        FP_Git_Updater_Logger::clear_all_logs();
-        wp_send_json_success('Log puliti con successo!');
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
+            wp_die();
+        }
+        
+        try {
+            FP_Git_Updater_Logger::clear_all_logs();
+            wp_send_json_success(array('message' => 'Log puliti con successo!'));
+        } catch (Exception $e) {
+            wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
+        }
+        wp_die();
     }
 }

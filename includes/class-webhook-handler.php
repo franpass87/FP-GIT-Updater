@@ -39,22 +39,29 @@ class FP_Git_Updater_Webhook_Handler {
      * Gestisce la richiesta webhook da GitHub
      */
     public function handle_webhook($request) {
-        // Log della richiesta
-        FP_Git_Updater_Logger::log('webhook', 'Webhook ricevuto da GitHub');
-        
-        // Verifica la firma del webhook
-        if (!$this->verify_signature($request)) {
-            FP_Git_Updater_Logger::log('error', 'Webhook: firma non valida');
-            return new WP_Error('invalid_signature', 'Firma webhook non valida', array('status' => 401));
-        }
-        
-        // Ottieni i dati del payload
-        $payload = $request->get_json_params();
-        
-        if (empty($payload)) {
-            FP_Git_Updater_Logger::log('error', 'Webhook: payload vuoto');
-            return new WP_Error('empty_payload', 'Payload vuoto', array('status' => 400));
-        }
+        try {
+            // Log della richiesta
+            FP_Git_Updater_Logger::log('webhook', 'Webhook ricevuto da GitHub');
+            
+            // Verifica la firma del webhook
+            if (!$this->verify_signature($request)) {
+                FP_Git_Updater_Logger::log('error', 'Webhook: firma non valida');
+                return new WP_REST_Response(array(
+                    'success' => false,
+                    'message' => 'Firma webhook non valida'
+                ), 401);
+            }
+            
+            // Ottieni i dati del payload
+            $payload = $request->get_json_params();
+            
+            if (empty($payload)) {
+                FP_Git_Updater_Logger::log('error', 'Webhook: payload vuoto');
+                return new WP_REST_Response(array(
+                    'success' => false,
+                    'message' => 'Payload vuoto'
+                ), 400);
+            }
         
         // Verifica che sia un evento push
         $event = $request->get_header('X-GitHub-Event');
@@ -93,24 +100,31 @@ class FP_Git_Updater_Webhook_Handler {
             'message' => $commit_message,
         ));
         
-        // Se l'aggiornamento automatico è abilitato, avvia l'aggiornamento
-        if (isset($settings['auto_update']) && $settings['auto_update']) {
-            // Schedula l'aggiornamento (eseguilo in background)
-            wp_schedule_single_event(time(), 'fp_git_updater_run_update', array($commit_sha));
-            
-            FP_Git_Updater_Logger::log('info', 'Aggiornamento schedulato per il commit ' . $commit_sha);
+            // Se l'aggiornamento automatico è abilitato, avvia l'aggiornamento
+            if (isset($settings['auto_update']) && $settings['auto_update']) {
+                // Schedula l'aggiornamento (eseguilo in background)
+                wp_schedule_single_event(time(), 'fp_git_updater_run_update', array($commit_sha));
+                
+                FP_Git_Updater_Logger::log('info', 'Aggiornamento schedulato per il commit ' . $commit_sha);
+                
+                return new WP_REST_Response(array(
+                    'success' => true,
+                    'message' => 'Aggiornamento schedulato',
+                    'commit' => $commit_sha
+                ), 200);
+            }
             
             return new WP_REST_Response(array(
                 'success' => true,
-                'message' => 'Aggiornamento schedulato',
-                'commit' => $commit_sha
+                'message' => 'Webhook ricevuto ma aggiornamento automatico disabilitato'
             ), 200);
+        } catch (Exception $e) {
+            FP_Git_Updater_Logger::log('error', 'Errore nel webhook handler: ' . $e->getMessage());
+            return new WP_REST_Response(array(
+                'success' => false,
+                'message' => 'Errore interno del server: ' . $e->getMessage()
+            ), 500);
         }
-        
-        return new WP_REST_Response(array(
-            'success' => true,
-            'message' => 'Webhook ricevuto ma aggiornamento automatico disabilitato'
-        ), 200);
     }
     
     /**
