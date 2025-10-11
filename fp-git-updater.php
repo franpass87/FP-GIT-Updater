@@ -2,8 +2,8 @@
 /**
  * Plugin Name: FP Git Updater
  * Plugin URI: https://www.francescopasseri.com
- * Description: Plugin personalizzato per aggiornamento automatico da GitHub tramite webhook. Si aggiorna automaticamente quando fai merge/push sul repository.
- * Version: 1.0.0
+ * Description: Gestione sicura degli aggiornamenti dei plugin da GitHub. Supporta sia aggiornamenti automatici che manuali tramite webhook, proteggendo i tuoi siti da aggiornamenti problematici.
+ * Version: 1.1.0
  * Author: Francesco Passeri
  * Author URI: https://www.francescopasseri.com
  * License: GPL v2 or later
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Definisci costanti del plugin
-define('FP_GIT_UPDATER_VERSION', '1.0.0');
+define('FP_GIT_UPDATER_VERSION', '1.1.0');
 define('FP_GIT_UPDATER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('FP_GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FP_GIT_UPDATER_PLUGIN_FILE', __FILE__);
@@ -111,7 +111,7 @@ class FP_Git_Updater {
         $default_options = array(
             'plugins' => array(), // Lista di plugin da gestire
             'webhook_secret' => wp_generate_password(32, false),
-            'auto_update' => true,
+            'auto_update' => false, // Default a false per sicurezza
             'update_check_interval' => 'hourly',
             'enable_notifications' => true,
             'notification_email' => get_option('admin_email'),
@@ -129,9 +129,9 @@ class FP_Git_Updater {
                 'github_token' => isset($existing_settings['github_token']) ? $existing_settings['github_token'] : '',
                 'enabled' => true,
             );
-            // Mantieni le altre impostazioni
+            // Mantieni le altre impostazioni (preserva auto_update se esiste)
             $default_options['webhook_secret'] = isset($existing_settings['webhook_secret']) ? $existing_settings['webhook_secret'] : $default_options['webhook_secret'];
-            $default_options['auto_update'] = isset($existing_settings['auto_update']) ? $existing_settings['auto_update'] : true;
+            $default_options['auto_update'] = isset($existing_settings['auto_update']) ? $existing_settings['auto_update'] : false;
             $default_options['update_check_interval'] = isset($existing_settings['update_check_interval']) ? $existing_settings['update_check_interval'] : 'hourly';
             $default_options['enable_notifications'] = isset($existing_settings['enable_notifications']) ? $existing_settings['enable_notifications'] : true;
             $default_options['notification_email'] = isset($existing_settings['notification_email']) ? $existing_settings['notification_email'] : get_option('admin_email');
