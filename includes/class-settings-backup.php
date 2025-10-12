@@ -28,6 +28,9 @@ class FP_Git_Updater_Settings_Backup {
         
         // Hook per ripristino automatico dopo attivazione
         add_action('activated_plugin', array($this, 'auto_restore_on_activation'), 10, 2);
+        
+        // Hook per pulizia automatica dei duplicati all'avvio
+        add_action('plugins_loaded', array($this, 'cleanup_duplicate_plugins'), 1);
     }
     
     /**
@@ -156,6 +159,15 @@ class FP_Git_Updater_Settings_Backup {
             return;
         }
         
+        // NON ripristinare automaticamente se stiamo ricaricando manualmente da zip
+        // Questo previene duplicazioni quando il plugin viene ricaricato manualmente
+        $settings = get_option('fp_git_updater_settings');
+        if (!empty($settings) && !empty($settings['plugins'])) {
+            // Se abbiamo già delle impostazioni valide, non ripristinare
+            FP_Git_Updater_Logger::log('info', 'Attivazione rilevata ma impostazioni già presenti, skip ripristino automatico per evitare duplicazioni');
+            return;
+        }
+        
         // Aspetta un momento per permettere al plugin di inizializzarsi
         add_action('init', array($this, 'delayed_auto_restore'));
     }
@@ -224,5 +236,52 @@ class FP_Git_Updater_Settings_Backup {
         delete_option($this->backup_history_key);
         FP_Git_Updater_Logger::log('info', 'Tutti i backup sono stati eliminati');
         return true;
+    }
+    
+    /**
+     * Rimuove automaticamente i plugin duplicati dalle impostazioni
+     * Eseguito all'avvio del plugin per prevenire problemi
+     */
+    public function cleanup_duplicate_plugins() {
+        $settings = get_option('fp_git_updater_settings');
+        
+        if (empty($settings) || empty($settings['plugins'])) {
+            return;
+        }
+        
+        $plugins = $settings['plugins'];
+        $cleaned_plugins = array();
+        $seen_repos = array();
+        $duplicates_found = false;
+        
+        foreach ($plugins as $plugin) {
+            if (empty($plugin['github_repo'])) {
+                continue;
+            }
+            
+            $github_repo = $plugin['github_repo'];
+            $branch = isset($plugin['branch']) ? $plugin['branch'] : 'main';
+            
+            // Crea una chiave unica basata su repo e branch
+            $repo_key = strtolower($github_repo . ':' . $branch);
+            
+            // Se questo repository+branch è già stato visto, salta (duplicato)
+            if (isset($seen_repos[$repo_key])) {
+                $duplicates_found = true;
+                FP_Git_Updater_Logger::log('warning', 'Plugin duplicato rimosso automaticamente: ' . $github_repo . ' (branch: ' . $branch . ')');
+                continue;
+            }
+            
+            // Segna questo repository come visto
+            $seen_repos[$repo_key] = true;
+            $cleaned_plugins[] = $plugin;
+        }
+        
+        // Se sono stati trovati duplicati, aggiorna le impostazioni
+        if ($duplicates_found) {
+            $settings['plugins'] = $cleaned_plugins;
+            update_option('fp_git_updater_settings', $settings);
+            FP_Git_Updater_Logger::log('success', 'Pulizia automatica completata: ' . (count($plugins) - count($cleaned_plugins)) . ' plugin duplicati rimossi');
+        }
     }
 }
