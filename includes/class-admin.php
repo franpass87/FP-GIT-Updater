@@ -114,8 +114,25 @@ class FP_Git_Updater_Admin {
         // Sanitizza la lista di plugin
         if (isset($input['plugins']) && is_array($input['plugins'])) {
             $output['plugins'] = array();
+            $seen_repos = array(); // Per tracciare repository già visti ed evitare duplicati
+            
             foreach ($input['plugins'] as $plugin) {
                 if (!empty($plugin['github_repo'])) {
+                    $github_repo = sanitize_text_field($plugin['github_repo']);
+                    $branch = isset($plugin['branch']) ? sanitize_text_field($plugin['branch']) : 'main';
+                    
+                    // Crea una chiave unica basata su repo e branch
+                    $repo_key = strtolower($github_repo . ':' . $branch);
+                    
+                    // Se questo repository+branch è già stato visto, salta (evita duplicati)
+                    if (isset($seen_repos[$repo_key])) {
+                        FP_Git_Updater_Logger::log('warning', 'Plugin duplicato rilevato e rimosso: ' . $github_repo . ' (branch: ' . $branch . ')');
+                        continue;
+                    }
+                    
+                    // Segna questo repository come visto
+                    $seen_repos[$repo_key] = true;
+                    
                     // Cripta il token GitHub se presente e non è vuoto
                     $github_token = isset($plugin['github_token']) ? sanitize_text_field($plugin['github_token']) : '';
                     if (!empty($github_token)) {
@@ -129,9 +146,9 @@ class FP_Git_Updater_Admin {
                     $output['plugins'][] = array(
                         'id' => isset($plugin['id']) ? sanitize_text_field($plugin['id']) : uniqid('plugin_'),
                         'name' => isset($plugin['name']) ? sanitize_text_field($plugin['name']) : __('Plugin senza nome', 'fp-git-updater'),
-                        'github_repo' => sanitize_text_field($plugin['github_repo']),
+                        'github_repo' => $github_repo,
                         'plugin_slug' => isset($plugin['plugin_slug']) ? sanitize_text_field($plugin['plugin_slug']) : '',
-                        'branch' => isset($plugin['branch']) ? sanitize_text_field($plugin['branch']) : 'main',
+                        'branch' => $branch,
                         'github_token' => $github_token,
                         'enabled' => isset($plugin['enabled']) ? true : false,
                     );
