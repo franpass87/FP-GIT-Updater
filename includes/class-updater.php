@@ -541,21 +541,97 @@ class FP_Git_Updater_Updater {
         
         // Copia i nuovi file
         FP_Git_Updater_Logger::log('info', 'Installazione nuovi file...');
+        
+        // Verifica che la directory sorgente esista e sia leggibile
+        if (!is_dir($source_dir) || !is_readable($source_dir)) {
+            FP_Git_Updater_Logger::log('error', 'Directory sorgente non valida o non leggibile: ' . $source_dir);
+            if ($backup_dir && file_exists($backup_dir)) {
+                @rename($backup_dir, $plugin_dir);
+                FP_Git_Updater_Logger::log('info', 'Backup ripristinato');
+            }
+            $wp_filesystem->delete($temp_extract_dir, true);
+            $this->send_notification('Errore aggiornamento', 'Directory sorgente non valida.');
+            return false;
+        }
+        
+        // Verifica che la directory parent di destinazione esista e sia scrivibile
+        $parent_dir = dirname($plugin_dir);
+        if (!is_dir($parent_dir)) {
+            FP_Git_Updater_Logger::log('error', 'Directory parent non esiste: ' . $parent_dir);
+            if ($backup_dir && file_exists($backup_dir)) {
+                @rename($backup_dir, $plugin_dir);
+                FP_Git_Updater_Logger::log('info', 'Backup ripristinato');
+            }
+            $wp_filesystem->delete($temp_extract_dir, true);
+            $this->send_notification('Errore aggiornamento', 'Directory plugins non trovata.');
+            return false;
+        }
+        
+        if (!is_writable($parent_dir)) {
+            FP_Git_Updater_Logger::log('error', 'Directory parent non scrivibile: ' . $parent_dir . ' (permessi: ' . substr(sprintf('%o', fileperms($parent_dir)), -4) . ')');
+            if ($backup_dir && file_exists($backup_dir)) {
+                @rename($backup_dir, $plugin_dir);
+                FP_Git_Updater_Logger::log('info', 'Backup ripristinato');
+            }
+            $wp_filesystem->delete($temp_extract_dir, true);
+            $this->send_notification('Errore aggiornamento', 'Directory plugins non scrivibile. Verifica i permessi.');
+            return false;
+        }
+        
+        // Assicurati che la directory di destinazione non esista (dovrebbe essere stata spostata nel backup)
+        if (file_exists($plugin_dir)) {
+            FP_Git_Updater_Logger::log('warning', 'La directory di destinazione esiste ancora, provo a rimuoverla: ' . $plugin_dir);
+            if (!$wp_filesystem->delete($plugin_dir, true)) {
+                FP_Git_Updater_Logger::log('error', 'Impossibile rimuovere directory esistente: ' . $plugin_dir);
+                if ($backup_dir && file_exists($backup_dir)) {
+                    @rename($backup_dir, $plugin_dir);
+                    FP_Git_Updater_Logger::log('info', 'Backup ripristinato');
+                }
+                $wp_filesystem->delete($temp_extract_dir, true);
+                $this->send_notification('Errore aggiornamento', 'Impossibile pulire la directory di destinazione.');
+                return false;
+            }
+        }
+        
+        // Esegui la copia
         $copy_result = copy_dir($source_dir, $plugin_dir);
         
         if (is_wp_error($copy_result)) {
             // Ripristina il backup se esiste
-            FP_Git_Updater_Logger::log('error', 'Errore installazione: ' . $copy_result->get_error_message());
+            $error_msg = $copy_result->get_error_message();
+            $error_data = $copy_result->get_error_data();
+            
+            FP_Git_Updater_Logger::log('error', 'Errore installazione: ' . $error_msg, array(
+                'source' => $source_dir,
+                'destination' => $plugin_dir,
+                'error_data' => $error_data
+            ));
+            
             if ($backup_dir && file_exists($backup_dir)) {
                 @rename($backup_dir, $plugin_dir);
                 FP_Git_Updater_Logger::log('info', 'Backup ripristinato');
-                $this->send_notification('Errore aggiornamento', 'Errore durante l\'installazione. Backup ripristinato.');
+                $this->send_notification('Errore aggiornamento', 'Errore durante l\'installazione: ' . $error_msg . '. Backup ripristinato.');
             } else {
-                $this->send_notification('Errore aggiornamento', 'Errore durante l\'installazione.');
+                $this->send_notification('Errore aggiornamento', 'Errore durante l\'installazione: ' . $error_msg);
             }
             $wp_filesystem->delete($temp_extract_dir, true);
             return false;
         }
+        
+        // Verifica che i file siano stati copiati correttamente
+        if (!is_dir($plugin_dir) || !is_readable($plugin_dir)) {
+            FP_Git_Updater_Logger::log('error', 'La directory di destinazione non è valida dopo la copia');
+            if ($backup_dir && file_exists($backup_dir)) {
+                $wp_filesystem->delete($plugin_dir, true);
+                @rename($backup_dir, $plugin_dir);
+                FP_Git_Updater_Logger::log('info', 'Backup ripristinato');
+                $this->send_notification('Errore aggiornamento', 'Verifica post-copia fallita. Backup ripristinato.');
+            }
+            $wp_filesystem->delete($temp_extract_dir, true);
+            return false;
+        }
+        
+        FP_Git_Updater_Logger::log('info', 'File copiati con successo');
         
         // Pulisci
         $wp_filesystem->delete($temp_extract_dir, true);
