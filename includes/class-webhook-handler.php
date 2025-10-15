@@ -102,7 +102,10 @@ class FP_Git_Updater_Webhook_Handler {
         
         if (empty($repository)) {
             FP_Git_Updater_Logger::log('error', 'Webhook: repository non identificato nel payload');
-            return new WP_Error('invalid_payload', 'Repository non identificato', array('status' => 400));
+            return new WP_REST_Response(array(
+                'success' => false,
+                'message' => 'Repository non identificato'
+            ), 400);
         }
         
         // Trova il plugin corrispondente al repository

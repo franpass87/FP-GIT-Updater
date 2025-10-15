@@ -511,7 +511,7 @@ class FP_Git_Updater_Admin {
                                     <input type="checkbox" 
                                            name="fp_git_updater_settings[auto_update]" 
                                            value="1" 
-                                           <?php checked($settings['auto_update'] ?? true, true); ?>>
+                                           <?php checked($settings['auto_update'] ?? false, true); ?>>
                                     Aggiorna automaticamente quando ricevi un push su GitHub
                                 </label>
                             </td>

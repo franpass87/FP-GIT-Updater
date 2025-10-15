@@ -18,6 +18,7 @@ if ($settings && isset($settings['plugins'])) {
         if (isset($plugin['id'])) {
             delete_option('fp_git_updater_current_commit_' . $plugin['id']);
             delete_option('fp_git_updater_last_update_' . $plugin['id']);
+            delete_option('fp_git_updater_pending_update_' . $plugin['id']);
         }
     }
 }
@@ -26,8 +27,11 @@ if ($settings && isset($settings['plugins'])) {
 delete_option('fp_git_updater_current_commit');
 delete_option('fp_git_updater_last_update');
 
-// Rimuovi le impostazioni
+// Rimuovi le impostazioni e i backup
 delete_option('fp_git_updater_settings');
+delete_option('fp_git_updater_settings_backup');
+delete_option('fp_git_updater_settings_backup_history');
+delete_option('fp_git_updater_db_version');
 
 // Rimuovi i cron job schedulati
 $timestamp = wp_next_scheduled('fp_git_updater_check_update');
@@ -37,6 +41,7 @@ if ($timestamp) {
 
 wp_clear_scheduled_hook('fp_git_updater_run_update');
 wp_clear_scheduled_hook('fp_git_updater_cleanup_backup');
+wp_clear_scheduled_hook('fp_git_updater_cleanup_old_logs');
 
 // Rimuovi la tabella dei log
 global $wpdb;

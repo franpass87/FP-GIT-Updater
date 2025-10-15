@@ -50,15 +50,22 @@ class FP_Git_Updater_Logger {
         
         $table_name = $wpdb->prefix . 'fp_git_updater_logs';
         
-        $sql = "SELECT * FROM $table_name";
-        
         if ($type) {
-            $sql .= $wpdb->prepare(" WHERE log_type = %s", $type);
+            $sql = $wpdb->prepare(
+                "SELECT * FROM $table_name WHERE log_type = %s ORDER BY log_date DESC LIMIT %d OFFSET %d",
+                $type,
+                $limit,
+                $offset
+            );
+        } else {
+            $sql = $wpdb->prepare(
+                "SELECT * FROM $table_name ORDER BY log_date DESC LIMIT %d OFFSET %d",
+                $limit,
+                $offset
+            );
         }
         
-        $sql .= " ORDER BY log_date DESC LIMIT %d OFFSET %d";
-        
-        return $wpdb->get_results($wpdb->prepare($sql, $limit, $offset));
+        return $wpdb->get_results($sql);
     }
     
     /**
