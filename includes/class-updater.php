@@ -39,7 +39,8 @@ class FP_Git_Updater_Updater {
         $interval = isset($settings['update_check_interval']) ? $settings['update_check_interval'] : 'hourly';
         
         if (!wp_next_scheduled('fp_git_updater_check_update')) {
-            wp_schedule_event(time(), $interval, 'fp_git_updater_check_update');
+            // Aggiungi 1 minuto di offset per evitare race condition
+            wp_schedule_event(time() + 60, $interval, 'fp_git_updater_check_update');
         }
     }
     
@@ -184,20 +185,24 @@ class FP_Git_Updater_Updater {
         
         // Se non trovato, cerca nelle sottocartelle (max 2 livelli)
         $subdirs = glob($extracted_dir . '/*', GLOB_ONLYDIR);
-        foreach ($subdirs as $subdir) {
-            $main_file = $this->find_plugin_main_file($subdir);
-            if ($main_file) {
-                FP_Git_Updater_Logger::log('info', 'Plugin trovato in sottocartella: ' . basename($subdir));
-                return dirname($main_file);
-            }
-            
-            // Cerca anche un livello più in profondità
-            $subsubdirs = glob($subdir . '/*', GLOB_ONLYDIR);
-            foreach ($subsubdirs as $subsubdir) {
-                $main_file = $this->find_plugin_main_file($subsubdir);
+        if ($subdirs !== false) {
+            foreach ($subdirs as $subdir) {
+                $main_file = $this->find_plugin_main_file($subdir);
                 if ($main_file) {
-                    FP_Git_Updater_Logger::log('info', 'Plugin trovato in sotto-sottocartella: ' . basename($subsubdir));
+                    FP_Git_Updater_Logger::log('info', 'Plugin trovato in sottocartella: ' . basename($subdir));
                     return dirname($main_file);
+                }
+                
+                // Cerca anche un livello più in profondità
+                $subsubdirs = glob($subdir . '/*', GLOB_ONLYDIR);
+                if ($subsubdirs !== false) {
+                    foreach ($subsubdirs as $subsubdir) {
+                        $main_file = $this->find_plugin_main_file($subsubdir);
+                        if ($main_file) {
+                            FP_Git_Updater_Logger::log('info', 'Plugin trovato in sotto-sottocartella: ' . basename($subsubdir));
+                            return dirname($main_file);
+                        }
+                    }
                 }
             }
         }
@@ -219,14 +224,16 @@ class FP_Git_Updater_Updater {
         // Cerca tutti i file PHP nella directory
         $php_files = glob($dir . '/*.php');
         
-        foreach ($php_files as $php_file) {
-            // Leggi le prime 8KB del file (sufficienti per l'header del plugin)
-            $file_data = file_get_contents($php_file, false, null, 0, 8192);
-            
-            // Controlla se contiene "Plugin Name:" nell'header
-            if ($file_data && preg_match('/Plugin Name:\s*(.+)/i', $file_data, $matches)) {
-                FP_Git_Updater_Logger::log('info', 'File principale del plugin trovato: ' . basename($php_file) . ' (Plugin: ' . trim($matches[1]) . ')');
-                return $php_file;
+        if ($php_files !== false) {
+            foreach ($php_files as $php_file) {
+                // Leggi le prime 8KB del file (sufficienti per l'header del plugin)
+                $file_data = @file_get_contents($php_file, false, null, 0, 8192);
+                
+                // Controlla se contiene "Plugin Name:" nell'header
+                if ($file_data && preg_match('/Plugin Name:\s*(.+)/i', $file_data, $matches)) {
+                    FP_Git_Updater_Logger::log('info', 'File principale del plugin trovato: ' . basename($php_file) . ' (Plugin: ' . trim($matches[1]) . ')');
+                    return $php_file;
+                }
             }
         }
         
@@ -325,8 +332,16 @@ class FP_Git_Updater_Updater {
             $error_message = 'Errore API GitHub: ' . $code;
             if ($code === 404) {
                 $error_message .= ' - Repository o branch non trovato. Verifica: ' . $repo . ' (branch: ' . $branch . ')';
-            } elseif ($code === 401 || $code === 403) {
-                $error_message .= ' - Accesso negato. Verifica il token GitHub.';
+            } elseif ($code === 401) {
+                $error_message .= ' - Autenticazione fallita. Token GitHub non valido o scaduto.';
+            } elseif ($code === 403) {
+                $error_message .= ' - Accesso negato. Verifica il token GitHub e i permessi del repository. Potrebbe essere un limite rate API.';
+            } elseif ($code === 422) {
+                $error_message .= ' - Richiesta non valida. Verifica il nome del branch.';
+            } elseif ($code >= 500) {
+                $error_message .= ' - Errore server GitHub. Riprova più tardi.';
+            } elseif ($code === 301 || $code === 302) {
+                $error_message .= ' - Repository spostato o rinominato.';
             }
             return new WP_Error('api_error', $error_message);
         }
@@ -334,11 +349,27 @@ class FP_Git_Updater_Updater {
         $body = wp_remote_retrieve_body($response);
         $data = json_decode($body, true);
         
+        // Verifica errori JSON
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            FP_Git_Updater_Logger::log('error', 'Errore parsing JSON dalla risposta API: ' . json_last_error_msg());
+            return new WP_Error('json_error', 'Risposta API non valida (JSON malformato)');
+        }
+        
+        if (!is_array($data)) {
+            FP_Git_Updater_Logger::log('error', 'Risposta API non è un array valido');
+            return new WP_Error('invalid_response', 'Formato risposta API non valido');
+        }
+        
         if (isset($data['sha'])) {
             return $data['sha'];
         }
         
-        return new WP_Error('invalid_response', 'Risposta API non valida');
+        // Log della risposta per debug
+        FP_Git_Updater_Logger::log('error', 'SHA commit non trovato nella risposta API', array(
+            'response_keys' => array_keys($data)
+        ));
+        
+        return new WP_Error('invalid_response', 'SHA commit non trovato nella risposta API');
     }
     
     /**
@@ -372,6 +403,18 @@ class FP_Git_Updater_Updater {
      * Esegue l'aggiornamento di un plugin specifico
      */
     private function run_plugin_update($commit_sha = null, $plugin) {
+        // Verifica se c'è già un aggiornamento in corso per questo plugin (lock)
+        $lock_key = 'fp_git_updater_lock_' . $plugin['id'];
+        $lock_value = get_transient($lock_key);
+        
+        if ($lock_value !== false) {
+            FP_Git_Updater_Logger::log('warning', 'Aggiornamento già in corso per: ' . $plugin['name'] . ' - saltato');
+            return false;
+        }
+        
+        // Imposta il lock (scade dopo 10 minuti come failsafe)
+        set_transient($lock_key, time(), 600);
+        
         try {
             FP_Git_Updater_Logger::log('info', 'Inizio aggiornamento per: ' . $plugin['name']);
             
@@ -409,6 +452,8 @@ class FP_Git_Updater_Updater {
         } catch (Exception $e) {
             FP_Git_Updater_Logger::log('error', 'Errore durante preparazione aggiornamento: ' . $e->getMessage());
             $this->send_notification('Errore aggiornamento', $e->getMessage());
+            // Rilascia il lock
+            delete_transient($lock_key);
             return false;
         }
         
@@ -421,6 +466,7 @@ class FP_Git_Updater_Updater {
         if (is_wp_error($response)) {
             FP_Git_Updater_Logger::log('error', 'Errore download: ' . $response->get_error_message());
             $this->send_notification('Errore aggiornamento', 'Errore durante il download: ' . $response->get_error_message());
+            delete_transient($lock_key);
             return false;
         }
         
@@ -429,6 +475,7 @@ class FP_Git_Updater_Updater {
         if ($response_code !== 200) {
             FP_Git_Updater_Logger::log('error', 'Errore download: HTTP ' . $response_code);
             $this->send_notification('Errore aggiornamento', 'Errore HTTP durante il download: ' . $response_code);
+            delete_transient($lock_key);
             return false;
         }
         
@@ -438,8 +485,22 @@ class FP_Git_Updater_Updater {
         if (empty($body)) {
             FP_Git_Updater_Logger::log('error', 'Errore download: file vuoto');
             $this->send_notification('Errore aggiornamento', 'Il file scaricato è vuoto');
+            delete_transient($lock_key);
             return false;
         }
+        
+        // Verifica dimensione file (max 100MB come sicurezza)
+        $body_size = strlen($body);
+        $max_size = 100 * 1024 * 1024; // 100MB
+        
+        if ($body_size > $max_size) {
+            FP_Git_Updater_Logger::log('error', 'File troppo grande: ' . round($body_size / 1024 / 1024, 2) . 'MB (max 100MB)');
+            $this->send_notification('Errore aggiornamento', 'Repository troppo grande. Considera di ridurre la dimensione o escludere file non necessari.');
+            delete_transient($lock_key);
+            return false;
+        }
+        
+        FP_Git_Updater_Logger::log('info', 'Download completato: ' . round($body_size / 1024 / 1024, 2) . 'MB');
         
         // Crea directory upgrade se non esiste
         $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
@@ -448,12 +509,19 @@ class FP_Git_Updater_Updater {
         }
         
         // Salva in un file temporaneo nella directory upgrade
-        $temp_file = $upgrade_dir . '/fp-git-updater-download-' . time() . '.zip';
+        // Usa uniqid() per evitare collisioni se più aggiornamenti simultanei
+        $temp_file = $upgrade_dir . '/fp-git-updater-download-' . time() . '-' . uniqid() . '.zip';
         
         // Usa file_put_contents che è più affidabile per questa operazione
-        if (!file_put_contents($temp_file, $body)) {
+        $bytes_written = @file_put_contents($temp_file, $body);
+        if ($bytes_written === false) {
+            // Pulisci il file parziale se esiste
+            if (file_exists($temp_file)) {
+                @unlink($temp_file);
+            }
             FP_Git_Updater_Logger::log('error', 'Errore nel salvare il file temporaneo');
             $this->send_notification('Errore aggiornamento', 'Impossibile salvare il file temporaneo');
+            delete_transient($lock_key);
             return false;
         }
         
@@ -482,6 +550,7 @@ class FP_Git_Updater_Updater {
         if (is_wp_error($unzip_result)) {
             FP_Git_Updater_Logger::log('error', 'Errore estrazione: ' . $unzip_result->get_error_message());
             $this->send_notification('Errore aggiornamento', 'Errore durante l\'estrazione: ' . $unzip_result->get_error_message());
+            delete_transient($lock_key);
             return false;
         }
         
@@ -492,6 +561,7 @@ class FP_Git_Updater_Updater {
             FP_Git_Updater_Logger::log('error', 'Directory estratta non trovata');
             $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Directory estratta non trovata');
+            delete_transient($lock_key);
             return false;
         }
         
@@ -508,6 +578,7 @@ class FP_Git_Updater_Updater {
             ));
             $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Struttura del plugin non valida nella directory estratta');
+            delete_transient($lock_key);
             return false;
         }
         
@@ -519,19 +590,39 @@ class FP_Git_Updater_Updater {
             ? $plugin['plugin_slug'] 
             : basename($repo);
         
+        // Sanitizza lo slug (rimuovi caratteri non validi per nomi directory)
+        $plugin_slug = preg_replace('/[^a-zA-Z0-9_-]/', '-', $plugin_slug);
+        $plugin_slug = trim($plugin_slug, '-');
+        
+        if (empty($plugin_slug)) {
+            FP_Git_Updater_Logger::log('error', 'Plugin slug non valido dopo sanitizzazione');
+            $wp_filesystem->delete($temp_extract_dir, true);
+            $this->send_notification('Errore aggiornamento', 'Nome plugin non valido');
+            delete_transient($lock_key);
+            return false;
+        }
+        
         $plugin_dir = WP_PLUGIN_DIR . '/' . $plugin_slug;
+        
+        // Verifica se stiamo cercando di aggiornare il plugin stesso
+        if ($plugin_slug === 'fp-git-updater' || $plugin_slug === dirname(FP_GIT_UPDATER_PLUGIN_BASENAME)) {
+            FP_Git_Updater_Logger::log('warning', 'ATTENZIONE: Aggiornamento del plugin FP Git Updater in corso. Potrebbero verificarsi errori durante l\'esecuzione.');
+            // Non blocchiamo l'aggiornamento, ma logghiamo un warning
+            // L'utente potrebbe voler aggiornare il plugin usando se stesso
+        }
         
         // Backup della versione attuale (solo se la directory esiste)
         $backup_dir = null;
         if (file_exists($plugin_dir) && is_dir($plugin_dir)) {
             FP_Git_Updater_Logger::log('info', 'Creazione backup...');
-            $backup_dir = WP_CONTENT_DIR . '/upgrade/fp-git-updater-backup-' . time();
+            $backup_dir = WP_CONTENT_DIR . '/upgrade/fp-git-updater-backup-' . time() . '-' . uniqid();
             
             // Usa rename() nativo che è più affidabile per operazioni atomiche
             if (!@rename($plugin_dir, $backup_dir)) {
                 FP_Git_Updater_Logger::log('error', 'Impossibile creare backup: verifica i permessi della directory');
                 $wp_filesystem->delete($temp_extract_dir, true);
                 $this->send_notification('Errore aggiornamento', 'Impossibile creare backup della versione corrente. Verifica i permessi.');
+                delete_transient($lock_key);
                 return false;
             }
             FP_Git_Updater_Logger::log('info', 'Backup creato con successo');
@@ -551,6 +642,7 @@ class FP_Git_Updater_Updater {
             }
             $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Directory sorgente non valida.');
+            delete_transient($lock_key);
             return false;
         }
         
@@ -564,6 +656,7 @@ class FP_Git_Updater_Updater {
             }
             $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Directory plugins non trovata.');
+            delete_transient($lock_key);
             return false;
         }
         
@@ -575,6 +668,7 @@ class FP_Git_Updater_Updater {
             }
             $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Directory plugins non scrivibile. Verifica i permessi.');
+            delete_transient($lock_key);
             return false;
         }
         
@@ -589,6 +683,7 @@ class FP_Git_Updater_Updater {
                 }
                 $wp_filesystem->delete($temp_extract_dir, true);
                 $this->send_notification('Errore aggiornamento', 'Impossibile pulire la directory di destinazione.');
+                delete_transient($lock_key);
                 return false;
             }
         }
@@ -615,6 +710,7 @@ class FP_Git_Updater_Updater {
                 $this->send_notification('Errore aggiornamento', 'Errore durante l\'installazione: ' . $error_msg);
             }
             $wp_filesystem->delete($temp_extract_dir, true);
+            delete_transient($lock_key);
             return false;
         }
         
@@ -628,6 +724,7 @@ class FP_Git_Updater_Updater {
                 $this->send_notification('Errore aggiornamento', 'Verifica post-copia fallita. Backup ripristinato.');
             }
             $wp_filesystem->delete($temp_extract_dir, true);
+            delete_transient($lock_key);
             return false;
         }
         
@@ -659,6 +756,9 @@ class FP_Git_Updater_Updater {
             wp_schedule_single_event(time() + (7 * DAY_IN_SECONDS), 'fp_git_updater_cleanup_backup', array($backup_dir));
         }
         
+        // Rilascia il lock
+        delete_transient($lock_key);
+        
         return true;
     }
     
@@ -685,11 +785,27 @@ class FP_Git_Updater_Updater {
         $settings = get_option('fp_git_updater_settings');
         
         if (!isset($settings['enable_notifications']) || !$settings['enable_notifications']) {
-            return;
+            return false;
         }
         
         $email = isset($settings['notification_email']) ? $settings['notification_email'] : get_option('admin_email');
         
-        wp_mail($email, $subject, $message);
+        // Valida l'email prima di inviare
+        if (!is_email($email)) {
+            FP_Git_Updater_Logger::log('error', 'Email notifica non valida: ' . $email);
+            return false;
+        }
+        
+        // Invia email e logga il risultato
+        $result = wp_mail($email, $subject, $message);
+        
+        if (!$result) {
+            FP_Git_Updater_Logger::log('warning', 'Impossibile inviare notifica email a: ' . $email, array(
+                'subject' => $subject,
+                'message' => substr($message, 0, 100)
+            ));
+        }
+        
+        return $result;
     }
 }

@@ -121,6 +121,28 @@ class FP_Git_Updater_Admin {
                     $github_repo = sanitize_text_field($plugin['github_repo']);
                     $branch = isset($plugin['branch']) ? sanitize_text_field($plugin['branch']) : 'main';
                     
+                    // Valida il formato del repository (deve essere username/repository)
+                    if (!preg_match('/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/', $github_repo)) {
+                        FP_Git_Updater_Logger::log('error', 'Formato repository non valido: ' . $github_repo . ' (deve essere username/repository)');
+                        add_settings_error(
+                            'fp_git_updater_settings',
+                            'invalid_repo_format',
+                            sprintf(__('Formato repository non valido: "%s". Usa il formato username/repository', 'fp-git-updater'), $github_repo)
+                        );
+                        continue;
+                    }
+                    
+                    // Valida il nome del branch (solo caratteri alfanumerici, -, _, /)
+                    if (!preg_match('/^[a-zA-Z0-9_.\/-]+$/', $branch)) {
+                        FP_Git_Updater_Logger::log('error', 'Nome branch non valido: ' . $branch);
+                        add_settings_error(
+                            'fp_git_updater_settings',
+                            'invalid_branch_name',
+                            sprintf(__('Nome branch non valido: "%s". Usa solo lettere, numeri, -, _ e /', 'fp-git-updater'), $branch)
+                        );
+                        continue;
+                    }
+                    
                     // Crea una chiave unica basata su repo e branch
                     $repo_key = strtolower($github_repo . ':' . $branch);
                     
@@ -133,11 +155,45 @@ class FP_Git_Updater_Admin {
                     // Segna questo repository come visto
                     $seen_repos[$repo_key] = true;
                     
+                    // Valida lunghezza del nome plugin (max 200 caratteri)
+                    $plugin_name = isset($plugin['name']) ? sanitize_text_field($plugin['name']) : __('Plugin senza nome', 'fp-git-updater');
+                    if (strlen($plugin_name) > 200) {
+                        $plugin_name = substr($plugin_name, 0, 200);
+                        FP_Git_Updater_Logger::log('warning', 'Nome plugin troppo lungo, troncato a 200 caratteri');
+                    }
+                    
+                    // Valida e sanitizza slug (max 100 caratteri, solo caratteri sicuri)
+                    $plugin_slug = isset($plugin['plugin_slug']) ? sanitize_text_field($plugin['plugin_slug']) : '';
+                    if (!empty($plugin_slug)) {
+                        // Rimuovi caratteri non validi per nomi directory (previeni path traversal)
+                        $plugin_slug = preg_replace('/[^a-zA-Z0-9_-]/', '-', $plugin_slug);
+                        $plugin_slug = trim($plugin_slug, '-');
+                        
+                        if (strlen($plugin_slug) > 100) {
+                            $plugin_slug = substr($plugin_slug, 0, 100);
+                            FP_Git_Updater_Logger::log('warning', 'Slug plugin troppo lungo, troncato a 100 caratteri');
+                        }
+                        
+                        // Verifica che non sia vuoto dopo sanitizzazione
+                        if (empty($plugin_slug)) {
+                            FP_Git_Updater_Logger::log('warning', 'Slug plugin vuoto dopo sanitizzazione, verrà dedotto dal repository');
+                        }
+                    }
+                    
                     // Cripta il token GitHub se presente e non è vuoto
                     $github_token = isset($plugin['github_token']) ? sanitize_text_field($plugin['github_token']) : '';
                     if (!empty($github_token)) {
-                        // Se il token non è già criptato, criptalo
-                        if (!$encryption->is_encrypted($github_token)) {
+                        // Valida lunghezza token (max 500 caratteri prima di criptare)
+                        if (strlen($github_token) > 500) {
+                            FP_Git_Updater_Logger::log('error', 'Token GitHub troppo lungo (max 500 caratteri)');
+                            add_settings_error(
+                                'fp_git_updater_settings',
+                                'token_too_long',
+                                __('Token GitHub troppo lungo. Usa un token valido.', 'fp-git-updater')
+                            );
+                            $github_token = '';
+                        } else if (!$encryption->is_encrypted($github_token)) {
+                            // Se il token non è già criptato, criptalo
                             $encrypted_token = $encryption->encrypt($github_token);
                             $github_token = $encrypted_token !== false ? $encrypted_token : $github_token;
                         }
@@ -145,9 +201,9 @@ class FP_Git_Updater_Admin {
                     
                     $output['plugins'][] = array(
                         'id' => isset($plugin['id']) ? sanitize_text_field($plugin['id']) : uniqid('plugin_'),
-                        'name' => isset($plugin['name']) ? sanitize_text_field($plugin['name']) : __('Plugin senza nome', 'fp-git-updater'),
+                        'name' => $plugin_name,
                         'github_repo' => $github_repo,
-                        'plugin_slug' => isset($plugin['plugin_slug']) ? sanitize_text_field($plugin['plugin_slug']) : '',
+                        'plugin_slug' => $plugin_slug,
                         'branch' => $branch,
                         'github_token' => $github_token,
                         'enabled' => isset($plugin['enabled']) ? true : false,
@@ -173,7 +229,21 @@ class FP_Git_Updater_Admin {
         $output['enable_notifications'] = isset($input['enable_notifications']) ? true : false;
         
         if (isset($input['notification_email'])) {
-            $output['notification_email'] = sanitize_email($input['notification_email']);
+            $sanitized_email = sanitize_email($input['notification_email']);
+            // Valida che sia un'email valida
+            if (!empty($sanitized_email) && is_email($sanitized_email)) {
+                $output['notification_email'] = $sanitized_email;
+            } else {
+                // Usa email admin come fallback
+                $output['notification_email'] = get_option('admin_email');
+                if (!empty($input['notification_email'])) {
+                    add_settings_error(
+                        'fp_git_updater_settings',
+                        'invalid_email',
+                        sprintf(__('Email non valida: "%s". Verrà usata l\'email admin.', 'fp-git-updater'), $input['notification_email'])
+                    );
+                }
+            }
         }
         
         if (isset($input['update_check_interval'])) {
@@ -224,12 +294,17 @@ class FP_Git_Updater_Admin {
     public function enqueue_inline_css() {
         $css_file_path = FP_GIT_UPDATER_PLUGIN_DIR . 'assets/admin.css';
         
-        if (file_exists($css_file_path)) {
-            $css_content = file_get_contents($css_file_path);
-            echo '<style id="fp-git-updater-admin-css">' . $css_content . '</style>';
-        } else {
-            // CSS minimo di emergenza
-            echo '<style id="fp-git-updater-admin-fallback-css">
+        if (file_exists($css_file_path) && is_readable($css_file_path)) {
+            $css_content = @file_get_contents($css_file_path);
+            if ($css_content !== false) {
+                echo '<style id="fp-git-updater-admin-css">' . $css_content . '</style>';
+                return;
+            }
+        }
+        
+        // Se non è possibile leggere il file CSS, usa il fallback
+        // CSS minimo di emergenza
+        echo '<style id="fp-git-updater-admin-fallback-css">
 .fp-git-updater-wrap { max-width: 1200px; }
 .fp-git-updater-wrap h1 { display: flex; align-items: center; gap: 10px; }
 .fp-git-updater-header { background: #fff; border: 1px solid #ccd0d4; margin: 20px 0; padding: 20px; border-radius: 4px; }
@@ -246,7 +321,7 @@ class FP_Git_Updater_Admin {
 .fp-notice-error { border-left-color: #d63638; background: #fcf0f1; }
 .fp-notice-info { border-left-color: #2271b1; background: #f0f6fc; }
 </style>';
-        }
+    }
     }
     
     /**
@@ -511,7 +586,7 @@ class FP_Git_Updater_Admin {
                                     <input type="checkbox" 
                                            name="fp_git_updater_settings[auto_update]" 
                                            value="1" 
-                                           <?php checked($settings['auto_update'] ?? true, true); ?>>
+                                           <?php checked($settings['auto_update'] ?? false, true); ?>>
                                     Aggiorna automaticamente quando ricevi un push su GitHub
                                 </label>
                             </td>

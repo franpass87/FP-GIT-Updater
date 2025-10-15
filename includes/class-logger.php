@@ -34,7 +34,8 @@ class FP_Git_Updater_Logger {
             // Usa un cron job per la pulizia invece di farlo ad ogni insert
             // Questo migliora le performance
             if (!wp_next_scheduled('fp_git_updater_cleanup_old_logs')) {
-                wp_schedule_event(time(), 'daily', 'fp_git_updater_cleanup_old_logs');
+                // Schedula per domani alla stessa ora
+                wp_schedule_event(time() + DAY_IN_SECONDS, 'daily', 'fp_git_updater_cleanup_old_logs');
             }
         } catch (Exception $e) {
             // Fallback: logga su error_log se il database fallisce
@@ -50,15 +51,22 @@ class FP_Git_Updater_Logger {
         
         $table_name = $wpdb->prefix . 'fp_git_updater_logs';
         
-        $sql = "SELECT * FROM $table_name";
-        
         if ($type) {
-            $sql .= $wpdb->prepare(" WHERE log_type = %s", $type);
+            $sql = $wpdb->prepare(
+                "SELECT * FROM $table_name WHERE log_type = %s ORDER BY log_date DESC LIMIT %d OFFSET %d",
+                $type,
+                $limit,
+                $offset
+            );
+        } else {
+            $sql = $wpdb->prepare(
+                "SELECT * FROM $table_name ORDER BY log_date DESC LIMIT %d OFFSET %d",
+                $limit,
+                $offset
+            );
         }
         
-        $sql .= " ORDER BY log_date DESC LIMIT %d OFFSET %d";
-        
-        return $wpdb->get_results($wpdb->prepare($sql, $limit, $offset));
+        return $wpdb->get_results($sql);
     }
     
     /**

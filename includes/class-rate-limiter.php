@@ -54,13 +54,16 @@ class FP_Git_Updater_Rate_Limiter {
      */
     public function is_allowed($identifier) {
         $key = $this->transient_prefix . md5($identifier);
+        $timestamp_key = $key . '_timestamp';
         
         // Ottieni il contatore corrente
         $counter = get_transient($key);
+        $timestamp = get_transient($timestamp_key);
         
         if ($counter === false) {
             // Prima richiesta in questo time window
             set_transient($key, 1, $this->time_window);
+            set_transient($timestamp_key, time(), $this->time_window);
             return true;
         }
         
@@ -77,8 +80,19 @@ class FP_Git_Updater_Rate_Limiter {
             return false;
         }
         
-        // Incrementa il contatore
-        set_transient($key, $counter + 1, $this->time_window);
+        // Calcola il tempo rimanente per preservare il timeout originale
+        if ($timestamp !== false) {
+            $elapsed = time() - intval($timestamp);
+            $remaining = max(1, $this->time_window - $elapsed);
+        } else {
+            $remaining = $this->time_window;
+        }
+        
+        // Incrementa il contatore preservando il timeout originale
+        set_transient($key, $counter + 1, $remaining);
+        if ($timestamp === false) {
+            set_transient($timestamp_key, time(), $remaining);
+        }
         return true;
     }
     

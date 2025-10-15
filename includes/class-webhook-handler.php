@@ -102,7 +102,10 @@ class FP_Git_Updater_Webhook_Handler {
         
         if (empty($repository)) {
             FP_Git_Updater_Logger::log('error', 'Webhook: repository non identificato nel payload');
-            return new WP_Error('invalid_payload', 'Repository non identificato', array('status' => 400));
+            return new WP_REST_Response(array(
+                'success' => false,
+                'message' => 'Repository non identificato'
+            ), 400);
         }
         
         // Trova il plugin corrispondente al repository
@@ -136,10 +139,29 @@ class FP_Git_Updater_Webhook_Handler {
             ), 200);
         }
         
+        // Verifica che head_commit esista (potrebbe non esserci in caso di branch deletion)
+        if (!isset($payload['head_commit']) || empty($payload['head_commit'])) {
+            FP_Git_Updater_Logger::log('info', 'Webhook ignorato: nessun commit (probabilmente branch deletion)');
+            return new WP_REST_Response(array(
+                'success' => true,
+                'message' => 'Evento ignorato: nessun commit disponibile'
+            ), 200);
+        }
+        
         // Log dei dettagli del push
         $commit_message = isset($payload['head_commit']['message']) ? $payload['head_commit']['message'] : 'N/A';
         $commit_author = isset($payload['head_commit']['author']['name']) ? $payload['head_commit']['author']['name'] : 'N/A';
         $commit_sha = isset($payload['head_commit']['id']) ? $payload['head_commit']['id'] : '';
+        
+        // Verifica che il commit SHA sia valido
+        if (empty($commit_sha) || strlen($commit_sha) < 7) {
+            FP_Git_Updater_Logger::log('error', 'Webhook: commit SHA mancante o non valido');
+            return new WP_REST_Response(array(
+                'success' => false,
+                'message' => 'Commit SHA non valido'
+            ), 400);
+        }
+        
         $commit_sha_short = substr($commit_sha, 0, 7);
         
         FP_Git_Updater_Logger::log('info', 'Push ricevuto per ' . $matched_plugin['name'] . ' sul branch ' . $branch, array(
@@ -162,7 +184,8 @@ class FP_Git_Updater_Webhook_Handler {
             // Se l'aggiornamento automatico è abilitato, avvia l'aggiornamento
             if (isset($settings['auto_update']) && $settings['auto_update']) {
                 // Schedula l'aggiornamento (eseguilo in background) passando il plugin come parametro
-                wp_schedule_single_event(time(), 'fp_git_updater_run_update', array($commit_sha, $matched_plugin));
+                // Aggiungi 5 secondi di offset per evitare race condition con il cron
+                wp_schedule_single_event(time() + 5, 'fp_git_updater_run_update', array($commit_sha, $matched_plugin));
                 
                 FP_Git_Updater_Logger::log('info', 'Aggiornamento automatico schedulato per ' . $matched_plugin['name'] . ' al commit ' . $commit_sha_short);
                 
