@@ -107,6 +107,12 @@ class FP_Git_Updater {
         FP_Git_Updater_Updater::get_instance();
         FP_Git_Updater_Settings_Backup::get_instance();
         
+        // Schedula pulizia file temporanei vecchi (una volta al giorno)
+        if (!wp_next_scheduled('fp_git_updater_cleanup_temp_files')) {
+            wp_schedule_event(time() + DAY_IN_SECONDS, 'daily', 'fp_git_updater_cleanup_temp_files');
+        }
+        add_action('fp_git_updater_cleanup_temp_files', array($this, 'cleanup_old_temp_files'));
+        
         if (is_admin()) {
             FP_Git_Updater_Admin::get_instance();
         }
@@ -193,6 +199,11 @@ class FP_Git_Updater {
             wp_unschedule_event($timestamp, 'fp_git_updater_cleanup_old_logs');
         }
         
+        $timestamp = wp_next_scheduled('fp_git_updater_cleanup_temp_files');
+        if ($timestamp) {
+            wp_unschedule_event($timestamp, 'fp_git_updater_cleanup_temp_files');
+        }
+        
         flush_rewrite_rules();
     }
     
@@ -227,6 +238,52 @@ class FP_Git_Updater {
         $settings_link = '<a href="' . admin_url('admin.php?page=fp-git-updater') . '">' . __('Impostazioni', 'fp-git-updater') . '</a>';
         array_unshift($links, $settings_link);
         return $links;
+    }
+    
+    /**
+     * Pulisce file temporanei vecchi (>7 giorni)
+     */
+    public function cleanup_old_temp_files() {
+        $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
+        
+        if (!is_dir($upgrade_dir)) {
+            return;
+        }
+        
+        $cutoff_time = time() - (7 * DAY_IN_SECONDS);
+        $cleaned = 0;
+        
+        // Pulisci file zip temporanei vecchi
+        $temp_files = glob($upgrade_dir . '/fp-git-updater-download-*.zip');
+        if ($temp_files !== false) {
+            foreach ($temp_files as $file) {
+                if (file_exists($file) && filemtime($file) < $cutoff_time) {
+                    if (@unlink($file)) {
+                        $cleaned++;
+                    }
+                }
+            }
+        }
+        
+        // Pulisci directory temp vecchie
+        $temp_dir = $upgrade_dir . '/fp-git-updater-temp';
+        if (is_dir($temp_dir)) {
+            $dir_mtime = filemtime($temp_dir);
+            if ($dir_mtime && $dir_mtime < $cutoff_time) {
+                global $wp_filesystem;
+                if (!$wp_filesystem) {
+                    require_once ABSPATH . 'wp-admin/includes/file.php';
+                    WP_Filesystem();
+                }
+                if ($wp_filesystem->delete($temp_dir, true)) {
+                    $cleaned++;
+                }
+            }
+        }
+        
+        if ($cleaned > 0) {
+            FP_Git_Updater_Logger::log('info', 'Pulizia file temporanei completata: ' . $cleaned . ' elementi rimossi');
+        }
     }
 }
 

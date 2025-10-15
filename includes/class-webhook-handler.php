@@ -139,10 +139,29 @@ class FP_Git_Updater_Webhook_Handler {
             ), 200);
         }
         
+        // Verifica che head_commit esista (potrebbe non esserci in caso di branch deletion)
+        if (!isset($payload['head_commit']) || empty($payload['head_commit'])) {
+            FP_Git_Updater_Logger::log('info', 'Webhook ignorato: nessun commit (probabilmente branch deletion)');
+            return new WP_REST_Response(array(
+                'success' => true,
+                'message' => 'Evento ignorato: nessun commit disponibile'
+            ), 200);
+        }
+        
         // Log dei dettagli del push
         $commit_message = isset($payload['head_commit']['message']) ? $payload['head_commit']['message'] : 'N/A';
         $commit_author = isset($payload['head_commit']['author']['name']) ? $payload['head_commit']['author']['name'] : 'N/A';
         $commit_sha = isset($payload['head_commit']['id']) ? $payload['head_commit']['id'] : '';
+        
+        // Verifica che il commit SHA sia valido
+        if (empty($commit_sha) || strlen($commit_sha) < 7) {
+            FP_Git_Updater_Logger::log('error', 'Webhook: commit SHA mancante o non valido');
+            return new WP_REST_Response(array(
+                'success' => false,
+                'message' => 'Commit SHA non valido'
+            ), 400);
+        }
+        
         $commit_sha_short = substr($commit_sha, 0, 7);
         
         FP_Git_Updater_Logger::log('info', 'Push ricevuto per ' . $matched_plugin['name'] . ' sul branch ' . $branch, array(

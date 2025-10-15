@@ -332,8 +332,16 @@ class FP_Git_Updater_Updater {
             $error_message = 'Errore API GitHub: ' . $code;
             if ($code === 404) {
                 $error_message .= ' - Repository o branch non trovato. Verifica: ' . $repo . ' (branch: ' . $branch . ')';
-            } elseif ($code === 401 || $code === 403) {
-                $error_message .= ' - Accesso negato. Verifica il token GitHub.';
+            } elseif ($code === 401) {
+                $error_message .= ' - Autenticazione fallita. Token GitHub non valido o scaduto.';
+            } elseif ($code === 403) {
+                $error_message .= ' - Accesso negato. Verifica il token GitHub e i permessi del repository. Potrebbe essere un limite rate API.';
+            } elseif ($code === 422) {
+                $error_message .= ' - Richiesta non valida. Verifica il nome del branch.';
+            } elseif ($code >= 500) {
+                $error_message .= ' - Errore server GitHub. Riprova più tardi.';
+            } elseif ($code === 301 || $code === 302) {
+                $error_message .= ' - Repository spostato o rinominato.';
             }
             return new WP_Error('api_error', $error_message);
         }
@@ -341,11 +349,27 @@ class FP_Git_Updater_Updater {
         $body = wp_remote_retrieve_body($response);
         $data = json_decode($body, true);
         
+        // Verifica errori JSON
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            FP_Git_Updater_Logger::log('error', 'Errore parsing JSON dalla risposta API: ' . json_last_error_msg());
+            return new WP_Error('json_error', 'Risposta API non valida (JSON malformato)');
+        }
+        
+        if (!is_array($data)) {
+            FP_Git_Updater_Logger::log('error', 'Risposta API non è un array valido');
+            return new WP_Error('invalid_response', 'Formato risposta API non valido');
+        }
+        
         if (isset($data['sha'])) {
             return $data['sha'];
         }
         
-        return new WP_Error('invalid_response', 'Risposta API non valida');
+        // Log della risposta per debug
+        FP_Git_Updater_Logger::log('error', 'SHA commit non trovato nella risposta API', array(
+            'response_keys' => array_keys($data)
+        ));
+        
+        return new WP_Error('invalid_response', 'SHA commit non trovato nella risposta API');
     }
     
     /**
@@ -465,6 +489,19 @@ class FP_Git_Updater_Updater {
             return false;
         }
         
+        // Verifica dimensione file (max 100MB come sicurezza)
+        $body_size = strlen($body);
+        $max_size = 100 * 1024 * 1024; // 100MB
+        
+        if ($body_size > $max_size) {
+            FP_Git_Updater_Logger::log('error', 'File troppo grande: ' . round($body_size / 1024 / 1024, 2) . 'MB (max 100MB)');
+            $this->send_notification('Errore aggiornamento', 'Repository troppo grande. Considera di ridurre la dimensione o escludere file non necessari.');
+            delete_transient($lock_key);
+            return false;
+        }
+        
+        FP_Git_Updater_Logger::log('info', 'Download completato: ' . round($body_size / 1024 / 1024, 2) . 'MB');
+        
         // Crea directory upgrade se non esiste
         $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
         if (!file_exists($upgrade_dir)) {
@@ -472,7 +509,8 @@ class FP_Git_Updater_Updater {
         }
         
         // Salva in un file temporaneo nella directory upgrade
-        $temp_file = $upgrade_dir . '/fp-git-updater-download-' . time() . '.zip';
+        // Usa uniqid() per evitare collisioni se più aggiornamenti simultanei
+        $temp_file = $upgrade_dir . '/fp-git-updater-download-' . time() . '-' . uniqid() . '.zip';
         
         // Usa file_put_contents che è più affidabile per questa operazione
         $bytes_written = @file_put_contents($temp_file, $body);
@@ -552,13 +590,32 @@ class FP_Git_Updater_Updater {
             ? $plugin['plugin_slug'] 
             : basename($repo);
         
+        // Sanitizza lo slug (rimuovi caratteri non validi per nomi directory)
+        $plugin_slug = preg_replace('/[^a-zA-Z0-9_-]/', '-', $plugin_slug);
+        $plugin_slug = trim($plugin_slug, '-');
+        
+        if (empty($plugin_slug)) {
+            FP_Git_Updater_Logger::log('error', 'Plugin slug non valido dopo sanitizzazione');
+            $wp_filesystem->delete($temp_extract_dir, true);
+            $this->send_notification('Errore aggiornamento', 'Nome plugin non valido');
+            delete_transient($lock_key);
+            return false;
+        }
+        
         $plugin_dir = WP_PLUGIN_DIR . '/' . $plugin_slug;
+        
+        // Verifica se stiamo cercando di aggiornare il plugin stesso
+        if ($plugin_slug === 'fp-git-updater' || $plugin_slug === dirname(FP_GIT_UPDATER_PLUGIN_BASENAME)) {
+            FP_Git_Updater_Logger::log('warning', 'ATTENZIONE: Aggiornamento del plugin FP Git Updater in corso. Potrebbero verificarsi errori durante l\'esecuzione.');
+            // Non blocchiamo l'aggiornamento, ma logghiamo un warning
+            // L'utente potrebbe voler aggiornare il plugin usando se stesso
+        }
         
         // Backup della versione attuale (solo se la directory esiste)
         $backup_dir = null;
         if (file_exists($plugin_dir) && is_dir($plugin_dir)) {
             FP_Git_Updater_Logger::log('info', 'Creazione backup...');
-            $backup_dir = WP_CONTENT_DIR . '/upgrade/fp-git-updater-backup-' . time();
+            $backup_dir = WP_CONTENT_DIR . '/upgrade/fp-git-updater-backup-' . time() . '-' . uniqid();
             
             // Usa rename() nativo che è più affidabile per operazioni atomiche
             if (!@rename($plugin_dir, $backup_dir)) {

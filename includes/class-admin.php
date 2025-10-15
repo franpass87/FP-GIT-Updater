@@ -162,11 +162,22 @@ class FP_Git_Updater_Admin {
                         FP_Git_Updater_Logger::log('warning', 'Nome plugin troppo lungo, troncato a 200 caratteri');
                     }
                     
-                    // Valida lunghezza slug (max 100 caratteri)
+                    // Valida e sanitizza slug (max 100 caratteri, solo caratteri sicuri)
                     $plugin_slug = isset($plugin['plugin_slug']) ? sanitize_text_field($plugin['plugin_slug']) : '';
-                    if (strlen($plugin_slug) > 100) {
-                        $plugin_slug = substr($plugin_slug, 0, 100);
-                        FP_Git_Updater_Logger::log('warning', 'Slug plugin troppo lungo, troncato a 100 caratteri');
+                    if (!empty($plugin_slug)) {
+                        // Rimuovi caratteri non validi per nomi directory (previeni path traversal)
+                        $plugin_slug = preg_replace('/[^a-zA-Z0-9_-]/', '-', $plugin_slug);
+                        $plugin_slug = trim($plugin_slug, '-');
+                        
+                        if (strlen($plugin_slug) > 100) {
+                            $plugin_slug = substr($plugin_slug, 0, 100);
+                            FP_Git_Updater_Logger::log('warning', 'Slug plugin troppo lungo, troncato a 100 caratteri');
+                        }
+                        
+                        // Verifica che non sia vuoto dopo sanitizzazione
+                        if (empty($plugin_slug)) {
+                            FP_Git_Updater_Logger::log('warning', 'Slug plugin vuoto dopo sanitizzazione, verrà dedotto dal repository');
+                        }
                     }
                     
                     // Cripta il token GitHub se presente e non è vuoto
