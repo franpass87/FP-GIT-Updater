@@ -34,7 +34,8 @@ class FP_Git_Updater_Logger {
             // Usa un cron job per la pulizia invece di farlo ad ogni insert
             // Questo migliora le performance
             if (!wp_next_scheduled('fp_git_updater_cleanup_old_logs')) {
-                wp_schedule_event(time(), 'daily', 'fp_git_updater_cleanup_old_logs');
+                // Schedula per domani alla stessa ora
+                wp_schedule_event(time() + DAY_IN_SECONDS, 'daily', 'fp_git_updater_cleanup_old_logs');
             }
         } catch (Exception $e) {
             // Fallback: logga su error_log se il database fallisce

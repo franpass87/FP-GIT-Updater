@@ -39,7 +39,8 @@ class FP_Git_Updater_Updater {
         $interval = isset($settings['update_check_interval']) ? $settings['update_check_interval'] : 'hourly';
         
         if (!wp_next_scheduled('fp_git_updater_check_update')) {
-            wp_schedule_event(time(), $interval, 'fp_git_updater_check_update');
+            // Aggiungi 1 minuto di offset per evitare race condition
+            wp_schedule_event(time() + 60, $interval, 'fp_git_updater_check_update');
         }
     }
     
@@ -184,20 +185,24 @@ class FP_Git_Updater_Updater {
         
         // Se non trovato, cerca nelle sottocartelle (max 2 livelli)
         $subdirs = glob($extracted_dir . '/*', GLOB_ONLYDIR);
-        foreach ($subdirs as $subdir) {
-            $main_file = $this->find_plugin_main_file($subdir);
-            if ($main_file) {
-                FP_Git_Updater_Logger::log('info', 'Plugin trovato in sottocartella: ' . basename($subdir));
-                return dirname($main_file);
-            }
-            
-            // Cerca anche un livello più in profondità
-            $subsubdirs = glob($subdir . '/*', GLOB_ONLYDIR);
-            foreach ($subsubdirs as $subsubdir) {
-                $main_file = $this->find_plugin_main_file($subsubdir);
+        if ($subdirs !== false) {
+            foreach ($subdirs as $subdir) {
+                $main_file = $this->find_plugin_main_file($subdir);
                 if ($main_file) {
-                    FP_Git_Updater_Logger::log('info', 'Plugin trovato in sotto-sottocartella: ' . basename($subsubdir));
+                    FP_Git_Updater_Logger::log('info', 'Plugin trovato in sottocartella: ' . basename($subdir));
                     return dirname($main_file);
+                }
+                
+                // Cerca anche un livello più in profondità
+                $subsubdirs = glob($subdir . '/*', GLOB_ONLYDIR);
+                if ($subsubdirs !== false) {
+                    foreach ($subsubdirs as $subsubdir) {
+                        $main_file = $this->find_plugin_main_file($subsubdir);
+                        if ($main_file) {
+                            FP_Git_Updater_Logger::log('info', 'Plugin trovato in sotto-sottocartella: ' . basename($subsubdir));
+                            return dirname($main_file);
+                        }
+                    }
                 }
             }
         }
@@ -219,14 +224,16 @@ class FP_Git_Updater_Updater {
         // Cerca tutti i file PHP nella directory
         $php_files = glob($dir . '/*.php');
         
-        foreach ($php_files as $php_file) {
-            // Leggi le prime 8KB del file (sufficienti per l'header del plugin)
-            $file_data = file_get_contents($php_file, false, null, 0, 8192);
-            
-            // Controlla se contiene "Plugin Name:" nell'header
-            if ($file_data && preg_match('/Plugin Name:\s*(.+)/i', $file_data, $matches)) {
-                FP_Git_Updater_Logger::log('info', 'File principale del plugin trovato: ' . basename($php_file) . ' (Plugin: ' . trim($matches[1]) . ')');
-                return $php_file;
+        if ($php_files !== false) {
+            foreach ($php_files as $php_file) {
+                // Leggi le prime 8KB del file (sufficienti per l'header del plugin)
+                $file_data = @file_get_contents($php_file, false, null, 0, 8192);
+                
+                // Controlla se contiene "Plugin Name:" nell'header
+                if ($file_data && preg_match('/Plugin Name:\s*(.+)/i', $file_data, $matches)) {
+                    FP_Git_Updater_Logger::log('info', 'File principale del plugin trovato: ' . basename($php_file) . ' (Plugin: ' . trim($matches[1]) . ')');
+                    return $php_file;
+                }
             }
         }
         
@@ -451,7 +458,12 @@ class FP_Git_Updater_Updater {
         $temp_file = $upgrade_dir . '/fp-git-updater-download-' . time() . '.zip';
         
         // Usa file_put_contents che è più affidabile per questa operazione
-        if (!file_put_contents($temp_file, $body)) {
+        $bytes_written = @file_put_contents($temp_file, $body);
+        if ($bytes_written === false) {
+            // Pulisci il file parziale se esiste
+            if (file_exists($temp_file)) {
+                @unlink($temp_file);
+            }
             FP_Git_Updater_Logger::log('error', 'Errore nel salvare il file temporaneo');
             $this->send_notification('Errore aggiornamento', 'Impossibile salvare il file temporaneo');
             return false;

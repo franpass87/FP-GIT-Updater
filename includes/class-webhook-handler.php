@@ -165,7 +165,8 @@ class FP_Git_Updater_Webhook_Handler {
             // Se l'aggiornamento automatico è abilitato, avvia l'aggiornamento
             if (isset($settings['auto_update']) && $settings['auto_update']) {
                 // Schedula l'aggiornamento (eseguilo in background) passando il plugin come parametro
-                wp_schedule_single_event(time(), 'fp_git_updater_run_update', array($commit_sha, $matched_plugin));
+                // Aggiungi 5 secondi di offset per evitare race condition con il cron
+                wp_schedule_single_event(time() + 5, 'fp_git_updater_run_update', array($commit_sha, $matched_plugin));
                 
                 FP_Git_Updater_Logger::log('info', 'Aggiornamento automatico schedulato per ' . $matched_plugin['name'] . ' al commit ' . $commit_sha_short);
                 

@@ -224,12 +224,17 @@ class FP_Git_Updater_Admin {
     public function enqueue_inline_css() {
         $css_file_path = FP_GIT_UPDATER_PLUGIN_DIR . 'assets/admin.css';
         
-        if (file_exists($css_file_path)) {
-            $css_content = file_get_contents($css_file_path);
-            echo '<style id="fp-git-updater-admin-css">' . $css_content . '</style>';
-        } else {
-            // CSS minimo di emergenza
-            echo '<style id="fp-git-updater-admin-fallback-css">
+        if (file_exists($css_file_path) && is_readable($css_file_path)) {
+            $css_content = @file_get_contents($css_file_path);
+            if ($css_content !== false) {
+                echo '<style id="fp-git-updater-admin-css">' . $css_content . '</style>';
+                return;
+            }
+        }
+        
+        // Se non è possibile leggere il file CSS, usa il fallback
+        // CSS minimo di emergenza
+        echo '<style id="fp-git-updater-admin-fallback-css">
 .fp-git-updater-wrap { max-width: 1200px; }
 .fp-git-updater-wrap h1 { display: flex; align-items: center; gap: 10px; }
 .fp-git-updater-header { background: #fff; border: 1px solid #ccd0d4; margin: 20px 0; padding: 20px; border-radius: 4px; }
@@ -246,7 +251,7 @@ class FP_Git_Updater_Admin {
 .fp-notice-error { border-left-color: #d63638; background: #fcf0f1; }
 .fp-notice-info { border-left-color: #2271b1; background: #f0f6fc; }
 </style>';
-        }
+    }
     }
     
     /**

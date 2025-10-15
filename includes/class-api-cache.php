@@ -126,7 +126,8 @@ class FP_Git_Updater_API_Cache {
      * @return string Chiave di cache univoca
      */
     public function generate_api_key($endpoint, $params = array()) {
-        return 'github_api_' . $endpoint . '_' . md5(serialize($params));
+        // Usa wp_json_encode invece di serialize per maggiore sicurezza
+        return 'github_api_' . $endpoint . '_' . md5(wp_json_encode($params));
     }
     
     /**
