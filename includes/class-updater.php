@@ -379,6 +379,18 @@ class FP_Git_Updater_Updater {
      * Esegue l'aggiornamento di un plugin specifico
      */
     private function run_plugin_update($commit_sha = null, $plugin) {
+        // Verifica se c'è già un aggiornamento in corso per questo plugin (lock)
+        $lock_key = 'fp_git_updater_lock_' . $plugin['id'];
+        $lock_value = get_transient($lock_key);
+        
+        if ($lock_value !== false) {
+            FP_Git_Updater_Logger::log('warning', 'Aggiornamento già in corso per: ' . $plugin['name'] . ' - saltato');
+            return false;
+        }
+        
+        // Imposta il lock (scade dopo 10 minuti come failsafe)
+        set_transient($lock_key, time(), 600);
+        
         try {
             FP_Git_Updater_Logger::log('info', 'Inizio aggiornamento per: ' . $plugin['name']);
             
@@ -416,6 +428,8 @@ class FP_Git_Updater_Updater {
         } catch (Exception $e) {
             FP_Git_Updater_Logger::log('error', 'Errore durante preparazione aggiornamento: ' . $e->getMessage());
             $this->send_notification('Errore aggiornamento', $e->getMessage());
+            // Rilascia il lock
+            delete_transient($lock_key);
             return false;
         }
         
@@ -428,6 +442,7 @@ class FP_Git_Updater_Updater {
         if (is_wp_error($response)) {
             FP_Git_Updater_Logger::log('error', 'Errore download: ' . $response->get_error_message());
             $this->send_notification('Errore aggiornamento', 'Errore durante il download: ' . $response->get_error_message());
+            delete_transient($lock_key);
             return false;
         }
         
@@ -436,6 +451,7 @@ class FP_Git_Updater_Updater {
         if ($response_code !== 200) {
             FP_Git_Updater_Logger::log('error', 'Errore download: HTTP ' . $response_code);
             $this->send_notification('Errore aggiornamento', 'Errore HTTP durante il download: ' . $response_code);
+            delete_transient($lock_key);
             return false;
         }
         
@@ -445,6 +461,7 @@ class FP_Git_Updater_Updater {
         if (empty($body)) {
             FP_Git_Updater_Logger::log('error', 'Errore download: file vuoto');
             $this->send_notification('Errore aggiornamento', 'Il file scaricato è vuoto');
+            delete_transient($lock_key);
             return false;
         }
         
@@ -466,6 +483,7 @@ class FP_Git_Updater_Updater {
             }
             FP_Git_Updater_Logger::log('error', 'Errore nel salvare il file temporaneo');
             $this->send_notification('Errore aggiornamento', 'Impossibile salvare il file temporaneo');
+            delete_transient($lock_key);
             return false;
         }
         
@@ -494,6 +512,7 @@ class FP_Git_Updater_Updater {
         if (is_wp_error($unzip_result)) {
             FP_Git_Updater_Logger::log('error', 'Errore estrazione: ' . $unzip_result->get_error_message());
             $this->send_notification('Errore aggiornamento', 'Errore durante l\'estrazione: ' . $unzip_result->get_error_message());
+            delete_transient($lock_key);
             return false;
         }
         
@@ -504,6 +523,7 @@ class FP_Git_Updater_Updater {
             FP_Git_Updater_Logger::log('error', 'Directory estratta non trovata');
             $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Directory estratta non trovata');
+            delete_transient($lock_key);
             return false;
         }
         
@@ -520,6 +540,7 @@ class FP_Git_Updater_Updater {
             ));
             $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Struttura del plugin non valida nella directory estratta');
+            delete_transient($lock_key);
             return false;
         }
         
@@ -544,6 +565,7 @@ class FP_Git_Updater_Updater {
                 FP_Git_Updater_Logger::log('error', 'Impossibile creare backup: verifica i permessi della directory');
                 $wp_filesystem->delete($temp_extract_dir, true);
                 $this->send_notification('Errore aggiornamento', 'Impossibile creare backup della versione corrente. Verifica i permessi.');
+                delete_transient($lock_key);
                 return false;
             }
             FP_Git_Updater_Logger::log('info', 'Backup creato con successo');
@@ -563,6 +585,7 @@ class FP_Git_Updater_Updater {
             }
             $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Directory sorgente non valida.');
+            delete_transient($lock_key);
             return false;
         }
         
@@ -576,6 +599,7 @@ class FP_Git_Updater_Updater {
             }
             $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Directory plugins non trovata.');
+            delete_transient($lock_key);
             return false;
         }
         
@@ -587,6 +611,7 @@ class FP_Git_Updater_Updater {
             }
             $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Directory plugins non scrivibile. Verifica i permessi.');
+            delete_transient($lock_key);
             return false;
         }
         
@@ -601,6 +626,7 @@ class FP_Git_Updater_Updater {
                 }
                 $wp_filesystem->delete($temp_extract_dir, true);
                 $this->send_notification('Errore aggiornamento', 'Impossibile pulire la directory di destinazione.');
+                delete_transient($lock_key);
                 return false;
             }
         }
@@ -627,6 +653,7 @@ class FP_Git_Updater_Updater {
                 $this->send_notification('Errore aggiornamento', 'Errore durante l\'installazione: ' . $error_msg);
             }
             $wp_filesystem->delete($temp_extract_dir, true);
+            delete_transient($lock_key);
             return false;
         }
         
@@ -640,6 +667,7 @@ class FP_Git_Updater_Updater {
                 $this->send_notification('Errore aggiornamento', 'Verifica post-copia fallita. Backup ripristinato.');
             }
             $wp_filesystem->delete($temp_extract_dir, true);
+            delete_transient($lock_key);
             return false;
         }
         
@@ -671,6 +699,9 @@ class FP_Git_Updater_Updater {
             wp_schedule_single_event(time() + (7 * DAY_IN_SECONDS), 'fp_git_updater_cleanup_backup', array($backup_dir));
         }
         
+        // Rilascia il lock
+        delete_transient($lock_key);
+        
         return true;
     }
     
@@ -697,11 +728,27 @@ class FP_Git_Updater_Updater {
         $settings = get_option('fp_git_updater_settings');
         
         if (!isset($settings['enable_notifications']) || !$settings['enable_notifications']) {
-            return;
+            return false;
         }
         
         $email = isset($settings['notification_email']) ? $settings['notification_email'] : get_option('admin_email');
         
-        wp_mail($email, $subject, $message);
+        // Valida l'email prima di inviare
+        if (!is_email($email)) {
+            FP_Git_Updater_Logger::log('error', 'Email notifica non valida: ' . $email);
+            return false;
+        }
+        
+        // Invia email e logga il risultato
+        $result = wp_mail($email, $subject, $message);
+        
+        if (!$result) {
+            FP_Git_Updater_Logger::log('warning', 'Impossibile inviare notifica email a: ' . $email, array(
+                'subject' => $subject,
+                'message' => substr($message, 0, 100)
+            ));
+        }
+        
+        return $result;
     }
 }
