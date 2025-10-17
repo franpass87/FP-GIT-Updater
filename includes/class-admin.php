@@ -322,7 +322,6 @@ class FP_Git_Updater_Admin {
 .fp-notice-info { border-left-color: #2271b1; background: #f0f6fc; }
 </style>';
     }
-    }
     
     /**
      * Render pagina impostazioni
