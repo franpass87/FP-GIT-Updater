@@ -108,7 +108,7 @@ class FP_Git_Updater_Updater {
         $pending = get_option('fp_git_updater_pending_update_' . $plugin_id);
         $commit_sha = $pending && isset($pending['commit_sha']) ? $pending['commit_sha'] : null;
         
-        $result = $this->run_plugin_update($commit_sha, $plugin);
+        $result = $this->run_plugin_update($plugin, $commit_sha);
         
         // Se l'aggiornamento ha successo, rimuovi il pending update
         if ($result && !is_wp_error($result)) {
@@ -387,7 +387,7 @@ class FP_Git_Updater_Updater {
                     continue;
                 }
                 
-                $result = $this->run_plugin_update(null, $p);
+                $result = $this->run_plugin_update($p, null);
                 if (!$result) {
                     $success = false;
                 }
@@ -396,13 +396,13 @@ class FP_Git_Updater_Updater {
             return $success;
         }
         
-        return $this->run_plugin_update($commit_sha, $plugin);
+        return $this->run_plugin_update($plugin, $commit_sha);
     }
     
     /**
      * Esegue l'aggiornamento di un plugin specifico
      */
-    private function run_plugin_update($commit_sha = null, $plugin) {
+    private function run_plugin_update($plugin, $commit_sha = null) {
         // Verifica se c'è già un aggiornamento in corso per questo plugin (lock)
         $lock_key = 'fp_git_updater_lock_' . $plugin['id'];
         $lock_value = get_transient($lock_key);
