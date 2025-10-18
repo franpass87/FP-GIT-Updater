@@ -402,7 +402,7 @@ class FP_Git_Updater_Updater {
     /**
      * Esegue l'aggiornamento di un plugin specifico
      */
-    private function run_plugin_update($plugin, $commit_sha = null) {
+    private function run_plugin_update($plugin, $commit_sha) {
         // Verifica se c'è già un aggiornamento in corso per questo plugin (lock)
         $lock_key = 'fp_git_updater_lock_' . $plugin['id'];
         $lock_value = get_transient($lock_key);
