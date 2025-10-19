@@ -3,7 +3,7 @@
  * Plugin Name: FP Git Updater
  * Plugin URI: https://www.francescopasseri.com
  * Description: Gestione sicura degli aggiornamenti dei plugin da GitHub. Supporta sia aggiornamenti automatici che manuali tramite webhook, proteggendo i tuoi siti da aggiornamenti problematici.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Francesco Passeri
  * Author URI: https://www.francescopasseri.com
  * License: GPL v2 or later
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Definisci costanti del plugin
-define('FP_GIT_UPDATER_VERSION', '1.1.0');
+define('FP_GIT_UPDATER_VERSION', '1.2.0');
 define('FP_GIT_UPDATER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('FP_GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FP_GIT_UPDATER_PLUGIN_FILE', __FILE__);
@@ -106,6 +106,9 @@ class FP_Git_Updater {
         FP_Git_Updater_Webhook_Handler::get_instance();
         FP_Git_Updater_Updater::get_instance();
         FP_Git_Updater_Settings_Backup::get_instance();
+        
+        // Inizializza auto-aggiornamento del plugin stesso
+        $this->init_self_update();
         
         // Schedula pulizia file temporanei vecchi (una volta al giorno)
         if (!wp_next_scheduled('fp_git_updater_cleanup_temp_files')) {
@@ -238,6 +241,43 @@ class FP_Git_Updater {
         $settings_link = '<a href="' . admin_url('admin.php?page=fp-git-updater') . '">' . __('Impostazioni', 'fp-git-updater') . '</a>';
         array_unshift($links, $settings_link);
         return $links;
+    }
+    
+    /**
+     * Inizializza l'auto-aggiornamento del plugin stesso
+     */
+    private function init_self_update() {
+        // Aggiungi il plugin stesso alla lista dei plugin gestiti se non è già presente
+        $settings = get_option('fp_git_updater_settings');
+        $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
+        
+        // Verifica se il plugin stesso è già configurato
+        $self_plugin_exists = false;
+        foreach ($plugins as $plugin) {
+            if (isset($plugin['plugin_slug']) && $plugin['plugin_slug'] === 'fp-git-updater') {
+                $self_plugin_exists = true;
+                break;
+            }
+        }
+        
+        // Se non esiste, aggiungilo automaticamente
+        if (!$self_plugin_exists) {
+            $self_plugin = array(
+                'id' => 'fp_git_updater_self',
+                'name' => 'FP Git Updater (Auto-aggiornamento)',
+                'github_repo' => 'francescopasseri/FP-GIT-Updater', // Modifica questo con il tuo repository
+                'plugin_slug' => 'fp-git-updater',
+                'branch' => 'main',
+                'github_token' => '',
+                'enabled' => true,
+            );
+            
+            $plugins[] = $self_plugin;
+            $settings['plugins'] = $plugins;
+            update_option('fp_git_updater_settings', $settings);
+            
+            FP_Git_Updater_Logger::log('info', 'Plugin FP Git Updater aggiunto automaticamente alla lista per auto-aggiornamento');
+        }
     }
     
     /**

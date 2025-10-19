@@ -31,6 +31,9 @@ $i18n = FP_Git_Updater_I18n_Helper::get_instance();
     
     // Includi notifica per modalità aggiornamento
     include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/partials/update-mode-notice.php';
+    
+    // Includi sezione auto-aggiornamento
+    include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/partials/self-update-section.php';
     ?>
     
     <form method="post" action="options.php">

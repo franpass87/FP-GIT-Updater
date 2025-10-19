@@ -32,6 +32,8 @@ class FP_Git_Updater_Admin {
         add_action('wp_ajax_fp_git_updater_create_backup', array($this, 'ajax_create_backup'));
         add_action('wp_ajax_fp_git_updater_restore_backup', array($this, 'ajax_restore_backup'));
         add_action('wp_ajax_fp_git_updater_delete_backup', array($this, 'ajax_delete_backup'));
+        add_action('wp_ajax_fp_git_updater_check_self_update', array($this, 'ajax_check_self_update'));
+        add_action('wp_ajax_fp_git_updater_install_self_update', array($this, 'ajax_install_self_update'));
     }
     
     /**
@@ -1255,5 +1257,72 @@ class FP_Git_Updater_Admin {
         });
         </script>
         <?php
+    }
+    
+    /**
+     * AJAX: Controlla aggiornamenti per il plugin stesso
+     */
+    public function ajax_check_self_update() {
+        // Verifica il nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'fp_git_updater_nonce')) {
+            wp_send_json_error(array('message' => 'Nonce non valido'), 400);
+            wp_die();
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
+            wp_die();
+        }
+        
+        try {
+            $updater = FP_Git_Updater_Updater::get_instance();
+            $result = $updater->check_plugin_update_by_id('fp_git_updater_self');
+            
+            if (is_wp_error($result)) {
+                wp_send_json_error(array('message' => $result->get_error_message()), 500);
+            } elseif ($result) {
+                wp_send_json_success(array('message' => 'Aggiornamento disponibile per FP Git Updater!'));
+            } else {
+                wp_send_json_success(array('message' => 'FP Git Updater è già aggiornato.'));
+            }
+        } catch (Exception $e) {
+            wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
+        }
+        wp_die();
+    }
+    
+    /**
+     * AJAX: Installa aggiornamento per il plugin stesso
+     */
+    public function ajax_install_self_update() {
+        // Verifica il nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'fp_git_updater_nonce')) {
+            wp_send_json_error(array('message' => 'Nonce non valido'), 400);
+            wp_die();
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
+            wp_die();
+        }
+        
+        try {
+            $updater = FP_Git_Updater_Updater::get_instance();
+            $result = $updater->run_update_by_id('fp_git_updater_self');
+            
+            if (is_wp_error($result)) {
+                wp_send_json_error(array('message' => $result->get_error_message()), 500);
+            } elseif ($result) {
+                wp_send_json_success(array(
+                    'message' => 'Auto-aggiornamento completato con successo! La pagina verrà ricaricata.',
+                    'reload' => true
+                ));
+            } else {
+                wp_send_json_error(array('message' => 'Errore durante l\'auto-aggiornamento. Controlla i log.'), 500);
+            }
+        } catch (Exception $e) {
+            wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
+        }
+        wp_die();
     }
 }

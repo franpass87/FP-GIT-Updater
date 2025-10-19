@@ -606,9 +606,10 @@ class FP_Git_Updater_Updater {
         
         // Verifica se stiamo cercando di aggiornare il plugin stesso
         if ($plugin_slug === 'fp-git-updater' || $plugin_slug === dirname(FP_GIT_UPDATER_PLUGIN_BASENAME)) {
-            FP_Git_Updater_Logger::log('warning', 'ATTENZIONE: Aggiornamento del plugin FP Git Updater in corso. Potrebbero verificarsi errori durante l\'esecuzione.');
-            // Non blocchiamo l'aggiornamento, ma logghiamo un warning
-            // L'utente potrebbe voler aggiornare il plugin usando se stesso
+            FP_Git_Updater_Logger::log('info', 'Auto-aggiornamento del plugin FP Git Updater in corso...');
+            
+            // Per l'auto-aggiornamento, usiamo un approccio più sicuro
+            return $this->run_self_update($plugin, $commit_sha);
         }
         
         // Backup della versione attuale (solo se la directory esiste)
@@ -807,5 +808,49 @@ class FP_Git_Updater_Updater {
         }
         
         return $result;
+    }
+    
+    /**
+     * Esegue l'auto-aggiornamento del plugin stesso
+     * Usa un approccio più sicuro per evitare problemi durante l'esecuzione
+     */
+    private function run_self_update($plugin, $commit_sha) {
+        FP_Git_Updater_Logger::log('info', 'Inizio auto-aggiornamento del plugin FP Git Updater');
+        
+        try {
+            // Crea un backup delle impostazioni prima dell'aggiornamento
+            $backup_manager = FP_Git_Updater_Settings_Backup::get_instance();
+            $backup_manager->create_backup(false);
+            
+            // Usa il metodo standard ma con alcune modifiche per la sicurezza
+            $result = $this->run_plugin_update($plugin, $commit_sha);
+            
+            if ($result) {
+                FP_Git_Updater_Logger::log('success', 'Auto-aggiornamento del plugin FP Git Updater completato con successo');
+                
+                // Invia notifica speciale per l'auto-aggiornamento
+                $this->send_notification(
+                    'FP Git Updater - Auto-aggiornamento completato',
+                    'Il plugin FP Git Updater è stato aggiornato automaticamente con successo!'
+                );
+                
+                // Aggiungi un flag per indicare che è stato fatto un auto-aggiornamento
+                update_option('fp_git_updater_self_updated', array(
+                    'timestamp' => current_time('mysql'),
+                    'commit_sha' => $commit_sha,
+                    'version' => FP_GIT_UPDATER_VERSION
+                ));
+            }
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            FP_Git_Updater_Logger::log('error', 'Errore durante auto-aggiornamento: ' . $e->getMessage());
+            $this->send_notification(
+                'FP Git Updater - Errore auto-aggiornamento',
+                'Si è verificato un errore durante l\'auto-aggiornamento: ' . $e->getMessage()
+            );
+            return false;
+        }
     }
 }

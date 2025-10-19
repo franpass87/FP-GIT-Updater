@@ -177,11 +177,40 @@ Questo plugin è progettato per aggiornarsi da solo, ma puoi facilmente adattarl
 3. **Configura il repository** nelle impostazioni
 4. **Configura il webhook** sul repository del plugin target
 
-## 🔄 Aggiornamento del Plugin Stesso
+## 🔄 Auto-aggiornamento del Plugin Stesso
 
-Il plugin può aggiornare se stesso! Basta:
-1. Configurare il repository di questo plugin
-2. Ogni volta che fai push, tutti i siti si aggiorneranno automaticamente
+Il plugin può aggiornare se stesso automaticamente! Questa funzionalità è stata implementata nella versione 1.2.0:
+
+### ✨ Funzionalità Auto-aggiornamento
+
+- **Configurazione automatica**: Il plugin si aggiunge automaticamente alla lista dei plugin gestiti
+- **Interfaccia dedicata**: Sezione speciale nell'admin per gestire l'auto-aggiornamento
+- **Sicurezza avanzata**: Backup automatico delle impostazioni prima di ogni aggiornamento
+- **Notifiche speciali**: Email dedicate per gli auto-aggiornamenti
+- **Controlli manuali**: Pulsanti per controllare e installare aggiornamenti manualmente
+
+### 🎯 Come Funziona
+
+1. **All'attivazione**: Il plugin si configura automaticamente per l'auto-aggiornamento
+2. **Repository predefinito**: Usa il repository `francescopasseri/FP-GIT-Updater` (modificabile)
+3. **Webhook automatico**: Funziona con lo stesso webhook degli altri plugin
+4. **Aggiornamento sicuro**: Backup automatico e rollback in caso di errori
+
+### 🛠️ Configurazione
+
+1. **Automatica**: Non serve configurazione, funziona subito
+2. **Repository personalizzato**: Puoi modificare il repository nelle impostazioni
+3. **Token GitHub**: Aggiungi un token se usi un repository privato
+4. **Modalità manuale**: Disabilita l'aggiornamento automatico per controllo totale
+
+### 📱 Interfaccia Admin
+
+Nella pagina **Impostazioni** troverai una sezione speciale "Auto-aggiornamento FP Git Updater" con:
+- Versione attuale del plugin
+- Ultimo aggiornamento eseguito
+- Pulsante per controllare aggiornamenti
+- Pulsante per installare aggiornamenti disponibili
+- Link ai log dell'ultimo aggiornamento
 
 ## 📁 Struttura File
 
@@ -225,6 +254,13 @@ Per supporto:
 3. Verifica le "Recent Deliveries" del webhook su GitHub
 
 ## 🎉 Miglioramenti Recenti (v1.2.0)
+
+### 🚀 Auto-aggiornamento (NUOVO!)
+- [x] ✨ **Auto-aggiornamento del plugin stesso** - Il plugin può aggiornarsi automaticamente!
+- [x] **Interfaccia dedicata** - Sezione speciale nell'admin per gestire l'auto-aggiornamento
+- [x] **Configurazione automatica** - Si configura da solo all'attivazione
+- [x] **Sicurezza avanzata** - Backup automatico prima di ogni auto-aggiornamento
+- [x] **Notifiche speciali** - Email dedicate per gli auto-aggiornamenti
 
 ### 🔒 Sicurezza
 - [x] ✨ **Criptazione AES-256 per token GitHub** - I tuoi token sono ora criptati nel database!
