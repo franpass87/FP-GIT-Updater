@@ -30,7 +30,7 @@
 - `CHANGELOG_v1.2.0.md`: Questo changelog
 
 ### Configurazione Automatica
-- Repository predefinito: `francescopasseri/FP-GIT-Updater`
+- Repository predefinito: `franpass87/FP-GIT-Updater`
 - ID plugin: `fp_git_updater_self`
 - Nome: `FP Git Updater (Auto-aggiornamento)`
 - Branch: `main`

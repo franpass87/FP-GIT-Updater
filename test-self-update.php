@@ -32,6 +32,11 @@ if (file_exists(ABSPATH . 'wp-config.php')) {
                     echo "✅ Plugin configurato per auto-aggiornamento\n";
                     echo "   - Nome: " . $plugin['name'] . "\n";
                     echo "   - Repository: " . $plugin['github_repo'] . "\n";
+                    if ($plugin['github_repo'] === 'franpass87/FP-GIT-Updater') {
+                        echo "   ✅ Repository corretto configurato\n";
+                    } else {
+                        echo "   ⚠️  Repository diverso da quello predefinito\n";
+                    }
                     echo "   - Branch: " . $plugin['branch'] . "\n";
                     echo "   - Abilitato: " . ($plugin['enabled'] ? 'Sì' : 'No') . "\n";
                     break;

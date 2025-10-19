@@ -192,7 +192,7 @@ Il plugin può aggiornare se stesso automaticamente! Questa funzionalità è sta
 ### 🎯 Come Funziona
 
 1. **All'attivazione**: Il plugin si configura automaticamente per l'auto-aggiornamento
-2. **Repository predefinito**: Usa il repository `francescopasseri/FP-GIT-Updater` (modificabile)
+2. **Repository predefinito**: Usa il repository `franpass87/FP-GIT-Updater` (modificabile)
 3. **Webhook automatico**: Funziona con lo stesso webhook degli altri plugin
 4. **Aggiornamento sicuro**: Backup automatico e rollback in caso di errori
 

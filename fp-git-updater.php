@@ -265,7 +265,7 @@ class FP_Git_Updater {
             $self_plugin = array(
                 'id' => 'fp_git_updater_self',
                 'name' => 'FP Git Updater (Auto-aggiornamento)',
-                'github_repo' => 'francescopasseri/FP-GIT-Updater', // Modifica questo con il tuo repository
+                'github_repo' => 'franpass87/FP-GIT-Updater',
                 'plugin_slug' => 'fp-git-updater',
                 'branch' => 'main',
                 'github_token' => '',
