@@ -45,6 +45,20 @@ class FP_Git_Updater {
      * Constructor
      */
     private function __construct() {
+        // Verifica che WordPress sia completamente caricato
+        if (!did_action('wp_loaded')) {
+            add_action('wp_loaded', array($this, 'delayed_init'));
+            return;
+        }
+        
+        $this->load_dependencies();
+        $this->init_hooks();
+    }
+    
+    /**
+     * Inizializzazione ritardata per evitare conflitti
+     */
+    public function delayed_init() {
         $this->load_dependencies();
         $this->init_hooks();
     }
@@ -53,6 +67,12 @@ class FP_Git_Updater {
      * Carica le dipendenze
      */
     private function load_dependencies() {
+        // Verifica che le funzioni WordPress siano disponibili
+        if (!function_exists('wp_get_current_user') || !function_exists('get_option')) {
+            error_log("FP Git Updater: WordPress non completamente caricato");
+            return;
+        }
+        
         $includes_dir = FP_GIT_UPDATER_PLUGIN_DIR . 'includes/';
         
         $files = [
@@ -71,7 +91,11 @@ class FP_Git_Updater {
         foreach ($files as $file) {
             $file_path = $includes_dir . $file;
             if (file_exists($file_path)) {
-                require_once $file_path;
+                try {
+                    require_once $file_path;
+                } catch (Exception $e) {
+                    error_log("FP Git Updater: Errore nel caricamento di {$file}: " . $e->getMessage());
+                }
             } else {
                 error_log("FP Git Updater: File non trovato - " . $file_path);
             }
@@ -86,9 +110,11 @@ class FP_Git_Updater {
         register_activation_hook(__FILE__, array($this, 'activate'));
         register_deactivation_hook(__FILE__, array($this, 'deactivate'));
         
+        // Carica le traduzioni prima di tutto
+        add_action('plugins_loaded', array($this, 'load_textdomain'), 1);
+        
         // Inizializza i componenti
-        add_action('plugins_loaded', array($this, 'init_components'));
-        add_action('init', array($this, 'load_textdomain'));
+        add_action('plugins_loaded', array($this, 'init_components'), 10);
         
         // Aggiungi link alle impostazioni nella pagina dei plugin
         add_filter('plugin_action_links_' . FP_GIT_UPDATER_PLUGIN_BASENAME, array($this, 'add_action_links'));
@@ -109,19 +135,43 @@ class FP_Git_Updater {
      * Inizializza i componenti del plugin
      */
     public function init_components() {
-        // Inizializza utility classes
-        FP_Git_Updater_Encryption::get_instance();
-        FP_Git_Updater_Rate_Limiter::get_instance();
-        FP_Git_Updater_API_Cache::get_instance();
-        FP_Git_Updater_Migration::get_instance();
+        // Verifica che le classi siano state caricate correttamente
+        if (!class_exists('FP_Git_Updater_Encryption')) {
+            error_log("FP Git Updater: Classi non caricate correttamente");
+            return;
+        }
         
-        // Inizializza componenti principali
-        FP_Git_Updater_Webhook_Handler::get_instance();
-        FP_Git_Updater_Updater::get_instance();
-        FP_Git_Updater_Settings_Backup::get_instance();
-        
-        // Inizializza auto-aggiornamento del plugin stesso
-        $this->init_self_update();
+        try {
+            // Inizializza utility classes
+            if (class_exists('FP_Git_Updater_Encryption')) {
+                FP_Git_Updater_Encryption::get_instance();
+            }
+            if (class_exists('FP_Git_Updater_Rate_Limiter')) {
+                FP_Git_Updater_Rate_Limiter::get_instance();
+            }
+            if (class_exists('FP_Git_Updater_API_Cache')) {
+                FP_Git_Updater_API_Cache::get_instance();
+            }
+            if (class_exists('FP_Git_Updater_Migration')) {
+                FP_Git_Updater_Migration::get_instance();
+            }
+            
+            // Inizializza componenti principali
+            if (class_exists('FP_Git_Updater_Webhook_Handler')) {
+                FP_Git_Updater_Webhook_Handler::get_instance();
+            }
+            if (class_exists('FP_Git_Updater_Updater')) {
+                FP_Git_Updater_Updater::get_instance();
+            }
+            if (class_exists('FP_Git_Updater_Settings_Backup')) {
+                FP_Git_Updater_Settings_Backup::get_instance();
+            }
+            
+            // Inizializza auto-aggiornamento del plugin stesso
+            $this->init_self_update();
+        } catch (Exception $e) {
+            error_log("FP Git Updater: Errore nell'inizializzazione componenti: " . $e->getMessage());
+        }
         
         // Schedula pulizia file temporanei vecchi (una volta al giorno)
         if (!wp_next_scheduled('fp_git_updater_cleanup_temp_files')) {
