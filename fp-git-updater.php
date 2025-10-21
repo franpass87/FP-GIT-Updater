@@ -139,7 +139,6 @@ class FP_Git_Updater {
      */
     public function activate() {
         // Verifica se c'è un backup da ripristinare (dopo un aggiornamento)
-        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-settings-backup.php';
         $backup_manager = FP_Git_Updater_Settings_Backup::get_instance();
         
         $existing_settings = get_option('fp_git_updater_settings');
@@ -147,7 +146,6 @@ class FP_Git_Updater {
         
         // Se le impostazioni sono vuote ma c'è un backup, ripristinalo
         if ((empty($existing_settings) || empty($existing_settings['plugins'])) && !empty($has_backup)) {
-            require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-logger.php';
             FP_Git_Updater_Logger::log('info', 'Ripristino impostazioni dal backup durante attivazione...');
             $backup_manager->restore_backup();
             $existing_settings = get_option('fp_git_updater_settings');
