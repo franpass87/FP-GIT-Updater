@@ -45,14 +45,14 @@ class FP_Git_Updater {
      * Constructor
      */
     private function __construct() {
+        // Hooks essenziali
+        register_activation_hook(__FILE__, array($this, 'activate'));
+        register_deactivation_hook(__FILE__, array($this, 'deactivate'));
+        
         // Carica solo l'admin se siamo nell'admin
         if (is_admin()) {
             add_action('admin_init', array($this, 'load_admin_only'));
         }
-        
-        // Hooks essenziali
-        register_activation_hook(__FILE__, array($this, 'activate'));
-        register_deactivation_hook(__FILE__, array($this, 'deactivate'));
     }
     
     
@@ -88,64 +88,20 @@ class FP_Git_Updater {
      * Attivazione plugin
      */
     public function activate() {
-        // Verifica se c'è un backup da ripristinare (dopo un aggiornamento)
-        $backup_manager = FP_Git_Updater_Settings_Backup::get_instance();
+        // Attivazione ultra-sicura senza dipendenze
         
-        $existing_settings = get_option('fp_git_updater_settings');
-        $has_backup = $backup_manager->get_latest_backup();
-        
-        // Se le impostazioni sono vuote ma c'è un backup, ripristinalo
-        if ((empty($existing_settings) || empty($existing_settings['plugins'])) && !empty($has_backup)) {
-            FP_Git_Updater_Logger::log('info', 'Ripristino impostazioni dal backup durante attivazione...');
-            $backup_manager->restore_backup();
-            $existing_settings = get_option('fp_git_updater_settings');
-        }
-        
-        // Crea le opzioni di default
-        $default_options = array(
-            'plugins' => array(), // Lista di plugin da gestire
-            'webhook_secret' => wp_generate_password(32, false),
-            'auto_update' => false, // Default a false per sicurezza
-            'update_check_interval' => 'hourly',
-            'enable_notifications' => true,
+        // Crea solo le opzioni essenziali
+        $default_settings = array(
+            'github_token' => '',
             'notification_email' => get_option('admin_email'),
+            'auto_update' => false,
+            'webhook_secret' => wp_generate_password(32, false),
+            'plugins' => array()
         );
         
-        // Se esiste già una configurazione, migra i dati vecchi
-        if ($existing_settings && isset($existing_settings['github_repo']) && !empty($existing_settings['github_repo'])) {
-            // Migra da configurazione singola a lista
-            $default_options['plugins'][] = array(
-                'id' => uniqid('plugin_'),
-                'name' => 'FP Git Updater',
-                'github_repo' => $existing_settings['github_repo'],
-                'plugin_slug' => 'fp-git-updater',
-                'branch' => isset($existing_settings['branch']) ? $existing_settings['branch'] : 'main',
-                'github_token' => isset($existing_settings['github_token']) ? $existing_settings['github_token'] : '',
-                'enabled' => true,
-            );
-            // Mantieni le altre impostazioni (preserva auto_update se esiste)
-            $default_options['webhook_secret'] = isset($existing_settings['webhook_secret']) ? $existing_settings['webhook_secret'] : $default_options['webhook_secret'];
-            $default_options['auto_update'] = isset($existing_settings['auto_update']) ? $existing_settings['auto_update'] : false;
-            $default_options['update_check_interval'] = isset($existing_settings['update_check_interval']) ? $existing_settings['update_check_interval'] : 'hourly';
-            $default_options['enable_notifications'] = isset($existing_settings['enable_notifications']) ? $existing_settings['enable_notifications'] : true;
-            $default_options['notification_email'] = isset($existing_settings['notification_email']) ? $existing_settings['notification_email'] : get_option('admin_email');
-            
-            update_option('fp_git_updater_settings', $default_options);
-        } elseif (!$existing_settings || empty($existing_settings['plugins'])) {
-            // Solo se non ci sono impostazioni esistenti E non sono state ripristinate dal backup
-            add_option('fp_git_updater_settings', $default_options);
-        }
-        
-        // Crea la tabella per i log
-        $this->create_log_table();
-        
-        // Crea un backup delle impostazioni correnti
-        if (!empty($existing_settings) && !empty($existing_settings['plugins'])) {
-            $backup_manager->create_backup(false);
-        }
-        
-        // Pulisci i rewrite rules
-        flush_rewrite_rules();
+        $existing_settings = get_option('fp_git_updater_settings', array());
+        $settings = wp_parse_args($existing_settings, $default_settings);
+        update_option('fp_git_updater_settings', $settings);
     }
     
     /**
