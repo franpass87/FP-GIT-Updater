@@ -45,22 +45,72 @@ class FP_Git_Updater {
      * Constructor
      */
     private function __construct() {
-        // Verifica che WordPress sia completamente caricato
-        if (!did_action('wp_loaded')) {
-            add_action('wp_loaded', array($this, 'delayed_init'));
-            return;
-        }
-        
-        $this->load_dependencies();
-        $this->init_hooks();
+        // Inizializzazione ultra-sicura
+        add_action('init', array($this, 'safe_init'), 999);
     }
     
     /**
-     * Inizializzazione ritardata per evitare conflitti
+     * Inizializzazione sicura ritardata
      */
-    public function delayed_init() {
-        $this->load_dependencies();
+    public function safe_init() {
+        // Verifica che WordPress sia completamente pronto
+        if (!function_exists('wp_get_current_user') || 
+            !function_exists('get_option') || 
+            !function_exists('add_action')) {
+            return;
+        }
+        
+        // Carica solo le dipendenze essenziali
+        $this->load_essential_dependencies();
+        
+        // Inizializza sempre gli hooks
         $this->init_hooks();
+        
+        // Inizializza i componenti se l'ambiente è sicuro
+        if ($this->verify_environment()) {
+            $this->init_components();
+        }
+    }
+    
+    /**
+     * Carica solo le dipendenze essenziali
+     */
+    private function load_essential_dependencies() {
+        $essential_files = [
+            'class-logger.php',
+            'class-i18n-helper.php'
+        ];
+        
+        $includes_dir = FP_GIT_UPDATER_PLUGIN_DIR . 'includes/';
+        
+        foreach ($essential_files as $file) {
+            $file_path = $includes_dir . $file;
+            if (file_exists($file_path)) {
+                try {
+                    require_once $file_path;
+                } catch (Exception $e) {
+                    error_log("FP Git Updater: Errore essenziale in {$file}: " . $e->getMessage());
+                }
+            }
+        }
+    }
+    
+    /**
+     * Verifica che l'ambiente sia sicuro
+     */
+    private function verify_environment() {
+        // Verifica che le classi essenziali esistano
+        if (!class_exists('FP_Git_Updater_Logger')) {
+            return false;
+        }
+        
+        // Verifica che non ci siano errori di memoria
+        if (function_exists('memory_get_usage') && memory_get_usage() > 100 * 1024 * 1024) {
+            error_log("FP Git Updater: Memoria insufficiente");
+            return false;
+        }
+        
+        return true;
     }
     
     /**
@@ -132,43 +182,26 @@ class FP_Git_Updater {
     }
     
     /**
-     * Inizializza i componenti del plugin
+     * Inizializza i componenti del plugin (versione sicura)
      */
     public function init_components() {
-        // Verifica che le classi siano state caricate correttamente
-        if (!class_exists('FP_Git_Updater_Encryption')) {
-            error_log("FP Git Updater: Classi non caricate correttamente");
-            return;
-        }
+        // Carica le dipendenze complete solo se l'ambiente è sicuro
+        $this->load_dependencies();
         
+        // Inizializza i componenti essenziali
         try {
-            // Inizializza utility classes
-            if (class_exists('FP_Git_Updater_Encryption')) {
-                FP_Git_Updater_Encryption::get_instance();
-            }
-            if (class_exists('FP_Git_Updater_Rate_Limiter')) {
-                FP_Git_Updater_Rate_Limiter::get_instance();
-            }
-            if (class_exists('FP_Git_Updater_API_Cache')) {
-                FP_Git_Updater_API_Cache::get_instance();
-            }
-            if (class_exists('FP_Git_Updater_Migration')) {
-                FP_Git_Updater_Migration::get_instance();
-            }
-            
-            // Inizializza componenti principali
+            // Inizializza sempre i componenti base
             if (class_exists('FP_Git_Updater_Webhook_Handler')) {
                 FP_Git_Updater_Webhook_Handler::get_instance();
             }
             if (class_exists('FP_Git_Updater_Updater')) {
                 FP_Git_Updater_Updater::get_instance();
             }
-            if (class_exists('FP_Git_Updater_Settings_Backup')) {
-                FP_Git_Updater_Settings_Backup::get_instance();
-            }
             
-            // Inizializza auto-aggiornamento del plugin stesso
-            $this->init_self_update();
+            // Solo admin se siamo nell'admin
+            if (is_admin() && class_exists('FP_Git_Updater_Admin')) {
+                FP_Git_Updater_Admin::get_instance();
+            }
         } catch (Exception $e) {
             error_log("FP Git Updater: Errore nell'inizializzazione componenti: " . $e->getMessage());
         }
@@ -389,10 +422,20 @@ class FP_Git_Updater {
 }
 
 /**
- * Inizializza il plugin
+ * Inizializza il plugin (versione sicura)
  */
 function fp_git_updater_init() {
-    return FP_Git_Updater::get_instance();
+    // Verifica che l'ambiente sia sicuro
+    if (!defined('ABSPATH') || !function_exists('wp_get_current_user')) {
+        return false;
+    }
+    
+    try {
+        return FP_Git_Updater::get_instance();
+    } catch (Exception $e) {
+        error_log("FP Git Updater: Errore fatale durante l'inizializzazione: " . $e->getMessage());
+        return false;
+    }
 }
 
 // Avvia il plugin
