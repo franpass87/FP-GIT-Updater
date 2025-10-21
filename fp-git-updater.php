@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 
 // Definisci costanti del plugin
 define('FP_GIT_UPDATER_VERSION', '1.2.0');
-define('FP_GIT_UPDATER_PLUGIN_DIR', plugin_dir_path(__FILE__));
+define('FP_GIT_UPDATER_PLUGIN_DIR', dirname(__FILE__) . '/');
 define('FP_GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FP_GIT_UPDATER_PLUGIN_FILE', __FILE__);
 define('FP_GIT_UPDATER_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -53,16 +53,29 @@ class FP_Git_Updater {
      * Carica le dipendenze
      */
     private function load_dependencies() {
-        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-logger.php';
-        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-i18n-helper.php';
-        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-encryption.php';
-        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-rate-limiter.php';
-        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-api-cache.php';
-        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-migration.php';
-        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-webhook-handler.php';
-        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-updater.php';
-        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-admin.php';
-        require_once FP_GIT_UPDATER_PLUGIN_DIR . 'includes/class-settings-backup.php';
+        $includes_dir = FP_GIT_UPDATER_PLUGIN_DIR . 'includes/';
+        
+        $files = [
+            'class-logger.php',
+            'class-i18n-helper.php',
+            'class-encryption.php',
+            'class-rate-limiter.php',
+            'class-api-cache.php',
+            'class-migration.php',
+            'class-webhook-handler.php',
+            'class-updater.php',
+            'class-admin.php',
+            'class-settings-backup.php'
+        ];
+        
+        foreach ($files as $file) {
+            $file_path = $includes_dir . $file;
+            if (file_exists($file_path)) {
+                require_once $file_path;
+            } else {
+                error_log("FP Git Updater: File non trovato - " . $file_path);
+            }
+        }
     }
     
     /**
