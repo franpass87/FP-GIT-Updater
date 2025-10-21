@@ -45,174 +45,41 @@ class FP_Git_Updater {
      * Constructor
      */
     private function __construct() {
-        // Inizializzazione ultra-sicura
-        add_action('init', array($this, 'safe_init'), 999);
+        // Carica solo l'admin se siamo nell'admin
+        if (is_admin()) {
+            add_action('admin_init', array($this, 'load_admin_only'));
+        }
+        
+        // Hooks essenziali
+        register_activation_hook(__FILE__, array($this, 'activate'));
+        register_deactivation_hook(__FILE__, array($this, 'deactivate'));
     }
     
-    /**
-     * Inizializzazione sicura ritardata
-     */
-    public function safe_init() {
-        // Verifica che WordPress sia completamente pronto
-        if (!function_exists('wp_get_current_user') || 
-            !function_exists('get_option') || 
-            !function_exists('add_action')) {
-            return;
-        }
-        
-        // Carica solo le dipendenze essenziali
-        $this->load_essential_dependencies();
-        
-        // Inizializza sempre gli hooks
-        $this->init_hooks();
-        
-        // Inizializza i componenti se l'ambiente è sicuro
-        if ($this->verify_environment()) {
-            $this->init_components();
-        }
-    }
+    
     
     /**
-     * Carica solo le dipendenze essenziali
+     * Carica solo l'admin (versione minima)
      */
-    private function load_essential_dependencies() {
-        $essential_files = [
-            'class-logger.php',
-            'class-i18n-helper.php'
-        ];
-        
-        $includes_dir = FP_GIT_UPDATER_PLUGIN_DIR . 'includes/';
-        
-        foreach ($essential_files as $file) {
-            $file_path = $includes_dir . $file;
-            if (file_exists($file_path)) {
-                try {
-                    require_once $file_path;
-                } catch (Exception $e) {
-                    error_log("FP Git Updater: Errore essenziale in {$file}: " . $e->getMessage());
-                }
-            }
-        }
-    }
-    
-    /**
-     * Verifica che l'ambiente sia sicuro
-     */
-    private function verify_environment() {
-        // Verifica che le classi essenziali esistano
-        if (!class_exists('FP_Git_Updater_Logger')) {
-            return false;
-        }
-        
-        // Verifica che non ci siano errori di memoria
-        if (function_exists('memory_get_usage') && memory_get_usage() > 100 * 1024 * 1024) {
-            error_log("FP Git Updater: Memoria insufficiente");
-            return false;
-        }
-        
-        return true;
-    }
-    
-    /**
-     * Carica le dipendenze
-     */
-    private function load_dependencies() {
-        // Verifica che le funzioni WordPress siano disponibili
-        if (!function_exists('wp_get_current_user') || !function_exists('get_option')) {
-            error_log("FP Git Updater: WordPress non completamente caricato");
-            return;
-        }
-        
-        $includes_dir = FP_GIT_UPDATER_PLUGIN_DIR . 'includes/';
-        
-        $files = [
+    public function load_admin_only() {
+        // Carica le dipendenze necessarie per l'admin
+        $dependencies = [
             'class-logger.php',
             'class-i18n-helper.php',
             'class-encryption.php',
-            'class-rate-limiter.php',
             'class-api-cache.php',
-            'class-migration.php',
-            'class-webhook-handler.php',
             'class-updater.php',
-            'class-admin.php',
-            'class-settings-backup.php'
+            'class-admin.php'
         ];
         
-        foreach ($files as $file) {
-            $file_path = $includes_dir . $file;
+        foreach ($dependencies as $file) {
+            $file_path = FP_GIT_UPDATER_PLUGIN_DIR . 'includes/' . $file;
             if (file_exists($file_path)) {
-                try {
-                    require_once $file_path;
-                } catch (Exception $e) {
-                    error_log("FP Git Updater: Errore nel caricamento di {$file}: " . $e->getMessage());
-                }
-            } else {
-                error_log("FP Git Updater: File non trovato - " . $file_path);
+                require_once $file_path;
             }
         }
-    }
-    
-    /**
-     * Inizializza gli hooks
-     */
-    private function init_hooks() {
-        // Attivazione e disattivazione plugin
-        register_activation_hook(__FILE__, array($this, 'activate'));
-        register_deactivation_hook(__FILE__, array($this, 'deactivate'));
         
-        // Carica le traduzioni prima di tutto
-        add_action('plugins_loaded', array($this, 'load_textdomain'), 1);
-        
-        // Inizializza i componenti
-        add_action('plugins_loaded', array($this, 'init_components'), 10);
-        
-        // Aggiungi link alle impostazioni nella pagina dei plugin
-        add_filter('plugin_action_links_' . FP_GIT_UPDATER_PLUGIN_BASENAME, array($this, 'add_action_links'));
-    }
-    
-    /**
-     * Carica le traduzioni
-     */
-    public function load_textdomain() {
-        load_plugin_textdomain(
-            'fp-git-updater',
-            false,
-            dirname(FP_GIT_UPDATER_PLUGIN_BASENAME) . '/languages'
-        );
-    }
-    
-    /**
-     * Inizializza i componenti del plugin (versione sicura)
-     */
-    public function init_components() {
-        // Carica le dipendenze complete solo se l'ambiente è sicuro
-        $this->load_dependencies();
-        
-        // Inizializza i componenti essenziali
-        try {
-            // Inizializza sempre i componenti base
-            if (class_exists('FP_Git_Updater_Webhook_Handler')) {
-                FP_Git_Updater_Webhook_Handler::get_instance();
-            }
-            if (class_exists('FP_Git_Updater_Updater')) {
-                FP_Git_Updater_Updater::get_instance();
-            }
-            
-            // Solo admin se siamo nell'admin
-            if (is_admin() && class_exists('FP_Git_Updater_Admin')) {
-                FP_Git_Updater_Admin::get_instance();
-            }
-        } catch (Exception $e) {
-            error_log("FP Git Updater: Errore nell'inizializzazione componenti: " . $e->getMessage());
-        }
-        
-        // Schedula pulizia file temporanei vecchi (una volta al giorno)
-        if (!wp_next_scheduled('fp_git_updater_cleanup_temp_files')) {
-            wp_schedule_event(time() + DAY_IN_SECONDS, 'daily', 'fp_git_updater_cleanup_temp_files');
-        }
-        add_action('fp_git_updater_cleanup_temp_files', array($this, 'cleanup_old_temp_files'));
-        
-        if (is_admin()) {
+        // Inizializza l'admin
+        if (class_exists('FP_Git_Updater_Admin')) {
             FP_Git_Updater_Admin::get_instance();
         }
     }
