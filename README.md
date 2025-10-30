@@ -10,12 +10,35 @@ Plugin WordPress personalizzato per l'aggiornamento automatico da GitHub tramite
 
 **✨ Novità**: Build automatico con GitHub Actions ad ogni push!
 
+## 📚 Indice
+
+1. [Caratteristiche](#-caratteristiche)
+2. [Requisiti](#-requisiti)
+3. [Quickstart](#-quickstart)
+4. [Installazione](#-installazione)
+5. [Configurazione](#-configurazione)
+   - [Modalità GitHub](#modalità-github-completa)
+   - [Modalità Semplice (ZIP Pubblico)](#modalità-semplice-zip-pubblico)
+6. [Configurazione Webhook](#-configura-il-webhook-su-github)
+7. [Come Funziona](#-come-funziona)
+8. [Monitoraggio e Admin](#-monitoraggio)
+9. [Sicurezza](#-sicurezza)
+10. [Backup e Ripristino](#-backup-e-ripristino-impostazioni)
+11. [Risoluzione Problemi](#-risoluzione-problemi)
+12. [Auto‑aggiornamento](#-auto-aggiornamento-del-plugin-stesso)
+13. [Struttura File](#-struttura-file)
+14. [Miglioramenti Recenti](#-miglioramenti-recenti)
+15. [Licenza e Autore](#-licenza)
+
+---
+
 ## 🚀 Caratteristiche
 
 - ✅ **Aggiornamento automatico da GitHub** tramite webhook
 - ✅ **Supporto repository privati** con token di accesso
 - ✅ **Sicurezza integrata** con secret key per webhook
 - ✅ **Pannello di amministrazione** intuitivo per configurazione
+- ✅ **Modalità semplice (ZIP pubblico)**: aggiorna da un URL .zip pubblico senza token
 - ✅ **Sistema di logging** completo per tracciare tutti gli aggiornamenti
 - ✅ **Notifiche email** per aggiornamenti completati
 - ✅ **Backup automatico** della versione precedente
@@ -30,6 +53,10 @@ Plugin WordPress personalizzato per l'aggiornamento automatico da GitHub tramite
 - PHP 7.4 o superiore
 - Repository GitHub (pubblico o privato)
 - Accesso alle impostazioni del repository GitHub per configurare webhook
+
+## ⚡ Quickstart
+
+Se vuoi partire subito, leggi anche `QUICKSTART.md` (2 percorsi: GitHub o ZIP pubblico).
 
 ## 📦 Installazione
 
@@ -51,13 +78,19 @@ Plugin WordPress personalizzato per l'aggiornamento automatico da GitHub tramite
 ### 1. Configura il Plugin
 
 1. Vai su **Git Updater** → **Impostazioni** nel menu WordPress
-2. Compila i seguenti campi:
+2. Compila i seguenti campi (scegli una delle due modalità):
+   
+   Modalità GitHub (completa):
    - **Repository GitHub**: Il tuo repository nel formato `username/repository`
    - **Branch**: Il branch da cui scaricare gli aggiornamenti (default: `main`)
    - **GitHub Token** (opzionale): Necessario solo per repository privati
      - Vai su GitHub → Settings → Developer settings → Personal access tokens → Generate new token
      - Seleziona almeno lo scope `repo`
      - Copia il token generato
+   
+   Modalità semplice (ZIP pubblico):
+   - **URL ZIP pubblico (opzionale)**: link diretto a un file `.zip` pubblico (ad es. asset di una release)
+   - In questa modalità non servono `Repository` né `Token`
    - **Webhook Secret**: Generato automaticamente, usalo per il passo successivo
    - **Aggiornamento Automatico**: Abilita per aggiornamenti automatici
    - **Notifiche Email**: Configura email per ricevere notifiche
@@ -87,7 +120,7 @@ Plugin WordPress personalizzato per l'aggiornamento automatico da GitHub tramite
 1. **Fai un push o merge** sul tuo repository GitHub
 2. **GitHub invia un webhook** al tuo sito WordPress
 3. **Il plugin verifica la firma** del webhook per sicurezza
-4. **Scarica l'ultima versione** dal repository
+4. **Scarica l'ultima versione** dal repository o dall'**URL ZIP pubblico**
 5. **Crea un backup** della versione attuale
 6. **Installa la nuova versione** e verifica che funzioni
 7. **Invia una notifica** via email (se abilitata)
@@ -114,7 +147,7 @@ Nella pagina **Impostazioni** puoi vedere:
 
 - ✅ **Criptazione AES-256**: Token GitHub e webhook secret criptati nel database (NEW v1.2.0)
 - ✅ **Rate Limiting**: Protezione automatica da abusi - max 60 richieste/ora per IP (NEW v1.2.0)
-- ✅ **Webhook firmato**: Ogni richiesta webhook è verificata con HMAC SHA-256
+- ✅ **Webhook firmato**: Ogni richiesta webhook è verificata con HMAC SHA-256 (supporto header `X-Hub-Signature-256` e legacy)
 - ✅ **Token sicuro**: Il token GitHub non viene mai esposto in plain text
 - ✅ **Backup automatico**: Ogni aggiornamento crea un backup del codice e delle impostazioni
 - ✅ **Protezione impostazioni**: Backup automatico prima di ogni modifica con ripristino automatico
@@ -160,6 +193,10 @@ Il sistema rileva automaticamente se le tue impostazioni sono state perse (ad es
 3. Assicurati che il **branch** configurato esista sul repository
 4. Verifica i **permessi** della directory del plugin (devono essere scrivibili)
 5. Controlla che non ci siano **plugin di sicurezza** che bloccano le operazioni
+ 6. Se usi **URL ZIP pubblico**:
+    - Verifica che l'URL risponda con codice 200 e sia raggiungibile
+    - Preferisci URL che terminano in `.zip` (il plugin avvisa se diverso)
+    - Assicurati che lo ZIP contenga il plugin in root o al massimo in 1-2 sottocartelle
 
 ### Repository privato non accessibile
 
@@ -253,9 +290,14 @@ Per supporto:
 2. Consulta questa documentazione
 3. Verifica le "Recent Deliveries" del webhook su GitHub
 
-## 🎉 Miglioramenti Recenti (v1.2.0)
+## 🎉 Miglioramenti Recenti
 
-### 🚀 Auto-aggiornamento (NUOVO!)
+### 🚀 Modalità semplice ZIP pubblico (nuovo)
+- [x] Aggiornamenti da URL `.zip` senza credenziali/token
+- [x] Retry/backoff leggero e follow redirect per download più robusti
+- [x] Rilevamento slug automatico dalla directory estratta se non specificato
+
+### 🚀 Auto-aggiornamento
 - [x] ✨ **Auto-aggiornamento del plugin stesso** - Il plugin può aggiornarsi automaticamente!
 - [x] **Interfaccia dedicata** - Sezione speciale nell'admin per gestire l'auto-aggiornamento
 - [x] **Configurazione automatica** - Si configura da solo all'attivazione
@@ -266,10 +308,12 @@ Per supporto:
 - [x] ✨ **Criptazione AES-256 per token GitHub** - I tuoi token sono ora criptati nel database!
 - [x] **Rate limiting per webhook** - Protezione automatica da abusi e attacchi DDoS
 - [x] **Permission callback migliorato** - Doppio livello di sicurezza per webhook endpoint
+- [x] **Firma webhook**: supporto header `X-Hub-Signature-256` e fallback legacy
 
 ### ⚡ Performance
 - [x] **Caching API GitHub** - Riduzione del 95% delle chiamate API, risposta più veloce
 - [x] **Logging ottimizzato** - Performance migliorate del 75% con pulizia via cron
+- [x] **Download robusto** - Retry con backoff ed handling redirect per asset `.zip`
 
 ### 🛠️ Architettura
 - [x] **Sistema di migrazione automatica** - Aggiornamenti trasparenti senza perdita dati

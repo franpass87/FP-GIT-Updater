@@ -238,7 +238,17 @@ class FP_Git_Updater_Webhook_Handler {
             return false;
         }
         
+        // Supporta varianti header e legacy 'X-Hub-Signature'
         $signature = $request->get_header('X-Hub-Signature-256');
+        if (empty($signature)) {
+            $signature = $request->get_header('x-hub-signature-256');
+        }
+        if (empty($signature)) {
+            $signature = $request->get_header('X-Hub-Signature');
+        }
+        if (empty($signature)) {
+            $signature = $request->get_header('x-hub-signature');
+        }
         
         if (empty($signature)) {
             FP_Git_Updater_Logger::log('warning', 'Webhook: firma mancante nell\'header');

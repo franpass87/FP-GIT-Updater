@@ -94,7 +94,7 @@ $files = [
     'includes/class-updater.php',
     'includes/class-admin.php',
     'includes/class-logger.php',
-    'uninstall.php',
+    // Nota: non includere uninstall.php per evitare side effects durante la verifica
 ];
 
 $errors = 0;
@@ -118,7 +118,7 @@ foreach ($files as $file) {
         echo implode("\n", $output) . "\n";
         $errors++;
     } else {
-        // Prova a includere il file
+        // Prova a includere il file (best-effort, senza side effects critici)
         try {
             @include_once $path;
             echo "✅ OK\n";

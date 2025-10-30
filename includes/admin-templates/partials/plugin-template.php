@@ -73,6 +73,16 @@ if (!defined('ABSPATH')) {
                     </td>
                 </tr>
                 <tr>
+                    <th><label><?php _e('URL ZIP pubblico (opzionale)', 'fp-git-updater'); ?></label></th>
+                    <td>
+                        <input type="text" 
+                               name="fp_git_updater_settings[plugins][{{INDEX}}][zip_url]" 
+                               value="" 
+                               class="regular-text" placeholder="https://.../package.zip">
+                        <p class="description"><?php _e('Se impostato, l\'aggiornamento userà direttamente questo ZIP senza token.', 'fp-git-updater'); ?></p>
+                    </td>
+                </tr>
+                <tr>
                     <th><label><?php _e('GitHub Token', 'fp-git-updater'); ?></label></th>
                     <td>
                         <input type="password" 

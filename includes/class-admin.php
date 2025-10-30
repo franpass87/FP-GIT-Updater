@@ -119,98 +119,103 @@ class FP_Git_Updater_Admin {
             $seen_repos = array(); // Per tracciare repository già visti ed evitare duplicati
             
             foreach ($input['plugins'] as $plugin) {
-                if (!empty($plugin['github_repo'])) {
-                    $github_repo = sanitize_text_field($plugin['github_repo']);
-                    $branch = isset($plugin['branch']) ? sanitize_text_field($plugin['branch']) : 'main';
-                    
-                    // Valida il formato del repository (deve essere username/repository)
-                    if (!preg_match('/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/', $github_repo)) {
-                        FP_Git_Updater_Logger::log('error', 'Formato repository non valido: ' . $github_repo . ' (deve essere username/repository)');
-                        add_settings_error(
-                            'fp_git_updater_settings',
-                            'invalid_repo_format',
-                            sprintf(__('Formato repository non valido: "%s". Usa il formato username/repository', 'fp-git-updater'), $github_repo)
-                        );
-                        continue;
-                    }
-                    
-                    // Valida il nome del branch (solo caratteri alfanumerici, -, _, /)
-                    if (!preg_match('/^[a-zA-Z0-9_.\/-]+$/', $branch)) {
-                        FP_Git_Updater_Logger::log('error', 'Nome branch non valido: ' . $branch);
-                        add_settings_error(
-                            'fp_git_updater_settings',
-                            'invalid_branch_name',
-                            sprintf(__('Nome branch non valido: "%s". Usa solo lettere, numeri, -, _ e /', 'fp-git-updater'), $branch)
-                        );
-                        continue;
-                    }
-                    
-                    // Crea una chiave unica basata su repo e branch
-                    $repo_key = strtolower($github_repo . ':' . $branch);
-                    
-                    // Se questo repository+branch è già stato visto, salta (evita duplicati)
-                    if (isset($seen_repos[$repo_key])) {
-                        FP_Git_Updater_Logger::log('warning', 'Plugin duplicato rilevato e rimosso: ' . $github_repo . ' (branch: ' . $branch . ')');
-                        continue;
-                    }
-                    
-                    // Segna questo repository come visto
-                    $seen_repos[$repo_key] = true;
-                    
-                    // Valida lunghezza del nome plugin (max 200 caratteri)
-                    $plugin_name = isset($plugin['name']) ? sanitize_text_field($plugin['name']) : __('Plugin senza nome', 'fp-git-updater');
-                    if (strlen($plugin_name) > 200) {
-                        $plugin_name = substr($plugin_name, 0, 200);
-                        FP_Git_Updater_Logger::log('warning', 'Nome plugin troppo lungo, troncato a 200 caratteri');
-                    }
-                    
-                    // Valida e sanitizza slug (max 100 caratteri, solo caratteri sicuri)
-                    $plugin_slug = isset($plugin['plugin_slug']) ? sanitize_text_field($plugin['plugin_slug']) : '';
-                    if (!empty($plugin_slug)) {
-                        // Rimuovi caratteri non validi per nomi directory (previeni path traversal)
-                        $plugin_slug = preg_replace('/[^a-zA-Z0-9_-]/', '-', $plugin_slug);
-                        $plugin_slug = trim($plugin_slug, '-');
-                        
-                        if (strlen($plugin_slug) > 100) {
-                            $plugin_slug = substr($plugin_slug, 0, 100);
-                            FP_Git_Updater_Logger::log('warning', 'Slug plugin troppo lungo, troncato a 100 caratteri');
-                        }
-                        
-                        // Verifica che non sia vuoto dopo sanitizzazione
-                        if (empty($plugin_slug)) {
-                            FP_Git_Updater_Logger::log('warning', 'Slug plugin vuoto dopo sanitizzazione, verrà dedotto dal repository');
-                        }
-                    }
-                    
-                    // Cripta il token GitHub se presente e non è vuoto
-                    $github_token = isset($plugin['github_token']) ? sanitize_text_field($plugin['github_token']) : '';
-                    if (!empty($github_token)) {
-                        // Valida lunghezza token (max 500 caratteri prima di criptare)
-                        if (strlen($github_token) > 500) {
-                            FP_Git_Updater_Logger::log('error', 'Token GitHub troppo lungo (max 500 caratteri)');
-                            add_settings_error(
-                                'fp_git_updater_settings',
-                                'token_too_long',
-                                __('Token GitHub troppo lungo. Usa un token valido.', 'fp-git-updater')
-                            );
-                            $github_token = '';
-                        } else if (!$encryption->is_encrypted($github_token)) {
-                            // Se il token non è già criptato, criptalo
-                            $encrypted_token = $encryption->encrypt($github_token);
-                            $github_token = $encrypted_token !== false ? $encrypted_token : $github_token;
-                        }
-                    }
-                    
-                    $output['plugins'][] = array(
-                        'id' => isset($plugin['id']) ? sanitize_text_field($plugin['id']) : uniqid('plugin_'),
-                        'name' => $plugin_name,
-                        'github_repo' => $github_repo,
-                        'plugin_slug' => $plugin_slug,
-                        'branch' => $branch,
-                        'github_token' => $github_token,
-                        'enabled' => isset($plugin['enabled']) ? true : false,
+                $github_repo = isset($plugin['github_repo']) ? sanitize_text_field($plugin['github_repo']) : '';
+                $branch = isset($plugin['branch']) ? sanitize_text_field($plugin['branch']) : 'main';
+
+                // URL ZIP pubblico opzionale (per aggiornamenti senza credenziali)
+                $zip_url = isset($plugin['zip_url']) ? trim(sanitize_text_field($plugin['zip_url'])) : '';
+                if (!empty($zip_url) && !filter_var($zip_url, FILTER_VALIDATE_URL)) {
+                    FP_Git_Updater_Logger::log('error', 'URL ZIP non valido: ' . $zip_url);
+                    add_settings_error(
+                        'fp_git_updater_settings',
+                        'invalid_zip_url',
+                        sprintf(__('URL ZIP non valido: "%s". Inserisci un URL http/https a un file .zip', 'fp-git-updater'), $zip_url)
                     );
+                    $zip_url = '';
                 }
+
+                // Se presente, valida il formato del repository (username/repository)
+                if (!empty($github_repo) && !preg_match('/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/', $github_repo)) {
+                    FP_Git_Updater_Logger::log('error', 'Formato repository non valido: ' . $github_repo);
+                    add_settings_error(
+                        'fp_git_updater_settings',
+                        'invalid_repo_format',
+                        sprintf(__('Formato repository non valido: "%s". Usa il formato username/repository', 'fp-git-updater'), $github_repo)
+                    );
+                    $github_repo = '';
+                }
+
+                // Valida il nome del branch (solo caratteri alfanumerici, -, _, /)
+                if (!preg_match('/^[a-zA-Z0-9_.\/-]+$/', $branch)) {
+                    FP_Git_Updater_Logger::log('error', 'Nome branch non valido: ' . $branch);
+                    add_settings_error(
+                        'fp_git_updater_settings',
+                        'invalid_branch_name',
+                        sprintf(__('Nome branch non valido: "%s". Usa solo lettere, numeri, -, _ e /', 'fp-git-updater'), $branch)
+                    );
+                    continue;
+                }
+
+                // Evita duplicati su base repo:branch (se repo presente)
+                if (!empty($github_repo)) {
+                    $repo_key = strtolower($github_repo . ':' . $branch);
+                    if (isset($seen_repos[$repo_key])) {
+                        FP_Git_Updater_Logger::log('warning', 'Plugin duplicato rimosso: ' . $github_repo . ' (' . $branch . ')');
+                        continue;
+                    }
+                    $seen_repos[$repo_key] = true;
+                }
+
+                // Valida nome e slug
+                $plugin_name = isset($plugin['name']) ? sanitize_text_field($plugin['name']) : __('Plugin senza nome', 'fp-git-updater');
+                if (strlen($plugin_name) > 200) {
+                    $plugin_name = substr($plugin_name, 0, 200);
+                    FP_Git_Updater_Logger::log('warning', 'Nome plugin troppo lungo, troncato a 200 caratteri');
+                }
+
+                $plugin_slug = isset($plugin['plugin_slug']) ? sanitize_text_field($plugin['plugin_slug']) : '';
+                if (!empty($plugin_slug)) {
+                    $plugin_slug = preg_replace('/[^a-zA-Z0-9_-]/', '-', $plugin_slug);
+                    $plugin_slug = trim($plugin_slug, '-');
+                    if (strlen($plugin_slug) > 100) {
+                        $plugin_slug = substr($plugin_slug, 0, 100);
+                        FP_Git_Updater_Logger::log('warning', 'Slug plugin troppo lungo, troncato a 100 caratteri');
+                    }
+                }
+
+                // Cripta il token GitHub se presente
+                $github_token = isset($plugin['github_token']) ? sanitize_text_field($plugin['github_token']) : '';
+                if (!empty($github_token)) {
+                    if (strlen($github_token) > 500) {
+                        FP_Git_Updater_Logger::log('error', 'Token GitHub troppo lungo (max 500 caratteri)');
+                        add_settings_error(
+                            'fp_git_updater_settings',
+                            'token_too_long',
+                            __('Token GitHub troppo lungo. Usa un token valido.', 'fp-git-updater')
+                        );
+                        $github_token = '';
+                    } elseif (!$encryption->is_encrypted($github_token)) {
+                        $encrypted_token = $encryption->encrypt($github_token);
+                        $github_token = $encrypted_token !== false ? $encrypted_token : $github_token;
+                    }
+                }
+
+                // Richiede almeno una sorgente (repo o zip)
+                if (empty($github_repo) && empty($zip_url)) {
+                    FP_Git_Updater_Logger::log('warning', 'Plugin ignorato: manca repository e URL ZIP');
+                    continue;
+                }
+
+                $output['plugins'][] = array(
+                    'id' => isset($plugin['id']) ? sanitize_text_field($plugin['id']) : uniqid('plugin_'),
+                    'name' => $plugin_name,
+                    'github_repo' => $github_repo,
+                    'plugin_slug' => $plugin_slug,
+                    'branch' => $branch,
+                    'github_token' => $github_token,
+                    'zip_url' => $zip_url,
+                    'enabled' => isset($plugin['enabled']) ? true : false,
+                );
             }
         } else {
             $output['plugins'] = array();

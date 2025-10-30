@@ -402,7 +402,7 @@ class FP_Git_Updater_Updater {
     /**
      * Esegue l'aggiornamento di un plugin specifico
      */
-    private function run_plugin_update($plugin, $commit_sha) {
+    private function run_plugin_update($plugin, $commit_sha = null) {
         // Verifica se c'è già un aggiornamento in corso per questo plugin (lock)
         $lock_key = 'fp_git_updater_lock_' . $plugin['id'];
         $lock_value = get_transient($lock_key);
@@ -424,29 +424,47 @@ class FP_Git_Updater_Updater {
             $repo = $plugin['github_repo'];
             $branch = isset($plugin['branch']) ? $plugin['branch'] : 'main';
             $encrypted_token = isset($plugin['github_token']) ? $plugin['github_token'] : '';
-            
-            if (empty($repo)) {
-                throw new Exception('Repository non configurato per ' . $plugin['name']);
+
+            if (empty($repo) && empty($zip_url)) {
+                throw new Exception('Sorgente aggiornamento non configurata per ' . $plugin['name'] . ' (repo o URL ZIP richiesto)');
             }
-            
-            // URL per scaricare il file zip del repository
-            $download_url = "https://api.github.com/repos/{$repo}/zipball/{$branch}";
-            
-            $args = array(
-                'timeout' => 300,
-                'headers' => array(
-                    'Accept' => 'application/vnd.github.v3+json',
-                    'User-Agent' => 'FP-Git-Updater/' . FP_GIT_UPDATER_VERSION,
-                ),
-            );
-            
-            // Decripta e aggiungi il token se presente
-            if (!empty($encrypted_token)) {
-                $encryption = FP_Git_Updater_Encryption::get_instance();
-                $token = $encryption->decrypt($encrypted_token);
-                
-                if ($token !== false && !empty($token)) {
-                    $args['headers']['Authorization'] = 'token ' . $token;
+
+            // Supporto modalità semplice: URL ZIP pubblico opzionale
+            $zip_url = isset($plugin['zip_url']) ? trim($plugin['zip_url']) : '';
+
+            if (!empty($zip_url) && filter_var($zip_url, FILTER_VALIDATE_URL)) {
+                $download_url = $zip_url;
+                FP_Git_Updater_Logger::log('info', 'Modalità ZIP pubblico attiva per: ' . $plugin['name']);
+                $args = array(
+                    'timeout' => 300,
+                    'redirection' => 5,
+                    'headers' => array(
+                        'User-Agent' => 'FP-Git-Updater/' . FP_GIT_UPDATER_VERSION,
+                    ),
+                );
+                // Log se estensione non è .zip
+                if (stripos(parse_url($zip_url, PHP_URL_PATH), '.zip') === false) {
+                    FP_Git_Updater_Logger::log('warning', 'URL ZIP senza estensione .zip: ' . $zip_url);
+                }
+            } else {
+                // Default: GitHub API zipball
+                $download_url = "https://api.github.com/repos/{$repo}/zipball/{$branch}";
+                $args = array(
+                    'timeout' => 300,
+                    'redirection' => 5,
+                    'headers' => array(
+                        'Accept' => 'application/vnd.github.v3+json',
+                        'User-Agent' => 'FP-Git-Updater/' . FP_GIT_UPDATER_VERSION,
+                    ),
+                );
+
+                // Decripta e aggiungi il token se presente (repo privati)
+                if (!empty($encrypted_token)) {
+                    $encryption = FP_Git_Updater_Encryption::get_instance();
+                    $token = $encryption->decrypt($encrypted_token);
+                    if ($token !== false && !empty($token)) {
+                        $args['headers']['Authorization'] = 'token ' . $token;
+                    }
                 }
             }
         } catch (Exception $e) {
@@ -460,8 +478,8 @@ class FP_Git_Updater_Updater {
         // Scarica il file zip
         FP_Git_Updater_Logger::log('info', 'Download dell\'aggiornamento...');
         
-        // Usa wp_remote_get per supportare headers personalizzati (per repository privati)
-        $response = wp_remote_get($download_url, $args);
+        // Usa wp_remote_get con retry leggero
+        $response = $this->request_with_retry($download_url, $args, 2);
         
         if (is_wp_error($response)) {
             FP_Git_Updater_Logger::log('error', 'Errore download: ' . $response->get_error_message());
@@ -479,6 +497,14 @@ class FP_Git_Updater_Updater {
             return false;
         }
         
+        // Se siamo in modalità ZIP pubblico, prova a validare Content-Type
+        if (!empty($zip_url)) {
+            $content_type = wp_remote_retrieve_header($response, 'content-type');
+            if (!empty($content_type) && stripos($content_type, 'zip') === false) {
+                FP_Git_Updater_Logger::log('warning', 'Content-Type non sembra uno ZIP: ' . $content_type);
+            }
+        }
+
         // Salva il contenuto in un file temporaneo
         $body = wp_remote_retrieve_body($response);
         
@@ -585,10 +611,18 @@ class FP_Git_Updater_Updater {
         FP_Git_Updater_Logger::log('info', 'Directory plugin trovata: ' . basename($source_dir));
         
         // Determina la directory del plugin da aggiornare
-        // Se il plugin ha uno slug specificato, usa quello, altrimenti deduce dal repo
-        $plugin_slug = isset($plugin['plugin_slug']) && !empty($plugin['plugin_slug']) 
-            ? $plugin['plugin_slug'] 
-            : basename($repo);
+        // Preferisci slug configurato; se assente:
+        // - con repo: deduci dal repo
+        // - ZIP-only: deduci dal nome della directory sorgente
+        if (isset($plugin['plugin_slug']) && !empty($plugin['plugin_slug'])) {
+            $plugin_slug = $plugin['plugin_slug'];
+        } else if (!empty($repo)) {
+            $plugin_slug = basename($repo);
+        } else {
+            // ZIP-only fallback
+            $plugin_slug = basename($source_dir);
+            FP_Git_Updater_Logger::log('info', 'Slug dedotto da directory estratta (ZIP-only): ' . $plugin_slug);
+        }
         
         // Sanitizza lo slug (rimuovi caratteri non validi per nomi directory)
         $plugin_slug = preg_replace('/[^a-zA-Z0-9_-]/', '-', $plugin_slug);
@@ -737,11 +771,16 @@ class FP_Git_Updater_Updater {
         // Salva il commit corrente per questo plugin
         if ($commit_sha) {
             update_option('fp_git_updater_current_commit_' . $plugin['id'], $commit_sha);
-        } else {
+        } else if (!empty($plugin['github_repo'])) {
+            // Solo se abbiamo un repo configurato
             $latest_commit = $this->get_latest_commit($plugin);
             if (!is_wp_error($latest_commit)) {
                 update_option('fp_git_updater_current_commit_' . $plugin['id'], $latest_commit);
             }
+        } else {
+            // Modalità ZIP-only: salva un identificatore sintetico basato su timestamp
+            $synthetic = 'zip:' . time();
+            update_option('fp_git_updater_current_commit_' . $plugin['id'], $synthetic);
         }
         
         update_option('fp_git_updater_last_update_' . $plugin['id'], current_time('mysql'));
@@ -761,6 +800,32 @@ class FP_Git_Updater_Updater {
         delete_transient($lock_key);
         
         return true;
+    }
+
+    /**
+     * Esegue una richiesta HTTP con semplici retry/backoff.
+     */
+    private function request_with_retry($url, $args, $retries = 2) {
+        $attempt = 0;
+        $delay_ms = 600;
+        while (true) {
+            $attempt++;
+            $response = wp_remote_get($url, $args);
+            if (!is_wp_error($response)) {
+                $code = wp_remote_retrieve_response_code($response);
+                // Ritenta su 429 o 5xx
+                if ($code !== 429 && ($code < 500 || $code >= 600)) {
+                    return $response;
+                }
+            }
+            if ($attempt > $retries) {
+                return $response;
+            }
+            FP_Git_Updater_Logger::log('warning', 'Retry download (' . $attempt . '/' . $retries . ') per URL: ' . $url);
+            // Backoff semplice
+            usleep($delay_ms * 1000);
+            $delay_ms *= 2;
+        }
     }
     
     /**
