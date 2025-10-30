@@ -3,13 +3,17 @@
  * Helper per Internazionalizzazione
  * 
  * Fornisce funzioni helper per traduzioni e formattazione
+ * 
+ * @package FP\GitUpdater
  */
+
+namespace FP\GitUpdater;
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class FP_Git_Updater_I18n_Helper {
+class I18nHelper {
     
     private static $instance = null;
     
@@ -222,3 +226,4 @@ class FP_Git_Updater_I18n_Helper {
         return isset($intervals[$interval]) ? $intervals[$interval] : $interval;
     }
 }
+

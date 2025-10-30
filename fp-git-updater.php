@@ -24,6 +24,14 @@ define('FP_GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FP_GIT_UPDATER_PLUGIN_FILE', __FILE__);
 define('FP_GIT_UPDATER_PLUGIN_BASENAME', plugin_basename(__FILE__));
 
+// Carica Composer autoload
+if (file_exists(FP_GIT_UPDATER_PLUGIN_DIR . 'vendor/autoload.php')) {
+    require_once FP_GIT_UPDATER_PLUGIN_DIR . 'vendor/autoload.php';
+}
+
+// Usa i namespace delle classi
+use FP\GitUpdater\Admin;
+
 /**
  * Classe principale del plugin
  */
@@ -58,29 +66,13 @@ class FP_Git_Updater {
     
     
     /**
-     * Carica solo l'admin (versione minima)
+     * Carica solo l'admin (versione minima con PSR-4 autoload)
      */
     public function load_admin_only() {
-        // Carica le dipendenze necessarie per l'admin
-        $dependencies = [
-            'class-logger.php',
-            'class-i18n-helper.php',
-            'class-encryption.php',
-            'class-api-cache.php',
-            'class-updater.php',
-            'class-admin.php'
-        ];
-        
-        foreach ($dependencies as $file) {
-            $file_path = FP_GIT_UPDATER_PLUGIN_DIR . 'includes/' . $file;
-            if (file_exists($file_path)) {
-                require_once $file_path;
-            }
-        }
-        
-        // Inizializza l'admin
-        if (class_exists('FP_Git_Updater_Admin')) {
-            FP_Git_Updater_Admin::get_instance();
+        // Le classi vengono caricate automaticamente tramite Composer autoload (PSR-4)
+        // Inizializza l'admin se la classe esiste
+        if (class_exists('\FP\GitUpdater\Admin')) {
+            Admin::get_instance();
         }
     }
     

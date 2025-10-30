@@ -3,13 +3,17 @@
  * Sistema di Logging
  * 
  * Gestisce il logging delle operazioni del plugin
+ * 
+ * @package FP\GitUpdater
  */
+
+namespace FP\GitUpdater;
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class FP_Git_Updater_Logger {
+class Logger {
     
     /**
      * Log un messaggio nel database
@@ -37,7 +41,7 @@ class FP_Git_Updater_Logger {
                 // Schedula per domani alla stessa ora
                 wp_schedule_event(time() + DAY_IN_SECONDS, 'daily', 'fp_git_updater_cleanup_old_logs');
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // Fallback: logga su error_log se il database fallisce
             error_log('FP Git Updater - Errore logging: ' . $e->getMessage());
         }
@@ -98,7 +102,7 @@ class FP_Git_Updater_Logger {
                 'logs_eliminati' => $deleted,
                 'totale_rimanenti' => $count
             ));
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log('FP Git Updater - Errore pulizia log: ' . $e->getMessage());
         }
     }
@@ -114,3 +118,4 @@ class FP_Git_Updater_Logger {
         $wpdb->query("TRUNCATE TABLE $table_name");
     }
 }
+

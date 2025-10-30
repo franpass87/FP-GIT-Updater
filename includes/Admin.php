@@ -5,11 +5,14 @@
  * Gestisce l'interfaccia admin del plugin
  */
 
+
+namespace FP\GitUpdater;
+
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class FP_Git_Updater_Admin {
+class Admin {
     
     private static $instance = null;
     
@@ -41,7 +44,7 @@ class FP_Git_Updater_Admin {
      */
     public function add_admin_menu() {
         // Conta gli aggiornamenti pending
-        $updater = FP_Git_Updater_Updater::get_instance();
+        $updater = Updater::get_instance();
         $pending_updates = $updater->get_pending_updates();
         $pending_count = count($pending_updates);
         
@@ -103,7 +106,7 @@ class FP_Git_Updater_Admin {
      */
     public function sanitize_settings($input) {
         // Crea un backup prima di salvare nuove impostazioni
-        $backup_manager = FP_Git_Updater_Settings_Backup::get_instance();
+        $backup_manager = SettingsBackup::get_instance();
         $current_settings = get_option('fp_git_updater_settings');
         
         if (!empty($current_settings) && !empty($current_settings['plugins'])) {
@@ -111,7 +114,7 @@ class FP_Git_Updater_Admin {
         }
         
         $output = array();
-        $encryption = FP_Git_Updater_Encryption::get_instance();
+        $encryption = Encryption::get_instance();
         
         // Sanitizza la lista di plugin
         if (isset($input['plugins']) && is_array($input['plugins'])) {
@@ -125,7 +128,7 @@ class FP_Git_Updater_Admin {
                 // URL ZIP pubblico opzionale (per aggiornamenti senza credenziali)
                 $zip_url = isset($plugin['zip_url']) ? trim(sanitize_text_field($plugin['zip_url'])) : '';
                 if (!empty($zip_url) && !filter_var($zip_url, FILTER_VALIDATE_URL)) {
-                    FP_Git_Updater_Logger::log('error', 'URL ZIP non valido: ' . $zip_url);
+                    Logger::log('error', 'URL ZIP non valido: ' . $zip_url);
                     add_settings_error(
                         'fp_git_updater_settings',
                         'invalid_zip_url',
@@ -136,7 +139,7 @@ class FP_Git_Updater_Admin {
 
                 // Se presente, valida il formato del repository (username/repository)
                 if (!empty($github_repo) && !preg_match('/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/', $github_repo)) {
-                    FP_Git_Updater_Logger::log('error', 'Formato repository non valido: ' . $github_repo);
+                    Logger::log('error', 'Formato repository non valido: ' . $github_repo);
                     add_settings_error(
                         'fp_git_updater_settings',
                         'invalid_repo_format',
@@ -147,7 +150,7 @@ class FP_Git_Updater_Admin {
 
                 // Valida il nome del branch (solo caratteri alfanumerici, -, _, /)
                 if (!preg_match('/^[a-zA-Z0-9_.\/-]+$/', $branch)) {
-                    FP_Git_Updater_Logger::log('error', 'Nome branch non valido: ' . $branch);
+                    Logger::log('error', 'Nome branch non valido: ' . $branch);
                     add_settings_error(
                         'fp_git_updater_settings',
                         'invalid_branch_name',
@@ -160,7 +163,7 @@ class FP_Git_Updater_Admin {
                 if (!empty($github_repo)) {
                     $repo_key = strtolower($github_repo . ':' . $branch);
                     if (isset($seen_repos[$repo_key])) {
-                        FP_Git_Updater_Logger::log('warning', 'Plugin duplicato rimosso: ' . $github_repo . ' (' . $branch . ')');
+                        Logger::log('warning', 'Plugin duplicato rimosso: ' . $github_repo . ' (' . $branch . ')');
                         continue;
                     }
                     $seen_repos[$repo_key] = true;
@@ -170,7 +173,7 @@ class FP_Git_Updater_Admin {
                 $plugin_name = isset($plugin['name']) ? sanitize_text_field($plugin['name']) : __('Plugin senza nome', 'fp-git-updater');
                 if (strlen($plugin_name) > 200) {
                     $plugin_name = substr($plugin_name, 0, 200);
-                    FP_Git_Updater_Logger::log('warning', 'Nome plugin troppo lungo, troncato a 200 caratteri');
+                    Logger::log('warning', 'Nome plugin troppo lungo, troncato a 200 caratteri');
                 }
 
                 $plugin_slug = isset($plugin['plugin_slug']) ? sanitize_text_field($plugin['plugin_slug']) : '';
@@ -179,7 +182,7 @@ class FP_Git_Updater_Admin {
                     $plugin_slug = trim($plugin_slug, '-');
                     if (strlen($plugin_slug) > 100) {
                         $plugin_slug = substr($plugin_slug, 0, 100);
-                        FP_Git_Updater_Logger::log('warning', 'Slug plugin troppo lungo, troncato a 100 caratteri');
+                        Logger::log('warning', 'Slug plugin troppo lungo, troncato a 100 caratteri');
                     }
                 }
 
@@ -187,7 +190,7 @@ class FP_Git_Updater_Admin {
                 $github_token = isset($plugin['github_token']) ? sanitize_text_field($plugin['github_token']) : '';
                 if (!empty($github_token)) {
                     if (strlen($github_token) > 500) {
-                        FP_Git_Updater_Logger::log('error', 'Token GitHub troppo lungo (max 500 caratteri)');
+                        Logger::log('error', 'Token GitHub troppo lungo (max 500 caratteri)');
                         add_settings_error(
                             'fp_git_updater_settings',
                             'token_too_long',
@@ -202,7 +205,7 @@ class FP_Git_Updater_Admin {
 
                 // Richiede almeno una sorgente (repo o zip)
                 if (empty($github_repo) && empty($zip_url)) {
-                    FP_Git_Updater_Logger::log('warning', 'Plugin ignorato: manca repository e URL ZIP');
+                    Logger::log('warning', 'Plugin ignorato: manca repository e URL ZIP');
                     continue;
                 }
 
@@ -278,7 +281,7 @@ class FP_Git_Updater_Admin {
         } else {
             // Fallback: carica CSS inline
             add_action('admin_head', array($this, 'enqueue_inline_css'));
-            FP_Git_Updater_Logger::log('warning', 'File admin.css non trovato, uso CSS inline come fallback', array('path' => $css_file));
+            Logger::log('warning', 'File admin.css non trovato, uso CSS inline come fallback', array('path' => $css_file));
         }
         
         // Carica JS con controllo esistenza e logging migliorato
@@ -291,7 +294,7 @@ class FP_Git_Updater_Admin {
             ));
         } else {
             // Log se il file JS non esiste
-            FP_Git_Updater_Logger::log('error', 'File JS non trovato: ' . $js_file);
+            Logger::log('error', 'File JS non trovato: ' . $js_file);
         }
     }
     
@@ -335,11 +338,11 @@ class FP_Git_Updater_Admin {
      */
     public function render_settings_page() {
         $settings = get_option('fp_git_updater_settings');
-        $webhook_url = FP_Git_Updater_Webhook_Handler::get_webhook_url();
+        $webhook_url = WebhookHandler::get_webhook_url();
         $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
         
         // Ottieni gli aggiornamenti pending
-        $updater = FP_Git_Updater_Updater::get_instance();
+        $updater = Updater::get_instance();
         $pending_updates = $updater->get_pending_updates();
         $auto_update_enabled = isset($settings['auto_update']) ? $settings['auto_update'] : false;
         
@@ -776,7 +779,7 @@ class FP_Git_Updater_Admin {
      * Render pagina log
      */
     public function render_logs_page() {
-        $logs = FP_Git_Updater_Logger::get_logs(100);
+        $logs = Logger::get_logs(100);
         
         ?>
         <div class="wrap fp-git-updater-wrap">
@@ -859,7 +862,7 @@ class FP_Git_Updater_Admin {
         }
         
         try {
-            $updater = FP_Git_Updater_Updater::get_instance();
+            $updater = Updater::get_instance();
             $result = $updater->check_plugin_update_by_id($plugin_id);
             
             if (is_wp_error($result)) {
@@ -869,7 +872,7 @@ class FP_Git_Updater_Admin {
             } else {
                 wp_send_json_success(array('message' => 'Il plugin è già aggiornato.'));
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
         wp_die();
@@ -898,7 +901,7 @@ class FP_Git_Updater_Admin {
         }
         
         try {
-            $updater = FP_Git_Updater_Updater::get_instance();
+            $updater = Updater::get_instance();
             $result = $updater->run_update_by_id($plugin_id);
             
             if (is_wp_error($result)) {
@@ -908,7 +911,7 @@ class FP_Git_Updater_Admin {
             } else {
                 wp_send_json_error(array('message' => 'Errore durante l\'aggiornamento. Controlla i log.'), 500);
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
         wp_die();
@@ -930,9 +933,9 @@ class FP_Git_Updater_Admin {
         }
         
         try {
-            FP_Git_Updater_Logger::clear_all_logs();
+            Logger::clear_all_logs();
             wp_send_json_success(array('message' => 'Log puliti con successo!'));
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
         wp_die();
@@ -953,7 +956,7 @@ class FP_Git_Updater_Admin {
         }
         
         try {
-            $backup_manager = FP_Git_Updater_Settings_Backup::get_instance();
+            $backup_manager = SettingsBackup::get_instance();
             $result = $backup_manager->create_backup(true);
             
             if ($result) {
@@ -961,7 +964,7 @@ class FP_Git_Updater_Admin {
             } else {
                 wp_send_json_error(array('message' => 'Impossibile creare il backup. Assicurati di avere impostazioni da salvare.'), 500);
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
         wp_die();
@@ -984,7 +987,7 @@ class FP_Git_Updater_Admin {
         $backup_index = isset($_POST['backup_index']) ? intval($_POST['backup_index']) : null;
         
         try {
-            $backup_manager = FP_Git_Updater_Settings_Backup::get_instance();
+            $backup_manager = SettingsBackup::get_instance();
             $result = $backup_manager->restore_backup($backup_index);
             
             if ($result) {
@@ -992,7 +995,7 @@ class FP_Git_Updater_Admin {
             } else {
                 wp_send_json_error(array('message' => 'Nessun backup disponibile da ripristinare.'), 404);
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
         wp_die();
@@ -1020,7 +1023,7 @@ class FP_Git_Updater_Admin {
         }
         
         try {
-            $backup_manager = FP_Git_Updater_Settings_Backup::get_instance();
+            $backup_manager = SettingsBackup::get_instance();
             $result = $backup_manager->delete_backup($backup_index);
             
             if ($result) {
@@ -1028,7 +1031,7 @@ class FP_Git_Updater_Admin {
             } else {
                 wp_send_json_error(array('message' => 'Backup non trovato.'), 404);
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
         wp_die();
@@ -1038,7 +1041,7 @@ class FP_Git_Updater_Admin {
      * Render pagina backup
      */
     public function render_backup_page() {
-        $backup_manager = FP_Git_Updater_Settings_Backup::get_instance();
+        $backup_manager = SettingsBackup::get_instance();
         $latest_backup = $backup_manager->get_latest_backup();
         $backup_history = $backup_manager->get_backup_history();
         $current_settings = get_option('fp_git_updater_settings');
@@ -1280,7 +1283,7 @@ class FP_Git_Updater_Admin {
         }
         
         try {
-            $updater = FP_Git_Updater_Updater::get_instance();
+            $updater = Updater::get_instance();
             $result = $updater->check_plugin_update_by_id('fp_git_updater_self');
             
             if (is_wp_error($result)) {
@@ -1290,7 +1293,7 @@ class FP_Git_Updater_Admin {
             } else {
                 wp_send_json_success(array('message' => 'FP Git Updater è già aggiornato.'));
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
         wp_die();
@@ -1312,7 +1315,7 @@ class FP_Git_Updater_Admin {
         }
         
         try {
-            $updater = FP_Git_Updater_Updater::get_instance();
+            $updater = Updater::get_instance();
             $result = $updater->run_update_by_id('fp_git_updater_self');
             
             if (is_wp_error($result)) {
@@ -1325,7 +1328,7 @@ class FP_Git_Updater_Admin {
             } else {
                 wp_send_json_error(array('message' => 'Errore durante l\'auto-aggiornamento. Controlla i log.'), 500);
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
         wp_die();

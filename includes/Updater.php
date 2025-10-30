@@ -5,11 +5,14 @@
  * Scarica e installa gli aggiornamenti dal repository GitHub
  */
 
+
+namespace FP\GitUpdater;
+
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class FP_Git_Updater_Updater {
+class Updater {
     
     private static $instance = null;
     
@@ -55,7 +58,7 @@ class FP_Git_Updater_Updater {
             return false;
         }
         
-        FP_Git_Updater_Logger::log('info', 'Controllo aggiornamenti per tutti i plugin...');
+        Logger::log('info', 'Controllo aggiornamenti per tutti i plugin...');
         
         $updates_available = false;
         
@@ -162,7 +165,7 @@ class FP_Git_Updater_Updater {
         }
         
         // Log per debug se il plugin non viene trovato
-        FP_Git_Updater_Logger::log('error', 'Plugin non trovato con ID: ' . $plugin_id, array(
+        Logger::log('error', 'Plugin non trovato con ID: ' . $plugin_id, array(
             'plugin_id' => $plugin_id,
             'available_plugins' => array_map(function($p) {
                 return isset($p['id']) ? $p['id'] : 'NO_ID';
@@ -189,7 +192,7 @@ class FP_Git_Updater_Updater {
             foreach ($subdirs as $subdir) {
                 $main_file = $this->find_plugin_main_file($subdir);
                 if ($main_file) {
-                    FP_Git_Updater_Logger::log('info', 'Plugin trovato in sottocartella: ' . basename($subdir));
+                    Logger::log('info', 'Plugin trovato in sottocartella: ' . basename($subdir));
                     return dirname($main_file);
                 }
                 
@@ -199,7 +202,7 @@ class FP_Git_Updater_Updater {
                     foreach ($subsubdirs as $subsubdir) {
                         $main_file = $this->find_plugin_main_file($subsubdir);
                         if ($main_file) {
-                            FP_Git_Updater_Logger::log('info', 'Plugin trovato in sotto-sottocartella: ' . basename($subsubdir));
+                            Logger::log('info', 'Plugin trovato in sotto-sottocartella: ' . basename($subsubdir));
                             return dirname($main_file);
                         }
                     }
@@ -208,7 +211,7 @@ class FP_Git_Updater_Updater {
         }
         
         // Se non trova un file principale, usa la directory estratta come fallback
-        FP_Git_Updater_Logger::log('warning', 'File principale del plugin non trovato, uso directory estratta come fallback');
+        Logger::log('warning', 'File principale del plugin non trovato, uso directory estratta come fallback');
         return $extracted_dir;
     }
     
@@ -231,7 +234,7 @@ class FP_Git_Updater_Updater {
                 
                 // Controlla se contiene "Plugin Name:" nell'header
                 if ($file_data && preg_match('/Plugin Name:\s*(.+)/i', $file_data, $matches)) {
-                    FP_Git_Updater_Logger::log('info', 'File principale del plugin trovato: ' . basename($php_file) . ' (Plugin: ' . trim($matches[1]) . ')');
+                    Logger::log('info', 'File principale del plugin trovato: ' . basename($php_file) . ' (Plugin: ' . trim($matches[1]) . ')');
                     return $php_file;
                 }
             }
@@ -248,19 +251,19 @@ class FP_Git_Updater_Updater {
             return false;
         }
         
-        FP_Git_Updater_Logger::log('info', 'Controllo aggiornamenti per: ' . $plugin['name']);
+        Logger::log('info', 'Controllo aggiornamenti per: ' . $plugin['name']);
         
         $latest_commit = $this->get_latest_commit($plugin);
         
         if (is_wp_error($latest_commit)) {
-            FP_Git_Updater_Logger::log('error', 'Errore nel controllo aggiornamenti per ' . $plugin['name'] . ': ' . $latest_commit->get_error_message());
+            Logger::log('error', 'Errore nel controllo aggiornamenti per ' . $plugin['name'] . ': ' . $latest_commit->get_error_message());
             return false;
         }
         
         $current_commit = get_option('fp_git_updater_current_commit_' . $plugin['id'], '');
         
         if ($latest_commit !== $current_commit) {
-            FP_Git_Updater_Logger::log('info', 'Nuovo aggiornamento disponibile per ' . $plugin['name'] . ': ' . $latest_commit);
+            Logger::log('info', 'Nuovo aggiornamento disponibile per ' . $plugin['name'] . ': ' . $latest_commit);
             
             // Registra l'aggiornamento come pending
             $commit_short = substr($latest_commit, 0, 7);
@@ -277,10 +280,10 @@ class FP_Git_Updater_Updater {
             // Se l'aggiornamento automatico è abilitato, eseguilo
             $settings = get_option('fp_git_updater_settings');
             if (isset($settings['auto_update']) && $settings['auto_update']) {
-                FP_Git_Updater_Logger::log('info', 'Aggiornamento automatico in corso per ' . $plugin['name']);
+                Logger::log('info', 'Aggiornamento automatico in corso per ' . $plugin['name']);
                 $this->run_update($latest_commit, $plugin);
             } else {
-                FP_Git_Updater_Logger::log('info', 'Aggiornamento disponibile per ' . $plugin['name'] . ' ma installazione manuale richiesta (auto_update disabilitato)');
+                Logger::log('info', 'Aggiornamento disponibile per ' . $plugin['name'] . ' ma installazione manuale richiesta (auto_update disabilitato)');
             }
             
             return true;
@@ -310,7 +313,7 @@ class FP_Git_Updater_Updater {
         
         // Decripta e aggiungi il token se presente
         if (!empty($encrypted_token)) {
-            $encryption = FP_Git_Updater_Encryption::get_instance();
+            $encryption = Encryption::get_instance();
             $token = $encryption->decrypt($encrypted_token);
             
             if ($token !== false && !empty($token)) {
@@ -319,7 +322,7 @@ class FP_Git_Updater_Updater {
         }
         
         // Usa la cache per le chiamate API
-        $api_cache = FP_Git_Updater_API_Cache::get_instance();
+        $api_cache = ApiCache::get_instance();
         $response = $api_cache->cached_api_call($api_url, $args, 300); // Cache per 5 minuti
         
         if (is_wp_error($response)) {
@@ -351,12 +354,12 @@ class FP_Git_Updater_Updater {
         
         // Verifica errori JSON
         if (json_last_error() !== JSON_ERROR_NONE) {
-            FP_Git_Updater_Logger::log('error', 'Errore parsing JSON dalla risposta API: ' . json_last_error_msg());
+            Logger::log('error', 'Errore parsing JSON dalla risposta API: ' . json_last_error_msg());
             return new WP_Error('json_error', 'Risposta API non valida (JSON malformato)');
         }
         
         if (!is_array($data)) {
-            FP_Git_Updater_Logger::log('error', 'Risposta API non è un array valido');
+            Logger::log('error', 'Risposta API non è un array valido');
             return new WP_Error('invalid_response', 'Formato risposta API non valido');
         }
         
@@ -365,7 +368,7 @@ class FP_Git_Updater_Updater {
         }
         
         // Log della risposta per debug
-        FP_Git_Updater_Logger::log('error', 'SHA commit non trovato nella risposta API', array(
+        Logger::log('error', 'SHA commit non trovato nella risposta API', array(
             'response_keys' => array_keys($data)
         ));
         
@@ -408,7 +411,7 @@ class FP_Git_Updater_Updater {
         $lock_value = get_transient($lock_key);
         
         if ($lock_value !== false) {
-            FP_Git_Updater_Logger::log('warning', 'Aggiornamento già in corso per: ' . $plugin['name'] . ' - saltato');
+            Logger::log('warning', 'Aggiornamento già in corso per: ' . $plugin['name'] . ' - saltato');
             return false;
         }
         
@@ -416,7 +419,7 @@ class FP_Git_Updater_Updater {
         set_transient($lock_key, time(), 600);
         
         try {
-            FP_Git_Updater_Logger::log('info', 'Inizio aggiornamento per: ' . $plugin['name']);
+            Logger::log('info', 'Inizio aggiornamento per: ' . $plugin['name']);
             
             // Notifica inizio aggiornamento
             $this->send_notification('Inizio aggiornamento ' . $plugin['name'], 'L\'aggiornamento è iniziato...');
@@ -434,7 +437,7 @@ class FP_Git_Updater_Updater {
 
             if (!empty($zip_url) && filter_var($zip_url, FILTER_VALIDATE_URL)) {
                 $download_url = $zip_url;
-                FP_Git_Updater_Logger::log('info', 'Modalità ZIP pubblico attiva per: ' . $plugin['name']);
+                Logger::log('info', 'Modalità ZIP pubblico attiva per: ' . $plugin['name']);
                 $args = array(
                     'timeout' => 300,
                     'redirection' => 5,
@@ -444,7 +447,7 @@ class FP_Git_Updater_Updater {
                 );
                 // Log se estensione non è .zip
                 if (stripos(parse_url($zip_url, PHP_URL_PATH), '.zip') === false) {
-                    FP_Git_Updater_Logger::log('warning', 'URL ZIP senza estensione .zip: ' . $zip_url);
+                    Logger::log('warning', 'URL ZIP senza estensione .zip: ' . $zip_url);
                 }
             } else {
                 // Default: GitHub API zipball
@@ -460,15 +463,15 @@ class FP_Git_Updater_Updater {
 
                 // Decripta e aggiungi il token se presente (repo privati)
                 if (!empty($encrypted_token)) {
-                    $encryption = FP_Git_Updater_Encryption::get_instance();
+                    $encryption = Encryption::get_instance();
                     $token = $encryption->decrypt($encrypted_token);
                     if ($token !== false && !empty($token)) {
                         $args['headers']['Authorization'] = 'token ' . $token;
                     }
                 }
             }
-        } catch (Exception $e) {
-            FP_Git_Updater_Logger::log('error', 'Errore durante preparazione aggiornamento: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            Logger::log('error', 'Errore durante preparazione aggiornamento: ' . $e->getMessage());
             $this->send_notification('Errore aggiornamento', $e->getMessage());
             // Rilascia il lock
             delete_transient($lock_key);
@@ -476,13 +479,13 @@ class FP_Git_Updater_Updater {
         }
         
         // Scarica il file zip
-        FP_Git_Updater_Logger::log('info', 'Download dell\'aggiornamento...');
+        Logger::log('info', 'Download dell\'aggiornamento...');
         
         // Usa wp_remote_get con retry leggero
         $response = $this->request_with_retry($download_url, $args, 2);
         
         if (is_wp_error($response)) {
-            FP_Git_Updater_Logger::log('error', 'Errore download: ' . $response->get_error_message());
+            Logger::log('error', 'Errore download: ' . $response->get_error_message());
             $this->send_notification('Errore aggiornamento', 'Errore durante il download: ' . $response->get_error_message());
             delete_transient($lock_key);
             return false;
@@ -491,7 +494,7 @@ class FP_Git_Updater_Updater {
         $response_code = wp_remote_retrieve_response_code($response);
         
         if ($response_code !== 200) {
-            FP_Git_Updater_Logger::log('error', 'Errore download: HTTP ' . $response_code);
+            Logger::log('error', 'Errore download: HTTP ' . $response_code);
             $this->send_notification('Errore aggiornamento', 'Errore HTTP durante il download: ' . $response_code);
             delete_transient($lock_key);
             return false;
@@ -501,7 +504,7 @@ class FP_Git_Updater_Updater {
         if (!empty($zip_url)) {
             $content_type = wp_remote_retrieve_header($response, 'content-type');
             if (!empty($content_type) && stripos($content_type, 'zip') === false) {
-                FP_Git_Updater_Logger::log('warning', 'Content-Type non sembra uno ZIP: ' . $content_type);
+                Logger::log('warning', 'Content-Type non sembra uno ZIP: ' . $content_type);
             }
         }
 
@@ -509,7 +512,7 @@ class FP_Git_Updater_Updater {
         $body = wp_remote_retrieve_body($response);
         
         if (empty($body)) {
-            FP_Git_Updater_Logger::log('error', 'Errore download: file vuoto');
+            Logger::log('error', 'Errore download: file vuoto');
             $this->send_notification('Errore aggiornamento', 'Il file scaricato è vuoto');
             delete_transient($lock_key);
             return false;
@@ -520,13 +523,13 @@ class FP_Git_Updater_Updater {
         $max_size = 100 * 1024 * 1024; // 100MB
         
         if ($body_size > $max_size) {
-            FP_Git_Updater_Logger::log('error', 'File troppo grande: ' . round($body_size / 1024 / 1024, 2) . 'MB (max 100MB)');
+            Logger::log('error', 'File troppo grande: ' . round($body_size / 1024 / 1024, 2) . 'MB (max 100MB)');
             $this->send_notification('Errore aggiornamento', 'Repository troppo grande. Considera di ridurre la dimensione o escludere file non necessari.');
             delete_transient($lock_key);
             return false;
         }
         
-        FP_Git_Updater_Logger::log('info', 'Download completato: ' . round($body_size / 1024 / 1024, 2) . 'MB');
+        Logger::log('info', 'Download completato: ' . round($body_size / 1024 / 1024, 2) . 'MB');
         
         // Crea directory upgrade se non esiste
         $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
@@ -545,14 +548,14 @@ class FP_Git_Updater_Updater {
             if (file_exists($temp_file)) {
                 @unlink($temp_file);
             }
-            FP_Git_Updater_Logger::log('error', 'Errore nel salvare il file temporaneo');
+            Logger::log('error', 'Errore nel salvare il file temporaneo');
             $this->send_notification('Errore aggiornamento', 'Impossibile salvare il file temporaneo');
             delete_transient($lock_key);
             return false;
         }
         
         // Unzip il file
-        FP_Git_Updater_Logger::log('info', 'Estrazione dell\'aggiornamento...');
+        Logger::log('info', 'Estrazione dell\'aggiornamento...');
         
         // Inizializza WP_Filesystem per unzip
         global $wp_filesystem;
@@ -574,7 +577,7 @@ class FP_Git_Updater_Updater {
         @unlink($temp_file);
         
         if (is_wp_error($unzip_result)) {
-            FP_Git_Updater_Logger::log('error', 'Errore estrazione: ' . $unzip_result->get_error_message());
+            Logger::log('error', 'Errore estrazione: ' . $unzip_result->get_error_message());
             $this->send_notification('Errore aggiornamento', 'Errore durante l\'estrazione: ' . $unzip_result->get_error_message());
             delete_transient($lock_key);
             return false;
@@ -584,7 +587,7 @@ class FP_Git_Updater_Updater {
         $extracted_dirs = glob($temp_extract_dir . '/*', GLOB_ONLYDIR);
         
         if (empty($extracted_dirs)) {
-            FP_Git_Updater_Logger::log('error', 'Directory estratta non trovata');
+            Logger::log('error', 'Directory estratta non trovata');
             $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Directory estratta non trovata');
             delete_transient($lock_key);
@@ -598,7 +601,7 @@ class FP_Git_Updater_Updater {
         $source_dir = $this->find_plugin_root_dir($github_extracted_dir, $plugin);
         
         if (!$source_dir) {
-            FP_Git_Updater_Logger::log('error', 'File principale del plugin non trovato nella directory estratta', array(
+            Logger::log('error', 'File principale del plugin non trovato nella directory estratta', array(
                 'extracted_dir' => $github_extracted_dir,
                 'plugin_name' => $plugin['name']
             ));
@@ -608,7 +611,7 @@ class FP_Git_Updater_Updater {
             return false;
         }
         
-        FP_Git_Updater_Logger::log('info', 'Directory plugin trovata: ' . basename($source_dir));
+        Logger::log('info', 'Directory plugin trovata: ' . basename($source_dir));
         
         // Determina la directory del plugin da aggiornare
         // Preferisci slug configurato; se assente:
@@ -621,7 +624,7 @@ class FP_Git_Updater_Updater {
         } else {
             // ZIP-only fallback
             $plugin_slug = basename($source_dir);
-            FP_Git_Updater_Logger::log('info', 'Slug dedotto da directory estratta (ZIP-only): ' . $plugin_slug);
+            Logger::log('info', 'Slug dedotto da directory estratta (ZIP-only): ' . $plugin_slug);
         }
         
         // Sanitizza lo slug (rimuovi caratteri non validi per nomi directory)
@@ -629,7 +632,7 @@ class FP_Git_Updater_Updater {
         $plugin_slug = trim($plugin_slug, '-');
         
         if (empty($plugin_slug)) {
-            FP_Git_Updater_Logger::log('error', 'Plugin slug non valido dopo sanitizzazione');
+            Logger::log('error', 'Plugin slug non valido dopo sanitizzazione');
             $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Nome plugin non valido');
             delete_transient($lock_key);
@@ -640,7 +643,7 @@ class FP_Git_Updater_Updater {
         
         // Verifica se stiamo cercando di aggiornare il plugin stesso
         if ($plugin_slug === 'fp-git-updater' || $plugin_slug === dirname(FP_GIT_UPDATER_PLUGIN_BASENAME)) {
-            FP_Git_Updater_Logger::log('info', 'Auto-aggiornamento del plugin FP Git Updater in corso...');
+            Logger::log('info', 'Auto-aggiornamento del plugin FP Git Updater in corso...');
             
             // Per l'auto-aggiornamento, usiamo un approccio più sicuro
             return $this->run_self_update($plugin, $commit_sha);
@@ -649,31 +652,31 @@ class FP_Git_Updater_Updater {
         // Backup della versione attuale (solo se la directory esiste)
         $backup_dir = null;
         if (file_exists($plugin_dir) && is_dir($plugin_dir)) {
-            FP_Git_Updater_Logger::log('info', 'Creazione backup...');
+            Logger::log('info', 'Creazione backup...');
             $backup_dir = WP_CONTENT_DIR . '/upgrade/fp-git-updater-backup-' . time() . '-' . uniqid();
             
             // Usa rename() nativo che è più affidabile per operazioni atomiche
             if (!@rename($plugin_dir, $backup_dir)) {
-                FP_Git_Updater_Logger::log('error', 'Impossibile creare backup: verifica i permessi della directory');
+                Logger::log('error', 'Impossibile creare backup: verifica i permessi della directory');
                 $wp_filesystem->delete($temp_extract_dir, true);
                 $this->send_notification('Errore aggiornamento', 'Impossibile creare backup della versione corrente. Verifica i permessi.');
                 delete_transient($lock_key);
                 return false;
             }
-            FP_Git_Updater_Logger::log('info', 'Backup creato con successo');
+            Logger::log('info', 'Backup creato con successo');
         } else {
-            FP_Git_Updater_Logger::log('info', 'Prima installazione, backup non necessario');
+            Logger::log('info', 'Prima installazione, backup non necessario');
         }
         
         // Copia i nuovi file
-        FP_Git_Updater_Logger::log('info', 'Installazione nuovi file...');
+        Logger::log('info', 'Installazione nuovi file...');
         
         // Verifica che la directory sorgente esista e sia leggibile
         if (!is_dir($source_dir) || !is_readable($source_dir)) {
-            FP_Git_Updater_Logger::log('error', 'Directory sorgente non valida o non leggibile: ' . $source_dir);
+            Logger::log('error', 'Directory sorgente non valida o non leggibile: ' . $source_dir);
             if ($backup_dir && file_exists($backup_dir)) {
                 @rename($backup_dir, $plugin_dir);
-                FP_Git_Updater_Logger::log('info', 'Backup ripristinato');
+                Logger::log('info', 'Backup ripristinato');
             }
             $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Directory sorgente non valida.');
@@ -684,10 +687,10 @@ class FP_Git_Updater_Updater {
         // Verifica che la directory parent di destinazione esista e sia scrivibile
         $parent_dir = dirname($plugin_dir);
         if (!is_dir($parent_dir)) {
-            FP_Git_Updater_Logger::log('error', 'Directory parent non esiste: ' . $parent_dir);
+            Logger::log('error', 'Directory parent non esiste: ' . $parent_dir);
             if ($backup_dir && file_exists($backup_dir)) {
                 @rename($backup_dir, $plugin_dir);
-                FP_Git_Updater_Logger::log('info', 'Backup ripristinato');
+                Logger::log('info', 'Backup ripristinato');
             }
             $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Directory plugins non trovata.');
@@ -696,10 +699,10 @@ class FP_Git_Updater_Updater {
         }
         
         if (!is_writable($parent_dir)) {
-            FP_Git_Updater_Logger::log('error', 'Directory parent non scrivibile: ' . $parent_dir . ' (permessi: ' . substr(sprintf('%o', fileperms($parent_dir)), -4) . ')');
+            Logger::log('error', 'Directory parent non scrivibile: ' . $parent_dir . ' (permessi: ' . substr(sprintf('%o', fileperms($parent_dir)), -4) . ')');
             if ($backup_dir && file_exists($backup_dir)) {
                 @rename($backup_dir, $plugin_dir);
-                FP_Git_Updater_Logger::log('info', 'Backup ripristinato');
+                Logger::log('info', 'Backup ripristinato');
             }
             $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Directory plugins non scrivibile. Verifica i permessi.');
@@ -709,12 +712,12 @@ class FP_Git_Updater_Updater {
         
         // Assicurati che la directory di destinazione non esista (dovrebbe essere stata spostata nel backup)
         if (file_exists($plugin_dir)) {
-            FP_Git_Updater_Logger::log('warning', 'La directory di destinazione esiste ancora, provo a rimuoverla: ' . $plugin_dir);
+            Logger::log('warning', 'La directory di destinazione esiste ancora, provo a rimuoverla: ' . $plugin_dir);
             if (!$wp_filesystem->delete($plugin_dir, true)) {
-                FP_Git_Updater_Logger::log('error', 'Impossibile rimuovere directory esistente: ' . $plugin_dir);
+                Logger::log('error', 'Impossibile rimuovere directory esistente: ' . $plugin_dir);
                 if ($backup_dir && file_exists($backup_dir)) {
                     @rename($backup_dir, $plugin_dir);
-                    FP_Git_Updater_Logger::log('info', 'Backup ripristinato');
+                    Logger::log('info', 'Backup ripristinato');
                 }
                 $wp_filesystem->delete($temp_extract_dir, true);
                 $this->send_notification('Errore aggiornamento', 'Impossibile pulire la directory di destinazione.');
@@ -731,7 +734,7 @@ class FP_Git_Updater_Updater {
             $error_msg = $copy_result->get_error_message();
             $error_data = $copy_result->get_error_data();
             
-            FP_Git_Updater_Logger::log('error', 'Errore installazione: ' . $error_msg, array(
+            Logger::log('error', 'Errore installazione: ' . $error_msg, array(
                 'source' => $source_dir,
                 'destination' => $plugin_dir,
                 'error_data' => $error_data
@@ -739,7 +742,7 @@ class FP_Git_Updater_Updater {
             
             if ($backup_dir && file_exists($backup_dir)) {
                 @rename($backup_dir, $plugin_dir);
-                FP_Git_Updater_Logger::log('info', 'Backup ripristinato');
+                Logger::log('info', 'Backup ripristinato');
                 $this->send_notification('Errore aggiornamento', 'Errore durante l\'installazione: ' . $error_msg . '. Backup ripristinato.');
             } else {
                 $this->send_notification('Errore aggiornamento', 'Errore durante l\'installazione: ' . $error_msg);
@@ -751,11 +754,11 @@ class FP_Git_Updater_Updater {
         
         // Verifica che i file siano stati copiati correttamente
         if (!is_dir($plugin_dir) || !is_readable($plugin_dir)) {
-            FP_Git_Updater_Logger::log('error', 'La directory di destinazione non è valida dopo la copia');
+            Logger::log('error', 'La directory di destinazione non è valida dopo la copia');
             if ($backup_dir && file_exists($backup_dir)) {
                 $wp_filesystem->delete($plugin_dir, true);
                 @rename($backup_dir, $plugin_dir);
-                FP_Git_Updater_Logger::log('info', 'Backup ripristinato');
+                Logger::log('info', 'Backup ripristinato');
                 $this->send_notification('Errore aggiornamento', 'Verifica post-copia fallita. Backup ripristinato.');
             }
             $wp_filesystem->delete($temp_extract_dir, true);
@@ -763,7 +766,7 @@ class FP_Git_Updater_Updater {
             return false;
         }
         
-        FP_Git_Updater_Logger::log('info', 'File copiati con successo');
+        Logger::log('info', 'File copiati con successo');
         
         // Pulisci
         $wp_filesystem->delete($temp_extract_dir, true);
@@ -788,7 +791,7 @@ class FP_Git_Updater_Updater {
         // Rimuovi il pending update se esiste
         delete_option('fp_git_updater_pending_update_' . $plugin['id']);
         
-        FP_Git_Updater_Logger::log('success', 'Aggiornamento completato con successo per: ' . $plugin['name']);
+        Logger::log('success', 'Aggiornamento completato con successo per: ' . $plugin['name']);
         $this->send_notification('Aggiornamento completato', 'Il plugin ' . $plugin['name'] . ' è stato aggiornato con successo!');
         
         // Mantieni il backup per 7 giorni (se è stato creato)
@@ -821,7 +824,7 @@ class FP_Git_Updater_Updater {
             if ($attempt > $retries) {
                 return $response;
             }
-            FP_Git_Updater_Logger::log('warning', 'Retry download (' . $attempt . '/' . $retries . ') per URL: ' . $url);
+            Logger::log('warning', 'Retry download (' . $attempt . '/' . $retries . ') per URL: ' . $url);
             // Backoff semplice
             usleep($delay_ms * 1000);
             $delay_ms *= 2;
@@ -840,7 +843,7 @@ class FP_Git_Updater_Updater {
             }
             
             $wp_filesystem->delete($backup_dir, true);
-            FP_Git_Updater_Logger::log('info', 'Backup eliminato: ' . basename($backup_dir));
+            Logger::log('info', 'Backup eliminato: ' . basename($backup_dir));
         }
     }
     
@@ -858,7 +861,7 @@ class FP_Git_Updater_Updater {
         
         // Valida l'email prima di inviare
         if (!is_email($email)) {
-            FP_Git_Updater_Logger::log('error', 'Email notifica non valida: ' . $email);
+            Logger::log('error', 'Email notifica non valida: ' . $email);
             return false;
         }
         
@@ -866,7 +869,7 @@ class FP_Git_Updater_Updater {
         $result = wp_mail($email, $subject, $message);
         
         if (!$result) {
-            FP_Git_Updater_Logger::log('warning', 'Impossibile inviare notifica email a: ' . $email, array(
+            Logger::log('warning', 'Impossibile inviare notifica email a: ' . $email, array(
                 'subject' => $subject,
                 'message' => substr($message, 0, 100)
             ));
@@ -880,18 +883,18 @@ class FP_Git_Updater_Updater {
      * Usa un approccio più sicuro per evitare problemi durante l'esecuzione
      */
     private function run_self_update($plugin, $commit_sha) {
-        FP_Git_Updater_Logger::log('info', 'Inizio auto-aggiornamento del plugin FP Git Updater');
+        Logger::log('info', 'Inizio auto-aggiornamento del plugin FP Git Updater');
         
         try {
             // Crea un backup delle impostazioni prima dell'aggiornamento
-            $backup_manager = FP_Git_Updater_Settings_Backup::get_instance();
+            $backup_manager = SettingsBackup::get_instance();
             $backup_manager->create_backup(false);
             
             // Usa il metodo standard ma con alcune modifiche per la sicurezza
             $result = $this->run_plugin_update($plugin, $commit_sha);
             
             if ($result) {
-                FP_Git_Updater_Logger::log('success', 'Auto-aggiornamento del plugin FP Git Updater completato con successo');
+                Logger::log('success', 'Auto-aggiornamento del plugin FP Git Updater completato con successo');
                 
                 // Invia notifica speciale per l'auto-aggiornamento
                 $this->send_notification(
@@ -909,8 +912,8 @@ class FP_Git_Updater_Updater {
             
             return $result;
             
-        } catch (Exception $e) {
-            FP_Git_Updater_Logger::log('error', 'Errore durante auto-aggiornamento: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            Logger::log('error', 'Errore durante auto-aggiornamento: ' . $e->getMessage());
             $this->send_notification(
                 'FP Git Updater - Errore auto-aggiornamento',
                 'Si è verificato un errore durante l\'auto-aggiornamento: ' . $e->getMessage()

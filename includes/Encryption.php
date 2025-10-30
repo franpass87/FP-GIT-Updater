@@ -3,13 +3,17 @@
  * Sistema di Criptazione
  * 
  * Gestisce la criptazione sicura dei token e dati sensibili
+ * 
+ * @package FP\GitUpdater
  */
+
+namespace FP\GitUpdater;
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class FP_Git_Updater_Encryption {
+class Encryption {
     
     private static $instance = null;
     
@@ -71,15 +75,15 @@ class FP_Git_Updater_Encryption {
             );
             
             if ($encrypted === false) {
-                FP_Git_Updater_Logger::log('error', 'Errore durante la criptazione');
+                Logger::log('error', 'Errore durante la criptazione');
                 return false;
             }
             
             // Combina IV e valore criptato, poi converti in base64
             return base64_encode($iv . $encrypted);
             
-        } catch (Exception $e) {
-            FP_Git_Updater_Logger::log('error', 'Eccezione durante la criptazione: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            Logger::log('error', 'Eccezione durante la criptazione: ' . $e->getMessage());
             return false;
         }
     }
@@ -126,14 +130,14 @@ class FP_Git_Updater_Encryption {
             
             if ($decrypted === false) {
                 // Se la decriptazione fallisce, potrebbe essere un token plain text (retrocompatibilità)
-                FP_Git_Updater_Logger::log('warning', 'Decriptazione fallita, potrebbe essere un token non criptato');
+                Logger::log('warning', 'Decriptazione fallita, potrebbe essere un token non criptato');
                 return $encrypted_value;
             }
             
             return $decrypted;
             
-        } catch (Exception $e) {
-            FP_Git_Updater_Logger::log('error', 'Eccezione durante la decriptazione: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            Logger::log('error', 'Eccezione durante la decriptazione: ' . $e->getMessage());
             return false;
         }
     }
@@ -178,14 +182,14 @@ class FP_Git_Updater_Encryption {
                 if ($encrypted !== false) {
                     $plugin['github_token'] = $encrypted;
                     $updated = true;
-                    FP_Git_Updater_Logger::log('info', 'Token GitHub criptato per: ' . $plugin['name']);
+                    Logger::log('info', 'Token GitHub criptato per: ' . $plugin['name']);
                 }
             }
         }
         
         if ($updated) {
             update_option('fp_git_updater_settings', $settings);
-            FP_Git_Updater_Logger::log('success', 'Migrazione token completata');
+            Logger::log('success', 'Migrazione token completata');
             return true;
         }
         
@@ -207,7 +211,7 @@ class FP_Git_Updater_Encryption {
             if ($encrypted !== false) {
                 $settings['webhook_secret'] = $encrypted;
                 update_option('fp_git_updater_settings', $settings);
-                FP_Git_Updater_Logger::log('info', 'Webhook secret criptato con successo');
+                Logger::log('info', 'Webhook secret criptato con successo');
                 return true;
             }
         }
@@ -215,3 +219,4 @@ class FP_Git_Updater_Encryption {
         return false;
     }
 }
+

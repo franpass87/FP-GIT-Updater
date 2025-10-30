@@ -5,11 +5,14 @@
  * Riceve e processa i webhook da GitHub quando viene fatto push/merge
  */
 
+
+namespace FP\GitUpdater;
+
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class FP_Git_Updater_Webhook_Handler {
+class WebhookHandler {
     
     private static $instance = null;
     
@@ -40,11 +43,11 @@ class FP_Git_Updater_Webhook_Handler {
      */
     public function verify_webhook_permission($request) {
         // Controlla rate limiting
-        $rate_limiter = FP_Git_Updater_Rate_Limiter::get_instance();
+        $rate_limiter = RateLimiter::get_instance();
         $identifier = $rate_limiter->get_request_identifier();
         
         if (!$rate_limiter->is_allowed($identifier)) {
-            FP_Git_Updater_Logger::log('warning', 'Richiesta webhook bloccata per rate limiting', array(
+            Logger::log('warning', 'Richiesta webhook bloccata per rate limiting', array(
                 'ip' => $identifier
             ));
             return false;
@@ -61,11 +64,11 @@ class FP_Git_Updater_Webhook_Handler {
     public function handle_webhook($request) {
         try {
             // Log della richiesta
-            FP_Git_Updater_Logger::log('webhook', __('Webhook ricevuto da GitHub', 'fp-git-updater'));
+            Logger::log('webhook', __('Webhook ricevuto da GitHub', 'fp-git-updater'));
             
             // Verifica la firma del webhook
             if (!$this->verify_signature($request)) {
-                FP_Git_Updater_Logger::log('error', __('Webhook: firma non valida', 'fp-git-updater'));
+                Logger::log('error', __('Webhook: firma non valida', 'fp-git-updater'));
                 return new WP_REST_Response(array(
                     'success' => false,
                     'message' => __('Firma webhook non valida', 'fp-git-updater')
@@ -76,7 +79,7 @@ class FP_Git_Updater_Webhook_Handler {
             $payload = $request->get_json_params();
             
             if (empty($payload)) {
-                FP_Git_Updater_Logger::log('error', __('Webhook: payload vuoto', 'fp-git-updater'));
+                Logger::log('error', __('Webhook: payload vuoto', 'fp-git-updater'));
                 return new WP_REST_Response(array(
                     'success' => false,
                     'message' => __('Payload vuoto', 'fp-git-updater')
@@ -87,7 +90,7 @@ class FP_Git_Updater_Webhook_Handler {
         $event = $request->get_header('X-GitHub-Event');
         
         if ($event !== 'push') {
-            FP_Git_Updater_Logger::log('info', 'Webhook: evento ignorato - ' . $event);
+            Logger::log('info', 'Webhook: evento ignorato - ' . $event);
             return new WP_REST_Response(array(
                 'success' => true,
                 'message' => 'Evento ignorato: ' . $event
@@ -101,7 +104,7 @@ class FP_Git_Updater_Webhook_Handler {
         $repository = isset($payload['repository']['full_name']) ? $payload['repository']['full_name'] : '';
         
         if (empty($repository)) {
-            FP_Git_Updater_Logger::log('error', 'Webhook: repository non identificato nel payload');
+            Logger::log('error', 'Webhook: repository non identificato nel payload');
             return new WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Repository non identificato'
@@ -118,7 +121,7 @@ class FP_Git_Updater_Webhook_Handler {
         }
         
         if (!$matched_plugin) {
-            FP_Git_Updater_Logger::log('info', 'Webhook: nessun plugin configurato per il repository ' . $repository);
+            Logger::log('info', 'Webhook: nessun plugin configurato per il repository ' . $repository);
             return new WP_REST_Response(array(
                 'success' => true,
                 'message' => 'Repository non configurato o disabilitato: ' . $repository
@@ -132,7 +135,7 @@ class FP_Git_Updater_Webhook_Handler {
         $branch = str_replace('refs/heads/', '', $ref);
         
         if ($branch !== $target_branch) {
-            FP_Git_Updater_Logger::log('info', 'Webhook: branch ignorato - ' . $branch . ' per ' . $matched_plugin['name']);
+            Logger::log('info', 'Webhook: branch ignorato - ' . $branch . ' per ' . $matched_plugin['name']);
             return new WP_REST_Response(array(
                 'success' => true,
                 'message' => 'Branch ignorato: ' . $branch
@@ -141,7 +144,7 @@ class FP_Git_Updater_Webhook_Handler {
         
         // Verifica che head_commit esista (potrebbe non esserci in caso di branch deletion)
         if (!isset($payload['head_commit']) || empty($payload['head_commit'])) {
-            FP_Git_Updater_Logger::log('info', 'Webhook ignorato: nessun commit (probabilmente branch deletion)');
+            Logger::log('info', 'Webhook ignorato: nessun commit (probabilmente branch deletion)');
             return new WP_REST_Response(array(
                 'success' => true,
                 'message' => 'Evento ignorato: nessun commit disponibile'
@@ -155,7 +158,7 @@ class FP_Git_Updater_Webhook_Handler {
         
         // Verifica che il commit SHA sia valido
         if (empty($commit_sha) || strlen($commit_sha) < 7) {
-            FP_Git_Updater_Logger::log('error', 'Webhook: commit SHA mancante o non valido');
+            Logger::log('error', 'Webhook: commit SHA mancante o non valido');
             return new WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Commit SHA non valido'
@@ -164,7 +167,7 @@ class FP_Git_Updater_Webhook_Handler {
         
         $commit_sha_short = substr($commit_sha, 0, 7);
         
-        FP_Git_Updater_Logger::log('info', 'Push ricevuto per ' . $matched_plugin['name'] . ' sul branch ' . $branch, array(
+        Logger::log('info', 'Push ricevuto per ' . $matched_plugin['name'] . ' sul branch ' . $branch, array(
             'commit' => $commit_sha_short,
             'author' => $commit_author,
             'message' => $commit_message,
@@ -187,7 +190,7 @@ class FP_Git_Updater_Webhook_Handler {
                 // Aggiungi 5 secondi di offset per evitare race condition con il cron
                 wp_schedule_single_event(time() + 5, 'fp_git_updater_run_update', array($commit_sha, $matched_plugin));
                 
-                FP_Git_Updater_Logger::log('info', 'Aggiornamento automatico schedulato per ' . $matched_plugin['name'] . ' al commit ' . $commit_sha_short);
+                Logger::log('info', 'Aggiornamento automatico schedulato per ' . $matched_plugin['name'] . ' al commit ' . $commit_sha_short);
                 
                 return new WP_REST_Response(array(
                     'success' => true,
@@ -198,7 +201,7 @@ class FP_Git_Updater_Webhook_Handler {
             }
             
             // Aggiornamento manuale: notifica disponibilità
-            FP_Git_Updater_Logger::log('info', 'Nuovo aggiornamento disponibile per ' . $matched_plugin['name'] . ' (commit: ' . $commit_sha_short . '). Installazione manuale richiesta.');
+            Logger::log('info', 'Nuovo aggiornamento disponibile per ' . $matched_plugin['name'] . ' (commit: ' . $commit_sha_short . '). Installazione manuale richiesta.');
             
             return new WP_REST_Response(array(
                 'success' => true,
@@ -207,8 +210,8 @@ class FP_Git_Updater_Webhook_Handler {
                 'plugin' => $matched_plugin['name'],
                 'mode' => 'manual'
             ), 200);
-        } catch (Exception $e) {
-            FP_Git_Updater_Logger::log('error', 'Errore nel webhook handler: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            Logger::log('error', 'Errore nel webhook handler: ' . $e->getMessage());
             return new WP_REST_Response(array(
                 'success' => false,
                 'message' => 'Errore interno del server: ' . $e->getMessage()
@@ -225,16 +228,16 @@ class FP_Git_Updater_Webhook_Handler {
         
         if (empty($encrypted_secret)) {
             // Se non c'è un secret configurato, rifiuta la richiesta per sicurezza
-            FP_Git_Updater_Logger::log('error', 'Webhook: nessun secret configurato - richiesta rifiutata');
+            Logger::log('error', 'Webhook: nessun secret configurato - richiesta rifiutata');
             return false;
         }
         
         // Decripta il secret
-        $encryption = FP_Git_Updater_Encryption::get_instance();
+        $encryption = Encryption::get_instance();
         $secret = $encryption->decrypt($encrypted_secret);
         
         if ($secret === false) {
-            FP_Git_Updater_Logger::log('error', 'Webhook: impossibile decriptare il secret');
+            Logger::log('error', 'Webhook: impossibile decriptare il secret');
             return false;
         }
         
@@ -251,7 +254,7 @@ class FP_Git_Updater_Webhook_Handler {
         }
         
         if (empty($signature)) {
-            FP_Git_Updater_Logger::log('warning', 'Webhook: firma mancante nell\'header');
+            Logger::log('warning', 'Webhook: firma mancante nell\'header');
             return false;
         }
         
@@ -261,7 +264,7 @@ class FP_Git_Updater_Webhook_Handler {
         $is_valid = hash_equals($expected_signature, $signature);
         
         if (!$is_valid) {
-            FP_Git_Updater_Logger::log('error', 'Webhook: firma non valida - possibile tentativo di accesso non autorizzato');
+            Logger::log('error', 'Webhook: firma non valida - possibile tentativo di accesso non autorizzato');
         }
         
         return $is_valid;

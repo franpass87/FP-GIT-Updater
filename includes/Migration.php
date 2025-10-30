@@ -5,11 +5,14 @@
  * Gestisce la migrazione dei dati tra versioni del plugin
  */
 
+
+namespace FP\GitUpdater;
+
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class FP_Git_Updater_Migration {
+class Migration {
     
     private static $instance = null;
     
@@ -41,14 +44,14 @@ class FP_Git_Updater_Migration {
         $installed_version = get_option($this->db_version_key, '0.0.0');
         
         if (version_compare($installed_version, $this->current_version, '<')) {
-            FP_Git_Updater_Logger::log('info', 'Inizio migrazione da versione ' . $installed_version . ' a ' . $this->current_version);
+            Logger::log('info', 'Inizio migrazione da versione ' . $installed_version . ' a ' . $this->current_version);
             
             $this->run_migrations($installed_version);
             
             // Aggiorna la versione installata
             update_option($this->db_version_key, $this->current_version);
             
-            FP_Git_Updater_Logger::log('success', 'Migrazione completata a versione ' . $this->current_version);
+            Logger::log('success', 'Migrazione completata a versione ' . $this->current_version);
         }
     }
     
@@ -68,10 +71,10 @@ class FP_Git_Updater_Migration {
      * Migrazione alla versione 1.2.0 - Criptazione token
      */
     private function migrate_to_1_2_0() {
-        FP_Git_Updater_Logger::log('info', 'Migrazione 1.2.0: Criptazione token esistenti');
+        Logger::log('info', 'Migrazione 1.2.0: Criptazione token esistenti');
         
         try {
-            $encryption = FP_Git_Updater_Encryption::get_instance();
+            $encryption = Encryption::get_instance();
             
             // Cripta token GitHub
             $tokens_migrated = $encryption->migrate_existing_tokens();
@@ -80,7 +83,7 @@ class FP_Git_Updater_Migration {
             $secret_migrated = $encryption->migrate_webhook_secret();
             
             if ($tokens_migrated || $secret_migrated) {
-                FP_Git_Updater_Logger::log('success', 'Token e secret criptati con successo');
+                Logger::log('success', 'Token e secret criptati con successo');
                 
                 // Mostra notifica admin
                 add_action('admin_notices', function() {
@@ -94,8 +97,8 @@ class FP_Git_Updater_Migration {
                     <?php
                 });
             }
-        } catch (Exception $e) {
-            FP_Git_Updater_Logger::log('error', 'Errore durante migrazione 1.2.0: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            Logger::log('error', 'Errore durante migrazione 1.2.0: ' . $e->getMessage());
         }
     }
     

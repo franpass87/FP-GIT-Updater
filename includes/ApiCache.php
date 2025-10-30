@@ -3,13 +3,17 @@
  * Sistema di Caching per API GitHub
  * 
  * Riduce le chiamate API e migliora le performance
+ * 
+ * @package FP\GitUpdater
  */
+
+namespace FP\GitUpdater;
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class FP_Git_Updater_API_Cache {
+class ApiCache {
     
     private static $instance = null;
     
@@ -49,7 +53,7 @@ class FP_Git_Updater_API_Cache {
         $cached_data = get_transient($cache_key);
         
         if ($cached_data !== false) {
-            FP_Git_Updater_Logger::log('info', 'Cache hit per: ' . $key);
+            Logger::log('info', 'Cache hit per: ' . $key);
             return $cached_data;
         }
         
@@ -71,7 +75,7 @@ class FP_Git_Updater_API_Cache {
         $result = set_transient($cache_key, $value, $duration);
         
         if ($result) {
-            FP_Git_Updater_Logger::log('info', 'Cache salvata per: ' . $key . ' (durata: ' . $duration . 's)');
+            Logger::log('info', 'Cache salvata per: ' . $key . ' (durata: ' . $duration . 's)');
         }
         
         return $result;
@@ -88,7 +92,7 @@ class FP_Git_Updater_API_Cache {
         $result = delete_transient($cache_key);
         
         if ($result) {
-            FP_Git_Updater_Logger::log('info', 'Cache invalidata per: ' . $key);
+            Logger::log('info', 'Cache invalidata per: ' . $key);
         }
         
         return $result;
@@ -113,7 +117,7 @@ class FP_Git_Updater_API_Cache {
         
         $deleted = $wpdb->query($sql);
         
-        FP_Git_Updater_Logger::log('info', 'Cache invalidata completamente: ' . $deleted . ' voci eliminate');
+        Logger::log('info', 'Cache invalidata completamente: ' . $deleted . ' voci eliminate');
         
         return $deleted;
     }
@@ -188,6 +192,7 @@ class FP_Git_Updater_API_Cache {
         // ma possiamo forzare la pulizia
         delete_expired_transients(true);
         
-        FP_Git_Updater_Logger::log('info', 'Pulizia cache scadute completata');
+        Logger::log('info', 'Pulizia cache scadute completata');
     }
 }
+

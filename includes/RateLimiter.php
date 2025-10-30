@@ -3,13 +3,17 @@
  * Rate Limiter per Webhook
  * 
  * Previene abusi limitando il numero di richieste per IP
+ * 
+ * @package FP\GitUpdater
  */
+
+namespace FP\GitUpdater;
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class FP_Git_Updater_Rate_Limiter {
+class RateLimiter {
     
     private static $instance = null;
     
@@ -72,7 +76,7 @@ class FP_Git_Updater_Rate_Limiter {
         
         if ($counter >= $this->max_requests) {
             // Limite raggiunto
-            FP_Git_Updater_Logger::log('warning', 'Rate limit raggiunto per: ' . $identifier, array(
+            Logger::log('warning', 'Rate limit raggiunto per: ' . $identifier, array(
                 'requests' => $counter,
                 'limit' => $this->max_requests,
                 'window' => $this->time_window
@@ -150,7 +154,7 @@ class FP_Git_Updater_Rate_Limiter {
         delete_transient($key);
         delete_transient($timestamp_key);
         
-        FP_Git_Updater_Logger::log('info', 'Rate limit resettato per: ' . $identifier);
+        Logger::log('info', 'Rate limit resettato per: ' . $identifier);
         return true;
     }
     
@@ -199,10 +203,11 @@ class FP_Git_Updater_Rate_Limiter {
     public function block_request($identifier) {
         $remaining_time = $this->get_time_until_reset($identifier);
         
-        return new WP_REST_Response(array(
+        return new \WP_REST_Response(array(
             'success' => false,
             'message' => 'Rate limit exceeded. Too many requests.',
             'retry_after' => $remaining_time
         ), 429);
     }
 }
+

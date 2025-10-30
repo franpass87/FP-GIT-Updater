@@ -3,13 +3,17 @@
  * Gestione Backup e Ripristino Impostazioni
  * 
  * Gestisce il backup automatico e il ripristino delle impostazioni del plugin
+ * 
+ * @package FP\GitUpdater
  */
+
+namespace FP\GitUpdater;
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class FP_Git_Updater_Settings_Backup {
+class SettingsBackup {
     
     private static $instance = null;
     private $backup_option_key = 'fp_git_updater_settings_backup';
@@ -59,7 +63,7 @@ class FP_Git_Updater_Settings_Backup {
         $history = array_slice($history, 0, 10); // Mantieni solo i 10 più recenti
         update_option($this->backup_history_key, $history, false);
         
-        FP_Git_Updater_Logger::log('info', 'Backup impostazioni creato con successo', array(
+        Logger::log('info', 'Backup impostazioni creato con successo', array(
             'plugins_count' => count($settings['plugins'] ?? array()),
             'manual' => $manual
         ));
@@ -75,7 +79,7 @@ class FP_Git_Updater_Settings_Backup {
             // Ripristina da un backup specifico nella cronologia
             $history = get_option($this->backup_history_key, array());
             if (!isset($history[$backup_index])) {
-                FP_Git_Updater_Logger::log('error', 'Backup non trovato nell\'indice specificato');
+                Logger::log('error', 'Backup non trovato nell\'indice specificato');
                 return false;
             }
             $backup_data = $history[$backup_index];
@@ -85,14 +89,14 @@ class FP_Git_Updater_Settings_Backup {
         }
         
         if (empty($backup_data) || !isset($backup_data['settings'])) {
-            FP_Git_Updater_Logger::log('error', 'Nessun backup disponibile da ripristinare');
+            Logger::log('error', 'Nessun backup disponibile da ripristinare');
             return false;
         }
         
         // Ripristina le impostazioni
         update_option('fp_git_updater_settings', $backup_data['settings']);
         
-        FP_Git_Updater_Logger::log('success', 'Impostazioni ripristinate con successo dal backup', array(
+        Logger::log('success', 'Impostazioni ripristinate con successo dal backup', array(
             'backup_date' => $backup_data['timestamp'],
             'backup_version' => $backup_data['version'] ?? 'unknown',
             'plugins_count' => count($backup_data['settings']['plugins'] ?? array())
@@ -164,7 +168,7 @@ class FP_Git_Updater_Settings_Backup {
         $settings = get_option('fp_git_updater_settings');
         if (!empty($settings) && !empty($settings['plugins'])) {
             // Se abbiamo già delle impostazioni valide, non ripristinare
-            FP_Git_Updater_Logger::log('info', 'Attivazione rilevata ma impostazioni già presenti, skip ripristino automatico per evitare duplicazioni');
+            Logger::log('info', 'Attivazione rilevata ma impostazioni già presenti, skip ripristino automatico per evitare duplicazioni');
             return;
         }
         
@@ -177,7 +181,7 @@ class FP_Git_Updater_Settings_Backup {
      */
     public function delayed_auto_restore() {
         if ($this->check_if_settings_reset()) {
-            FP_Git_Updater_Logger::log('warning', 'Rilevato reset delle impostazioni, ripristino automatico dal backup...');
+            Logger::log('warning', 'Rilevato reset delle impostazioni, ripristino automatico dal backup...');
             
             if ($this->restore_backup()) {
                 // Aggiungi una notifica admin
@@ -221,7 +225,7 @@ class FP_Git_Updater_Settings_Backup {
             $history = array_values($history); // Reindicizza l'array
             update_option($this->backup_history_key, $history, false);
             
-            FP_Git_Updater_Logger::log('info', 'Backup eliminato dalla cronologia');
+            Logger::log('info', 'Backup eliminato dalla cronologia');
             return true;
         }
         
@@ -234,7 +238,7 @@ class FP_Git_Updater_Settings_Backup {
     public function clear_all_backups() {
         delete_option($this->backup_option_key);
         delete_option($this->backup_history_key);
-        FP_Git_Updater_Logger::log('info', 'Tutti i backup sono stati eliminati');
+        Logger::log('info', 'Tutti i backup sono stati eliminati');
         return true;
     }
     
@@ -268,7 +272,7 @@ class FP_Git_Updater_Settings_Backup {
             // Se questo repository+branch è già stato visto, salta (duplicato)
             if (isset($seen_repos[$repo_key])) {
                 $duplicates_found = true;
-                FP_Git_Updater_Logger::log('warning', 'Plugin duplicato rimosso automaticamente: ' . $github_repo . ' (branch: ' . $branch . ')');
+                Logger::log('warning', 'Plugin duplicato rimosso automaticamente: ' . $github_repo . ' (branch: ' . $branch . ')');
                 continue;
             }
             
@@ -281,7 +285,8 @@ class FP_Git_Updater_Settings_Backup {
         if ($duplicates_found) {
             $settings['plugins'] = $cleaned_plugins;
             update_option('fp_git_updater_settings', $settings);
-            FP_Git_Updater_Logger::log('success', 'Pulizia automatica completata: ' . (count($plugins) - count($cleaned_plugins)) . ' plugin duplicati rimossi');
+            Logger::log('success', 'Pulizia automatica completata: ' . (count($plugins) - count($cleaned_plugins)) . ' plugin duplicati rimossi');
         }
     }
 }
+
