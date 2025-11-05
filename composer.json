@@ -1,0 +1,28 @@
+{
+    "name": "franpass87/fp-git-updater",
+    "description": "Gestione sicura degli aggiornamenti dei plugin da GitHub",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Francesco Passeri",
+            "email": "info@francescopasseri.com",
+            "homepage": "https://www.francescopasseri.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "FP\\GitUpdater\\": "includes/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}
+
+
+

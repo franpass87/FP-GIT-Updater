@@ -1,0 +1,562 @@
+/* FP Git Updater - Admin Styles */
+
+.fp-git-updater-wrap {
+    max-width: 1200px;
+}
+
+.fp-git-updater-wrap h1 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.fp-git-updater-wrap h1 .dashicons {
+    font-size: 32px;
+    width: 32px;
+    height: 32px;
+}
+
+.fp-git-updater-header {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    margin: 20px 0;
+    padding: 20px;
+    border-radius: 4px;
+}
+
+.fp-status-box h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.fp-status-box p {
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+.fp-status-box button {
+    margin-right: 10px;
+    margin-top: 15px;
+}
+
+.fp-status-box button .dashicons {
+    line-height: 28px;
+}
+
+.fp-git-updater-instructions {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    margin: 20px 0;
+    padding: 20px;
+    border-radius: 4px;
+}
+
+.fp-git-updater-instructions h2 {
+    margin-top: 0;
+}
+
+.fp-git-updater-instructions ol {
+    line-height: 1.8;
+}
+
+.fp-git-updater-instructions li {
+    margin-bottom: 8px;
+}
+
+.fp-logs-actions {
+    margin: 20px 0;
+}
+
+.fp-logs-actions button {
+    margin-right: 10px;
+}
+
+.log-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #fff;
+}
+
+.log-badge-info {
+    background: #2271b1;
+}
+
+.log-badge-success {
+    background: #00a32a;
+}
+
+.log-badge-warning {
+    background: #dba617;
+}
+
+.log-badge-error {
+    background: #d63638;
+}
+
+.log-badge-webhook {
+    background: #8c5ed9;
+}
+
+/* Loading spinner */
+.fp-loading {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #2271b1;
+    border-radius: 50%;
+    animation: fp-spin 1s linear infinite;
+    vertical-align: middle;
+    margin-left: 8px;
+}
+
+@keyframes fp-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Pulse animation for update buttons */
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(210, 54, 56, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(210, 54, 56, 0);
+    }
+}
+
+/* Update count badge in title */
+.update-count {
+    display: inline-block;
+    background: #d63638;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 12px;
+    line-height: 1;
+    vertical-align: middle;
+    margin-left: 10px;
+}
+
+/* Highlight plugin items with pending updates */
+.fp-plugin-item.has-update {
+    border-left-width: 4px;
+    border-left-color: #d63638;
+}
+
+/* Notice styles */
+.fp-notice {
+    padding: 12px;
+    margin: 15px 0;
+    border-left: 4px solid;
+    border-radius: 0 4px 4px 0;
+    background: #fff;
+}
+
+.fp-notice-success {
+    border-left-color: #00a32a;
+    background: #f0f8f2;
+}
+
+.fp-notice-error {
+    border-left-color: #d63638;
+    background: #fcf0f1;
+}
+
+.fp-notice-info {
+    border-left-color: #2271b1;
+    background: #f0f6fc;
+}
+
+/* Form improvements */
+.form-table th {
+    font-weight: 600;
+}
+
+.form-table input[type="text"],
+.form-table input[type="password"],
+.form-table input[type="email"] {
+    padding: 8px 12px;
+}
+
+.form-table .description {
+    font-style: italic;
+    color: #666;
+}
+
+/* Button improvements */
+.button .dashicons {
+    vertical-align: middle;
+    margin-right: 4px;
+}
+
+/* Plugin list styles */
+#fp-plugins-list {
+    margin: 20px 0;
+}
+
+.fp-plugin-item {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    padding: 15px;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    transition: all 0.3s ease;
+}
+
+.fp-plugin-item:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,.08);
+}
+
+.fp-plugin-item.new-plugin {
+    border-color: #2271b1;
+    border-width: 2px;
+}
+
+.fp-plugin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.fp-plugin-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.fp-plugin-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.fp-plugin-actions button {
+    padding: 4px 8px;
+    height: auto;
+    line-height: 1.4;
+}
+
+.fp-plugin-info {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding: 10px 0;
+    font-size: 13px;
+    color: #666;
+}
+
+.fp-plugin-quick-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.fp-plugin-quick-actions .button {
+    font-size: 13px;
+}
+
+.fp-plugin-quick-actions .button .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.fp-plugin-status {
+    font-weight: 600;
+}
+
+.fp-plugin-status.enabled {
+    color: #00a32a;
+}
+
+.fp-plugin-status.disabled {
+    color: #d63638;
+}
+
+.fp-plugin-details {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+}
+
+.fp-plugin-details .form-table {
+    margin-top: 0;
+}
+
+.fp-plugin-details .form-table th {
+    width: 180px;
+    padding: 10px;
+}
+
+.fp-plugin-details .form-table td {
+    padding: 10px;
+}
+
+#fp-add-plugin {
+    margin: 20px 0;
+}
+
+/* Template hidden */
+#fp-plugin-template {
+    display: none;
+}
+
+/* Table responsive */
+@media screen and (max-width: 782px) {
+    .fp-git-updater-wrap {
+        margin: 0 -10px;
+    }
+    
+    .fp-status-box button {
+        display: block;
+        width: 100%;
+        margin: 10px 0;
+    }
+    
+    .fp-plugin-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .fp-plugin-info {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .fp-plugin-actions {
+        width: 100%;
+    }
+    
+    .fp-plugin-actions button {
+        flex: 1;
+    }
+    
+    .fp-plugin-quick-actions {
+        flex-direction: column;
+    }
+    
+    .fp-plugin-quick-actions .button {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Modal Repository Selector */
+#fp-repo-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 100000;
+}
+
+.fp-repo-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 100001;
+}
+
+.fp-repo-modal-content {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 5px 50px rgba(0, 0, 0, 0.3);
+    max-width: 700px;
+    width: 90%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    z-index: 100002;
+}
+
+.fp-repo-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 1px solid #ddd;
+}
+
+.fp-repo-modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.fp-repo-modal-header .dashicons {
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    color: #2271b1;
+}
+
+.fp-repo-modal-close {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.fp-repo-modal-close:hover {
+    background: #f0f0f0;
+}
+
+.fp-repo-modal-close .dashicons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: #666;
+}
+
+.fp-repo-modal-body {
+    padding: 20px 25px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.fp-repo-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.fp-repo-item {
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #fff;
+}
+
+.fp-repo-item:hover {
+    border-color: #2271b1;
+    background: #f0f6fc;
+    box-shadow: 0 2px 8px rgba(34, 113, 177, 0.1);
+    transform: translateX(5px);
+}
+
+.fp-repo-item-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.fp-repo-item-header strong {
+    font-size: 15px;
+    color: #2271b1;
+}
+
+.fp-repo-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.fp-repo-badge.fp-repo-private {
+    background: #f0ad4e;
+    color: #fff;
+}
+
+.fp-repo-item-description {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.fp-repo-item-meta {
+    font-size: 12px;
+    color: #999;
+}
+
+.fp-repo-item-meta code {
+    background: #f5f5f5;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+/* Repository search input */
+#fp-repo-search {
+    border: 1px solid #ddd !important;
+    border-radius: 4px !important;
+    padding: 10px 12px !important;
+    font-size: 14px !important;
+}
+
+#fp-repo-search:focus {
+    border-color: #2271b1 !important;
+    box-shadow: 0 0 0 1px #2271b1 !important;
+}
+
+/* Load repos button */
+.fp-load-repos-btn {
+    white-space: nowrap;
+    min-width: 150px;
+}
+
+.fp-load-repos-btn .dashicons {
+    vertical-align: middle;
+}
+
+/* Responsive modal */
+@media screen and (max-width: 782px) {
+    .fp-repo-modal-content {
+        width: 95%;
+        max-height: 90vh;
+    }
+    
+    .fp-repo-modal-header {
+        padding: 15px;
+    }
+    
+    .fp-repo-modal-body {
+        padding: 15px;
+    }
+    
+    .fp-repo-modal-header h2 {
+        font-size: 18px;
+    }
+    
+    .fp-load-repos-btn {
+        width: 100%;
+        margin-top: 10px;
+    }
+    
+    .fp-repo-input {
+        width: 100% !important;
+    }
+}

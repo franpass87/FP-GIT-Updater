@@ -1,0 +1,42 @@
+# WordPress
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+debug.log
+error_log
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Node modules (se usi npm)
+node_modules/
+
+# Environment files
+.env
+.env.local
+
+# Backup files
+*.bak
+*.backup
+
+# OS files
+desktop.ini
+.Spotlight-V100
+.Trashes
+
+# Plugin specific
+diagnostic-server.php
+test-*.php
+
