@@ -232,8 +232,15 @@ class Admin {
                     continue;
                 }
 
+                // Se il repository è FP-GIT-Updater, usa l'ID speciale per l'auto-aggiornamento
+                $plugin_id = isset($plugin['id']) ? sanitize_text_field($plugin['id']) : uniqid('plugin_');
+                if (stripos($github_repo, 'FP-GIT-Updater') !== false || stripos($github_repo, 'FP-Git-Updater') !== false) {
+                    $plugin_id = 'fp_git_updater_self';
+                    Logger::log('info', 'Rilevato repository self-update, assegnato ID speciale: fp_git_updater_self');
+                }
+                
                 $output['plugins'][] = array(
-                    'id' => isset($plugin['id']) ? sanitize_text_field($plugin['id']) : uniqid('plugin_'),
+                    'id' => $plugin_id,
                     'name' => $plugin_name,
                     'github_repo' => $github_repo,
                     'plugin_slug' => $plugin_slug,
