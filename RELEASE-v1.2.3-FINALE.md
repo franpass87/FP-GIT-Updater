@@ -313,3 +313,14 @@ Il plugin **FP Git Updater v1.2.3** è **COMPLETAMENTE FUNZIONANTE** e pronto pe
 
 *Plugin pronto per l'installazione! 🚀*
 
+
+
+
+
+
+
+
+
+
+
+
