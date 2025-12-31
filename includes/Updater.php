@@ -488,51 +488,82 @@ class Updater {
             return false;
         }
         
-        // Scarica il file zip
+        // Scarica il file zip usando download_url() che fa streaming su file
+        // Questo evita di caricare l'intero file in memoria
         Logger::log('info', 'Download dell\'aggiornamento...');
         
-        // Usa wp_remote_get con retry leggero
-        $response = $this->request_with_retry($download_url, $args, 2);
-        
-        if (is_wp_error($response)) {
-            Logger::log('error', 'Errore download: ' . $response->get_error_message());
-            $this->send_notification('Errore aggiornamento', 'Errore durante il download: ' . $response->get_error_message());
-            delete_transient($lock_key);
-            return false;
+        // Crea directory upgrade se non esiste (serve per il temp file)
+        $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
+        if (!file_exists($upgrade_dir)) {
+            wp_mkdir_p($upgrade_dir);
         }
         
-        $response_code = wp_remote_retrieve_response_code($response);
+        // File temporaneo per il download
+        $temp_file = $upgrade_dir . '/fp-git-updater-download-' . time() . '-' . uniqid() . '.zip';
         
-        if ($response_code !== 200) {
-            Logger::log('error', 'Errore download: HTTP ' . $response_code);
-            $this->send_notification('Errore aggiornamento', 'Errore HTTP durante il download: ' . $response_code);
-            delete_transient($lock_key);
-            return false;
-        }
-        
-        // Se siamo in modalità ZIP pubblico, prova a validare Content-Type
-        if (!empty($zip_url)) {
-            $content_type = wp_remote_retrieve_header($response, 'content-type');
-            if (!empty($content_type) && stripos($content_type, 'zip') === false) {
-                Logger::log('warning', 'Content-Type non sembra uno ZIP: ' . $content_type);
+        // Se abbiamo headers custom (token), usiamo wp_remote_get + streaming
+        if (!empty($args['headers'])) {
+            // Per repository privati con token, usa wp_remote_get con stream
+            $args['stream'] = true;
+            $args['filename'] = $temp_file;
+            
+            $response = $this->request_with_retry($download_url, $args, 2);
+            
+            if (is_wp_error($response)) {
+                @unlink($temp_file);
+                Logger::log('error', 'Errore download: ' . $response->get_error_message());
+                $this->send_notification('Errore aggiornamento', 'Errore durante il download: ' . $response->get_error_message());
+                delete_transient($lock_key);
+                return false;
+            }
+            
+            $response_code = wp_remote_retrieve_response_code($response);
+            if ($response_code !== 200) {
+                @unlink($temp_file);
+                Logger::log('error', 'Errore download: HTTP ' . $response_code);
+                $this->send_notification('Errore aggiornamento', 'Errore HTTP durante il download: ' . $response_code);
+                delete_transient($lock_key);
+                return false;
+            }
+        } else {
+            // Per repository pubblici, usa download_url() nativo WordPress (più efficiente)
+            $downloaded = download_url($download_url, 300); // 5 minuti timeout
+            
+            if (is_wp_error($downloaded)) {
+                Logger::log('error', 'Errore download: ' . $downloaded->get_error_message());
+                $this->send_notification('Errore aggiornamento', 'Errore durante il download: ' . $downloaded->get_error_message());
+                delete_transient($lock_key);
+                return false;
+            }
+            
+            // download_url() restituisce il path del file temporaneo, rinominiamolo
+            if (!@rename($downloaded, $temp_file)) {
+                // Se rename fallisce, copia e cancella
+                if (!@copy($downloaded, $temp_file)) {
+                    @unlink($downloaded);
+                    Logger::log('error', 'Errore nel copiare il file scaricato');
+                    $this->send_notification('Errore aggiornamento', 'Errore nel copiare il file scaricato');
+                    delete_transient($lock_key);
+                    return false;
+                }
+                @unlink($downloaded);
             }
         }
-
-        // Salva il contenuto in un file temporaneo
-        $body = wp_remote_retrieve_body($response);
         
-        if (empty($body)) {
-            Logger::log('error', 'Errore download: file vuoto');
+        // Verifica che il file esista e non sia vuoto
+        if (!file_exists($temp_file) || filesize($temp_file) === 0) {
+            @unlink($temp_file);
+            Logger::log('error', 'Errore download: file vuoto o non trovato');
             $this->send_notification('Errore aggiornamento', 'Il file scaricato è vuoto');
             delete_transient($lock_key);
             return false;
         }
         
-        // Verifica dimensione file (max 100MB come sicurezza)
-        $body_size = strlen($body);
+        $body_size = filesize($temp_file);
         $max_size = 100 * 1024 * 1024; // 100MB
         
         if ($body_size > $max_size) {
+            @unlink($temp_file);
             Logger::log('error', 'File troppo grande: ' . round($body_size / 1024 / 1024, 2) . 'MB (max 100MB)');
             $this->send_notification('Errore aggiornamento', 'Repository troppo grande. Considera di ridurre la dimensione o escludere file non necessari.');
             delete_transient($lock_key);
@@ -540,29 +571,6 @@ class Updater {
         }
         
         Logger::log('info', 'Download completato: ' . round($body_size / 1024 / 1024, 2) . 'MB');
-        
-        // Crea directory upgrade se non esiste
-        $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
-        if (!file_exists($upgrade_dir)) {
-            wp_mkdir_p($upgrade_dir);
-        }
-        
-        // Salva in un file temporaneo nella directory upgrade
-        // Usa uniqid() per evitare collisioni se più aggiornamenti simultanei
-        $temp_file = $upgrade_dir . '/fp-git-updater-download-' . time() . '-' . uniqid() . '.zip';
-        
-        // Usa file_put_contents che è più affidabile per questa operazione
-        $bytes_written = @file_put_contents($temp_file, $body);
-        if ($bytes_written === false) {
-            // Pulisci il file parziale se esiste
-            if (file_exists($temp_file)) {
-                @unlink($temp_file);
-            }
-            Logger::log('error', 'Errore nel salvare il file temporaneo');
-            $this->send_notification('Errore aggiornamento', 'Impossibile salvare il file temporaneo');
-            delete_transient($lock_key);
-            return false;
-        }
         
         // Unzip il file
         Logger::log('info', 'Estrazione dell\'aggiornamento...');
