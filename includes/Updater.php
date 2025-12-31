@@ -744,30 +744,42 @@ class Updater {
             }
         }
         
-        // Esegui la copia
-        $copy_result = copy_dir($source_dir, $plugin_dir);
+        // PRIMA prova rename() - è molto più veloce e affidabile (operazione atomica)
+        // rename() sposta l'intera cartella con un singolo comando invece di copiare file per file
+        Logger::log('info', 'Tentativo di spostamento diretto (rename)...');
         
-        if (is_wp_error($copy_result)) {
-            // Ripristina il backup se esiste
-            $error_msg = $copy_result->get_error_message();
-            $error_data = $copy_result->get_error_data();
+        $move_success = @rename($source_dir, $plugin_dir);
+        
+        if ($move_success) {
+            Logger::log('info', 'Spostamento diretto riuscito');
+        } else {
+            // Se rename fallisce (es. filesystem diversi), usa copy_dir come fallback
+            Logger::log('info', 'Rename fallito, uso copy_dir come fallback...');
             
-            Logger::log('error', 'Errore installazione: ' . $error_msg, array(
-                'source' => $source_dir,
-                'destination' => $plugin_dir,
-                'error_data' => $error_data
-            ));
+            $copy_result = copy_dir($source_dir, $plugin_dir);
             
-            if ($backup_dir && file_exists($backup_dir)) {
-                @rename($backup_dir, $plugin_dir);
-                Logger::log('info', 'Backup ripristinato');
-                $this->send_notification('Errore aggiornamento', 'Errore durante l\'installazione: ' . $error_msg . '. Backup ripristinato.');
-            } else {
-                $this->send_notification('Errore aggiornamento', 'Errore durante l\'installazione: ' . $error_msg);
+            if (is_wp_error($copy_result)) {
+                // Ripristina il backup se esiste
+                $error_msg = $copy_result->get_error_message();
+                $error_data = $copy_result->get_error_data();
+                
+                Logger::log('error', 'Errore installazione: ' . $error_msg, array(
+                    'source' => $source_dir,
+                    'destination' => $plugin_dir,
+                    'error_data' => $error_data
+                ));
+                
+                if ($backup_dir && file_exists($backup_dir)) {
+                    @rename($backup_dir, $plugin_dir);
+                    Logger::log('info', 'Backup ripristinato');
+                    $this->send_notification('Errore aggiornamento', 'Errore durante l\'installazione: ' . $error_msg . '. Backup ripristinato.');
+                } else {
+                    $this->send_notification('Errore aggiornamento', 'Errore durante l\'installazione: ' . $error_msg);
+                }
+                $wp_filesystem->delete($temp_extract_dir, true);
+                delete_transient($lock_key);
+                return false;
             }
-            $wp_filesystem->delete($temp_extract_dir, true);
-            delete_transient($lock_key);
-            return false;
         }
         
         // Verifica che i file siano stati copiati correttamente

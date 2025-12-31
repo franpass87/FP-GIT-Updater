@@ -3,7 +3,7 @@
  * Plugin Name: FP Git Updater
  * Plugin URI: https://www.francescopasseri.com
  * Description: Gestione sicura degli aggiornamenti dei plugin da GitHub. Supporta sia aggiornamenti automatici che manuali tramite webhook, proteggendo i tuoi siti da aggiornamenti problematici.
- * Version: 1.2.6
+ * Version: 1.2.7
  * Author: Francesco Passeri
  * Author URI: https://www.francescopasseri.com
  * License: GPL v2 or later
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Definisci costanti del plugin
-define('FP_GIT_UPDATER_VERSION', '1.2.6');
+define('FP_GIT_UPDATER_VERSION', '1.2.7');
 define('FP_GIT_UPDATER_PLUGIN_DIR', dirname(__FILE__) . '/');
 define('FP_GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FP_GIT_UPDATER_PLUGIN_FILE', __FILE__);
