@@ -29,9 +29,11 @@ class Updater {
         add_action('fp_git_updater_check_update', array($this, 'check_for_updates'));
         add_action('fp_git_updater_cleanup_backup', array($this, 'cleanup_backup'));
         add_action('fp_git_updater_cleanup_old_logs', array('FP\GitUpdater\Logger', 'clear_old_logs'));
+        add_action('fp_git_updater_cleanup_old_backups', array($this, 'cleanup_old_backups'));
         
         // Schedula controlli periodici se abilitati
         $this->schedule_update_checks();
+        $this->schedule_backup_cleanup();
     }
     
     /**
@@ -44,6 +46,16 @@ class Updater {
         if (!wp_next_scheduled('fp_git_updater_check_update')) {
             // Aggiungi 1 minuto di offset per evitare race condition
             wp_schedule_event(time() + 60, $interval, 'fp_git_updater_check_update');
+        }
+    }
+    
+    /**
+     * Schedula la pulizia periodica dei backup vecchi
+     */
+    private function schedule_backup_cleanup() {
+        if (!wp_next_scheduled('fp_git_updater_cleanup_old_backups')) {
+            // Esegui pulizia backup ogni giorno alle 3:00 AM
+            wp_schedule_event(strtotime('tomorrow 3:00'), 'daily', 'fp_git_updater_cleanup_old_backups');
         }
     }
     
@@ -247,23 +259,66 @@ class Updater {
      * Controlla se ci sono aggiornamenti per un plugin specifico
      */
     private function check_plugin_for_updates($plugin) {
-        if (empty($plugin['github_repo'])) {
+        // Verifica che ci sia almeno una sorgente configurata (repo o zip_url)
+        $has_repo = !empty($plugin['github_repo']);
+        $has_zip_url = !empty($plugin['zip_url']);
+        
+        if (!$has_repo && !$has_zip_url) {
+            Logger::log('warning', 'Plugin ' . $plugin['name'] . ' non ha sorgente aggiornamento configurata (repo o zip_url richiesto)', array(
+                'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown'
+            ));
             return false;
         }
         
-        Logger::log('info', 'Controllo aggiornamenti per: ' . $plugin['name']);
+        // Se ha solo zip_url senza repo, non possiamo controllare i commit
+        if (!$has_repo) {
+            Logger::log('info', 'Plugin ' . $plugin['name'] . ' usa solo ZIP URL, controllo commit non disponibile', array(
+                'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                'zip_url' => $has_zip_url ? 'configured' : 'missing'
+            ));
+            return false;
+        }
+        
+        // Validazione formato repository
+        if (!preg_match('/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/', $plugin['github_repo'])) {
+            Logger::log('error', 'Formato repository non valido per ' . $plugin['name'] . ': ' . $plugin['github_repo'], array(
+                'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                'expected_format' => 'username/repository'
+            ));
+            return false;
+        }
+        
+        Logger::log('info', 'Controllo aggiornamenti per: ' . $plugin['name'], array(
+            'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+            'repository' => $plugin['github_repo'],
+            'branch' => isset($plugin['branch']) ? $plugin['branch'] : 'main'
+        ));
         
         $latest_commit = $this->get_latest_commit($plugin);
         
         if (is_wp_error($latest_commit)) {
-            Logger::log('error', 'Errore nel controllo aggiornamenti per ' . $plugin['name'] . ': ' . $latest_commit->get_error_message());
+            $error_code = $latest_commit->get_error_code();
+            $error_message = $latest_commit->get_error_message();
+            $error_data = $latest_commit->get_error_data();
+            
+            Logger::log('error', 'Errore nel controllo aggiornamenti per ' . $plugin['name'] . ': ' . $error_message, array(
+                'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                'error_code' => $error_code,
+                'error_data' => $error_data,
+                'repository' => $plugin['github_repo']
+            ));
             return false;
         }
         
         $current_commit = get_option('fp_git_updater_current_commit_' . $plugin['id'], '');
         
         if ($latest_commit !== $current_commit) {
-            Logger::log('info', 'Nuovo aggiornamento disponibile per ' . $plugin['name'] . ': ' . $latest_commit);
+            Logger::log('info', 'Nuovo aggiornamento disponibile per ' . $plugin['name'], array(
+                'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                'current_commit' => $current_commit ? substr($current_commit, 0, 7) : 'none',
+                'latest_commit' => substr($latest_commit, 0, 7),
+                'repository' => $plugin['github_repo']
+            ));
             
             // Registra l'aggiornamento come pending
             $commit_short = substr($latest_commit, 0, 7);
@@ -280,16 +335,75 @@ class Updater {
             // Se l'aggiornamento automatico è abilitato, eseguilo
             $settings = get_option('fp_git_updater_settings');
             if (isset($settings['auto_update']) && $settings['auto_update']) {
-                Logger::log('info', 'Aggiornamento automatico in corso per ' . $plugin['name']);
+                Logger::log('info', 'Aggiornamento automatico in corso per ' . $plugin['name'], array(
+                    'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                    'commit' => $commit_short
+                ));
                 $this->run_update($latest_commit, $plugin);
             } else {
-                Logger::log('info', 'Aggiornamento disponibile per ' . $plugin['name'] . ' ma installazione manuale richiesta (auto_update disabilitato)');
+                Logger::log('info', 'Aggiornamento disponibile per ' . $plugin['name'] . ' ma installazione manuale richiesta (auto_update disabilitato)', array(
+                    'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                    'commit' => $commit_short
+                ));
             }
             
             return true;
         }
         
+        Logger::log('info', 'Nessun aggiornamento disponibile per ' . $plugin['name'], array(
+            'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+            'current_commit' => $current_commit ? substr($current_commit, 0, 7) : 'none'
+        ));
+        
         return false;
+    }
+    
+    /**
+     * Valida il formato di un repository GitHub
+     * 
+     * @param string $repo Repository in formato username/repository
+     * @return bool|WP_Error True se valido, WP_Error altrimenti
+     */
+    private function validate_repository($repo) {
+        if (empty($repo)) {
+            return new WP_Error('empty_repo', 'Repository non può essere vuoto');
+        }
+        
+        if (!preg_match('/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/', $repo)) {
+            return new WP_Error('invalid_format', 'Formato repository non valido. Usa: username/repository');
+        }
+        
+        // Verifica lunghezza massima (GitHub limita a 100 caratteri per username + repo)
+        if (strlen($repo) > 100) {
+            return new WP_Error('too_long', 'Repository troppo lungo (max 100 caratteri)');
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Valida il nome di un branch Git
+     * 
+     * @param string $branch Nome del branch
+     * @return bool|WP_Error True se valido, WP_Error altrimenti
+     */
+    private function validate_branch($branch) {
+        if (empty($branch)) {
+            return new WP_Error('empty_branch', 'Branch non può essere vuoto');
+        }
+        
+        // Branch Git possono contenere lettere, numeri, _, -, /, .
+        // Ma non possono iniziare/finire con / o .
+        if (!preg_match('/^[a-zA-Z0-9][a-zA-Z0-9_.\/-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/', $branch)) {
+            return new WP_Error('invalid_branch', 'Formato branch non valido');
+        }
+        
+        // Verifica lunghezza massima (Git limita a 255 caratteri)
+        if (strlen($branch) > 255) {
+            return new WP_Error('too_long', 'Branch troppo lungo (max 255 caratteri)');
+        }
+        
+        return true;
     }
     
     /**
@@ -299,6 +413,18 @@ class Updater {
         $repo = $plugin['github_repo'];
         $branch = isset($plugin['branch']) ? $plugin['branch'] : 'main';
         $encrypted_token = isset($plugin['github_token']) ? $plugin['github_token'] : '';
+        
+        // Valida repository
+        $repo_validation = $this->validate_repository($repo);
+        if (is_wp_error($repo_validation)) {
+            return $repo_validation;
+        }
+        
+        // Valida branch
+        $branch_validation = $this->validate_branch($branch);
+        if (is_wp_error($branch_validation)) {
+            return $branch_validation;
+        }
         
         // URL API GitHub per ottenere l'ultimo commit
         $api_url = "https://api.github.com/repos/{$repo}/commits/{$branch}";
@@ -428,12 +554,12 @@ class Updater {
             $branch = isset($plugin['branch']) ? $plugin['branch'] : 'main';
             $encrypted_token = isset($plugin['github_token']) ? $plugin['github_token'] : '';
 
+            // Supporto modalità semplice: URL ZIP pubblico opzionale
+            $zip_url = isset($plugin['zip_url']) ? trim($plugin['zip_url']) : '';
+
             if (empty($repo) && empty($zip_url)) {
                 throw new Exception('Sorgente aggiornamento non configurata per ' . $plugin['name'] . ' (repo o URL ZIP richiesto)');
             }
-
-            // Supporto modalità semplice: URL ZIP pubblico opzionale
-            $zip_url = isset($plugin['zip_url']) ? trim($plugin['zip_url']) : '';
 
             if (!empty($zip_url) && filter_var($zip_url, FILTER_VALIDATE_URL)) {
                 $download_url = $zip_url;
@@ -510,18 +636,55 @@ class Updater {
             $response = $this->request_with_retry($download_url, $args, 2);
             
             if (is_wp_error($response)) {
+                $error_code = $response->get_error_code();
+                $error_message = $response->get_error_message();
+                $error_data = $response->get_error_data();
+                
                 @unlink($temp_file);
-                Logger::log('error', 'Errore download: ' . $response->get_error_message());
-                $this->send_notification('Errore aggiornamento', 'Errore durante il download: ' . $response->get_error_message());
+                Logger::log('error', 'Errore download: ' . $error_message, array(
+                    'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                    'plugin_name' => isset($plugin['name']) ? $plugin['name'] : 'unknown',
+                    'error_code' => $error_code,
+                    'error_data' => $error_data,
+                    'download_url' => $download_url
+                ));
+                $this->send_notification('Errore aggiornamento', 'Errore durante il download: ' . $error_message);
                 delete_transient($lock_key);
                 return false;
             }
             
             $response_code = wp_remote_retrieve_response_code($response);
             if ($response_code !== 200) {
+                $response_message = wp_remote_retrieve_response_message($response);
+                $response_body = wp_remote_retrieve_body($response);
+                
                 @unlink($temp_file);
-                Logger::log('error', 'Errore download: HTTP ' . $response_code);
-                $this->send_notification('Errore aggiornamento', 'Errore HTTP durante il download: ' . $response_code);
+                
+                // Messaggio di errore più dettagliato
+                $error_details = 'HTTP ' . $response_code;
+                if ($response_message) {
+                    $error_details .= ' - ' . $response_message;
+                }
+                
+                Logger::log('error', 'Errore download: ' . $error_details, array(
+                    'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                    'plugin_name' => isset($plugin['name']) ? $plugin['name'] : 'unknown',
+                    'response_code' => $response_code,
+                    'response_message' => $response_message,
+                    'response_body_preview' => substr($response_body, 0, 200),
+                    'download_url' => $download_url
+                ));
+                
+                $user_message = 'Errore HTTP durante il download: ' . $error_details;
+                if ($response_code === 404) {
+                    $user_message .= '. Repository o branch non trovato.';
+                } elseif ($response_code === 401) {
+                    $user_message .= '. Autenticazione fallita. Verifica il token GitHub.';
+                } elseif ($response_code === 403) {
+                    $user_message .= '. Accesso negato. Verifica i permessi del repository o il rate limit.';
+                }
+                
+                $this->send_notification('Errore aggiornamento', $user_message);
                 delete_transient($lock_key);
                 return false;
             }
@@ -681,18 +844,63 @@ class Updater {
         // Backup della versione attuale (solo se la directory esiste)
         $backup_dir = null;
         if (file_exists($plugin_dir) && is_dir($plugin_dir)) {
-            Logger::log('info', 'Creazione backup...');
+            // Prima di creare un nuovo backup, pulisci i backup vecchi per evitare saturazione
+            $this->cleanup_old_backups(true);
+            
+            // Verifica spazio disco disponibile prima di creare backup
+            $plugin_size = $this->get_directory_size($plugin_dir);
+            $available_space = $this->get_available_disk_space(WP_CONTENT_DIR);
+            
+            // Richiedi almeno 2x lo spazio del plugin per sicurezza (backup + nuovo)
+            $required_space = $plugin_size * 2;
+            
+            if ($available_space < $required_space) {
+                Logger::log('warning', 'Spazio disco insufficiente per backup. Spazio disponibile: ' . $this->format_bytes($available_space) . ', richiesto: ' . $this->format_bytes($required_space), array(
+                    'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                    'plugin_name' => isset($plugin['name']) ? $plugin['name'] : 'unknown',
+                    'plugin_size' => $this->format_bytes($plugin_size)
+                ));
+                
+                // Prova a pulire più backup vecchi
+                $this->cleanup_old_backups(false, 10); // Elimina fino a 10 backup vecchi
+                
+                // Ricontrolla spazio
+                $available_space = $this->get_available_disk_space(WP_CONTENT_DIR);
+                if ($available_space < $required_space) {
+                    Logger::log('error', 'Spazio disco ancora insufficiente dopo pulizia. Backup saltato.', array(
+                        'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                        'available_space' => $this->format_bytes($available_space),
+                        'required_space' => $this->format_bytes($required_space)
+                    ));
+                    // Continua senza backup (rischioso ma meglio che bloccare tutto)
+                    $this->send_notification('Avviso aggiornamento', 'Spazio disco insufficiente. Aggiornamento eseguito senza backup. Si consiglia di liberare spazio.');
+                }
+            }
+            
+            Logger::log('info', 'Creazione backup...', array(
+                'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                'plugin_size' => $this->format_bytes($plugin_size),
+                'available_space' => $this->format_bytes($available_space)
+            ));
+            
             $backup_dir = WP_CONTENT_DIR . '/upgrade/fp-git-updater-backup-' . time() . '-' . uniqid();
             
             // Usa rename() nativo che è più affidabile per operazioni atomiche
             if (!@rename($plugin_dir, $backup_dir)) {
-                Logger::log('error', 'Impossibile creare backup: verifica i permessi della directory');
+                Logger::log('error', 'Impossibile creare backup: verifica i permessi della directory', array(
+                    'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                    'plugin_dir' => $plugin_dir,
+                    'backup_dir' => $backup_dir
+                ));
                 $wp_filesystem->delete($temp_extract_dir, true);
                 $this->send_notification('Errore aggiornamento', 'Impossibile creare backup della versione corrente. Verifica i permessi.');
                 delete_transient($lock_key);
                 return false;
             }
-            Logger::log('info', 'Backup creato con successo');
+            Logger::log('info', 'Backup creato con successo', array(
+                'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                'backup_dir' => basename($backup_dir)
+            ));
         } else {
             Logger::log('info', 'Prima installazione, backup non necessario');
         }
@@ -850,9 +1058,14 @@ class Updater {
         Logger::log('success', 'Aggiornamento completato con successo per: ' . $plugin['name']);
         $this->send_notification('Aggiornamento completato', 'Il plugin ' . $plugin['name'] . ' è stato aggiornato con successo!');
         
-        // Mantieni il backup per 7 giorni (se è stato creato)
+        // Il backup verrà gestito dal sistema di pulizia automatica
+        // Non programmiamo più la pulizia singola, ma lasciamo che il sistema di pulizia periodica se ne occupi
+        // Questo evita di avere troppi eventi schedulati
         if ($backup_dir && file_exists($backup_dir)) {
-            wp_schedule_single_event(time() + (7 * DAY_IN_SECONDS), 'fp_git_updater_cleanup_backup', array($backup_dir));
+            Logger::log('info', 'Backup mantenuto per pulizia automatica', array(
+                'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                'backup_dir' => basename($backup_dir)
+            ));
         }
         
         // Rilascia il lock
@@ -898,9 +1111,233 @@ class Updater {
                 WP_Filesystem();
             }
             
+            $backup_size = $this->get_directory_size($backup_dir);
             $wp_filesystem->delete($backup_dir, true);
-            Logger::log('info', 'Backup eliminato: ' . basename($backup_dir));
+            Logger::log('info', 'Backup eliminato: ' . basename($backup_dir), array(
+                'backup_size' => $this->format_bytes($backup_size)
+            ));
         }
+    }
+    
+    /**
+     * Pulisce i backup vecchi in base ai limiti configurati
+     * 
+     * @param bool $respect_max_limit Se true, rispetta il limite massimo di backup
+     * @param int $force_delete_count Se > 0, forza l'eliminazione di questo numero di backup più vecchi
+     * @return int Numero di backup eliminati
+     */
+    public function cleanup_old_backups($respect_max_limit = true, $force_delete_count = 0) {
+        $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
+        
+        if (!is_dir($upgrade_dir)) {
+            return 0;
+        }
+        
+        // Trova tutti i backup
+        $backup_pattern = $upgrade_dir . '/fp-git-updater-backup-*';
+        $backups = glob($backup_pattern, GLOB_ONLYDIR);
+        
+        if (empty($backups)) {
+            return 0;
+        }
+        
+        // Ordina per data di creazione (più vecchi prima)
+        usort($backups, function($a, $b) {
+            $time_a = filemtime($a);
+            $time_b = filemtime($b);
+            return $time_a - $time_b;
+        });
+        
+        $deleted_count = 0;
+        $settings = get_option('fp_git_updater_settings');
+        
+        // Limite massimo di backup (default: 5)
+        $max_backups = isset($settings['max_backups']) ? intval($settings['max_backups']) : 5;
+        if ($max_backups < 1) {
+            $max_backups = 5; // Minimo 1 backup
+        }
+        if ($max_backups > 20) {
+            $max_backups = 20; // Massimo 20 backup
+        }
+        
+        // Età massima backup in giorni (default: 7)
+        $max_backup_age_days = isset($settings['max_backup_age_days']) ? intval($settings['max_backup_age_days']) : 7;
+        if ($max_backup_age_days < 1) {
+            $max_backup_age_days = 7;
+        }
+        $max_backup_age_seconds = $max_backup_age_days * DAY_IN_SECONDS;
+        $cutoff_time = time() - $max_backup_age_seconds;
+        
+        global $wp_filesystem;
+        if (!$wp_filesystem) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+            WP_Filesystem();
+        }
+        
+        // Se force_delete_count > 0, elimina i più vecchi
+        if ($force_delete_count > 0) {
+            $to_delete = array_slice($backups, 0, min($force_delete_count, count($backups)));
+            foreach ($to_delete as $backup) {
+                $backup_size = $this->get_directory_size($backup);
+                if ($wp_filesystem->delete($backup, true)) {
+                    $deleted_count++;
+                    Logger::log('info', 'Backup vecchio eliminato (pulizia forzata): ' . basename($backup), array(
+                        'backup_size' => $this->format_bytes($backup_size),
+                        'backup_age_days' => round((time() - filemtime($backup)) / DAY_IN_SECONDS, 1)
+                    ));
+                }
+            }
+            return $deleted_count;
+        }
+        
+        // Elimina backup più vecchi del limite di età
+        foreach ($backups as $backup) {
+            $backup_mtime = filemtime($backup);
+            if ($backup_mtime < $cutoff_time) {
+                $backup_size = $this->get_directory_size($backup);
+                if ($wp_filesystem->delete($backup, true)) {
+                    $deleted_count++;
+                    Logger::log('info', 'Backup vecchio eliminato (superato limite età): ' . basename($backup), array(
+                        'backup_size' => $this->format_bytes($backup_size),
+                        'backup_age_days' => round((time() - $backup_mtime) / DAY_IN_SECONDS, 1),
+                        'max_age_days' => $max_backup_age_days
+                    ));
+                }
+            }
+        }
+        
+        // Se rispettiamo il limite massimo, elimina i backup più vecchi oltre il limite
+        if ($respect_max_limit) {
+            $remaining_backups = array_filter($backups, function($backup) use ($cutoff_time) {
+                return filemtime($backup) >= $cutoff_time;
+            });
+            
+            if (count($remaining_backups) > $max_backups) {
+                // Ordina di nuovo i backup rimanenti
+                usort($remaining_backups, function($a, $b) {
+                    return filemtime($a) - filemtime($b);
+                });
+                
+                // Elimina i più vecchi oltre il limite
+                $excess_count = count($remaining_backups) - $max_backups;
+                $to_delete = array_slice($remaining_backups, 0, $excess_count);
+                
+                foreach ($to_delete as $backup) {
+                    $backup_size = $this->get_directory_size($backup);
+                    if ($wp_filesystem->delete($backup, true)) {
+                        $deleted_count++;
+                        Logger::log('info', 'Backup eliminato (superato limite quantità): ' . basename($backup), array(
+                            'backup_size' => $this->format_bytes($backup_size),
+                            'current_count' => count($remaining_backups),
+                            'max_backups' => $max_backups
+                        ));
+                    }
+                }
+            }
+        }
+        
+        if ($deleted_count > 0) {
+            Logger::log('info', 'Pulizia backup completata: ' . $deleted_count . ' backup eliminati', array(
+                'max_backups' => $max_backups,
+                'max_age_days' => $max_backup_age_days
+            ));
+        }
+        
+        return $deleted_count;
+    }
+    
+    /**
+     * Ottiene lo spazio disco disponibile
+     * 
+     * @param string $path Path della directory da controllare
+     * @return int Spazio disponibile in bytes, -1 se non disponibile
+     */
+    private function get_available_disk_space($path) {
+        if (!function_exists('disk_free_space')) {
+            return -1;
+        }
+        
+        $free_space = @disk_free_space($path);
+        return $free_space !== false ? $free_space : -1;
+    }
+    
+    /**
+     * Formatta bytes in formato leggibile
+     * 
+     * @param int $bytes
+     * @return string
+     */
+    private function format_bytes($bytes) {
+        if ($bytes < 0) {
+            return 'N/A';
+        }
+        
+        $units = array('B', 'KB', 'MB', 'GB', 'TB');
+        $bytes = max($bytes, 0);
+        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+        $pow = min($pow, count($units) - 1);
+        $bytes /= pow(1024, $pow);
+        
+        return round($bytes, 2) . ' ' . $units[$pow];
+    }
+    
+    /**
+     * Ottiene statistiche sui backup
+     * 
+     * @return array Array con statistiche backup
+     */
+    public function get_backup_stats() {
+        $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
+        
+        if (!is_dir($upgrade_dir)) {
+            return array(
+                'total_backups' => 0,
+                'total_size' => 0,
+                'total_size_formatted' => '0 B',
+                'oldest_backup' => null,
+                'newest_backup' => null
+            );
+        }
+        
+        $backup_pattern = $upgrade_dir . '/fp-git-updater-backup-*';
+        $backups = glob($backup_pattern, GLOB_ONLYDIR);
+        
+        if (empty($backups)) {
+            return array(
+                'total_backups' => 0,
+                'total_size' => 0,
+                'total_size_formatted' => '0 B',
+                'oldest_backup' => null,
+                'newest_backup' => null
+            );
+        }
+        
+        $total_size = 0;
+        $oldest_time = time();
+        $newest_time = 0;
+        
+        foreach ($backups as $backup) {
+            $size = $this->get_directory_size($backup);
+            $total_size += $size;
+            
+            $mtime = filemtime($backup);
+            if ($mtime < $oldest_time) {
+                $oldest_time = $mtime;
+            }
+            if ($mtime > $newest_time) {
+                $newest_time = $mtime;
+            }
+        }
+        
+        return array(
+            'total_backups' => count($backups),
+            'total_size' => $total_size,
+            'total_size_formatted' => $this->format_bytes($total_size),
+            'oldest_backup' => $oldest_time < time() ? date('Y-m-d H:i:s', $oldest_time) : null,
+            'newest_backup' => $newest_time > 0 ? date('Y-m-d H:i:s', $newest_time) : null,
+            'available_space' => $this->get_available_disk_space(WP_CONTENT_DIR),
+            'available_space_formatted' => $this->format_bytes($this->get_available_disk_space(WP_CONTENT_DIR))
+        );
     }
     
     /**

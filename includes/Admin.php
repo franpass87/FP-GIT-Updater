@@ -38,6 +38,8 @@ class Admin {
         add_action('wp_ajax_fp_git_updater_check_self_update', array($this, 'ajax_check_self_update'));
         add_action('wp_ajax_fp_git_updater_install_self_update', array($this, 'ajax_install_self_update'));
         add_action('wp_ajax_fp_git_updater_load_github_repos', array($this, 'ajax_load_github_repos'));
+        add_action('wp_ajax_fp_git_updater_cleanup_backups', array($this, 'ajax_cleanup_backups'));
+        add_action('wp_ajax_fp_git_updater_get_backup_stats', array($this, 'ajax_get_backup_stats'));
     }
     
     /**

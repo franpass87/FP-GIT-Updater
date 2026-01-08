@@ -90,7 +90,9 @@ class FP_Git_Updater {
             'notification_email' => get_option('admin_email'),
             'auto_update' => false,
             'webhook_secret' => wp_generate_password(32, false),
-            'plugins' => array()
+            'plugins' => array(),
+            'max_backups' => 5, // Numero massimo di backup da mantenere
+            'max_backup_age_days' => 7 // Età massima backup in giorni
         );
         
         $existing_settings = get_option('fp_git_updater_settings', array());
@@ -116,6 +118,11 @@ class FP_Git_Updater {
         $timestamp = wp_next_scheduled('fp_git_updater_cleanup_temp_files');
         if ($timestamp) {
             wp_unschedule_event($timestamp, 'fp_git_updater_cleanup_temp_files');
+        }
+        
+        $timestamp = wp_next_scheduled('fp_git_updater_cleanup_old_backups');
+        if ($timestamp) {
+            wp_unschedule_event($timestamp, 'fp_git_updater_cleanup_old_backups');
         }
         
         flush_rewrite_rules();

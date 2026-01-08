@@ -407,4 +407,100 @@
         document.head.appendChild(style);
     });
     
+    // Gestione statistiche backup
+    function loadBackupStats() {
+        const statsContainer = jQuery('#fp-backup-stats');
+        if (!statsContainer.length) {
+            return;
+        }
+        
+        statsContainer.html('<p><strong>Caricamento...</strong></p>');
+        
+        jQuery.ajax({
+            url: ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'fp_git_updater_get_backup_stats',
+                nonce: fpGitUpdaterAdmin.nonce
+            },
+            success: function(response) {
+                if (response.success && response.data) {
+                    const stats = response.data;
+                    let html = '<table style="width: 100%;">';
+                    html += '<tr><td><strong>Backup Totali:</strong></td><td>' + stats.total_backups + '</td></tr>';
+                    html += '<tr><td><strong>Spazio Totale:</strong></td><td>' + stats.total_size_formatted + '</td></tr>';
+                    html += '<tr><td><strong>Spazio Disponibile:</strong></td><td>' + stats.available_space_formatted + '</td></tr>';
+                    if (stats.oldest_backup) {
+                        html += '<tr><td><strong>Backup più Vecchio:</strong></td><td>' + stats.oldest_backup + '</td></tr>';
+                    }
+                    if (stats.newest_backup) {
+                        html += '<tr><td><strong>Backup più Recente:</strong></td><td>' + stats.newest_backup + '</td></tr>';
+                    }
+                    html += '</table>';
+                    
+                    if (stats.total_backups > 0) {
+                        html += '<p style="margin-top: 10px; color: #d63638;"><strong>⚠ Attenzione:</strong> ' + stats.total_backups + ' backup occupano ' + stats.total_size_formatted + ' di spazio.</p>';
+                    } else {
+                        html += '<p style="margin-top: 10px; color: #00a32a;"><strong>✓ Nessun backup presente.</strong></p>';
+                    }
+                    
+                    statsContainer.html(html);
+                } else {
+                    statsContainer.html('<p style="color: #d63638;">Errore nel caricamento delle statistiche.</p>');
+                }
+            },
+            error: function() {
+                statsContainer.html('<p style="color: #d63638;">Errore nel caricamento delle statistiche.</p>');
+            }
+        });
+    }
+    
+    // Carica statistiche al caricamento della pagina
+    jQuery(document).ready(function() {
+        if (jQuery('#fp-backup-stats').length) {
+            loadBackupStats();
+        }
+    });
+    
+    // Pulsante aggiorna statistiche
+    jQuery(document).on('click', '#fp-refresh-backup-stats', function(e) {
+        e.preventDefault();
+        loadBackupStats();
+    });
+    
+    // Pulsante pulizia backup
+    jQuery(document).on('click', '#fp-cleanup-backups-now', function(e) {
+        e.preventDefault();
+        
+        if (!confirm('Sei sicuro di voler eliminare i backup vecchi? Questa azione non può essere annullata.')) {
+            return;
+        }
+        
+        const button = jQuery(this);
+        const originalText = button.html();
+        button.prop('disabled', true).html('<span class="dashicons dashicons-update" style="animation: dashicons-spin 1s linear infinite;"></span> Pulizia in corso...');
+        
+        jQuery.ajax({
+            url: ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'fp_git_updater_cleanup_backups',
+                nonce: fpGitUpdaterAdmin.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    alert(response.data.message);
+                    loadBackupStats();
+                } else {
+                    alert('Errore: ' + (response.data && response.data.message ? response.data.message : 'Errore sconosciuto'));
+                }
+                button.prop('disabled', false).html(originalText);
+            },
+            error: function() {
+                alert('Errore durante la pulizia dei backup.');
+                button.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+    
 })(jQuery);

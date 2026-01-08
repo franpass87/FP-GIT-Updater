@@ -53,7 +53,10 @@ class ApiCache {
         $cached_data = get_transient($cache_key);
         
         if ($cached_data !== false) {
-            Logger::log('info', 'Cache hit per: ' . $key);
+            // Log solo in debug mode per evitare spam nei log
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                Logger::log('info', 'Cache hit per: ' . $key);
+            }
             return $cached_data;
         }
         
@@ -74,7 +77,8 @@ class ApiCache {
         
         $result = set_transient($cache_key, $value, $duration);
         
-        if ($result) {
+        // Log solo in debug mode per evitare spam nei log
+        if ($result && defined('WP_DEBUG') && WP_DEBUG) {
             Logger::log('info', 'Cache salvata per: ' . $key . ' (durata: ' . $duration . 's)');
         }
         
@@ -91,7 +95,8 @@ class ApiCache {
         $cache_key = $this->cache_prefix . md5($key);
         $result = delete_transient($cache_key);
         
-        if ($result) {
+        // Log solo in debug mode per evitare spam nei log
+        if ($result && defined('WP_DEBUG') && WP_DEBUG) {
             Logger::log('info', 'Cache invalidata per: ' . $key);
         }
         
