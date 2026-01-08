@@ -572,6 +572,14 @@ class Updater {
         
         Logger::log('info', 'Download completato: ' . round($body_size / 1024 / 1024, 2) . 'MB');
         
+        // Per file grandi, aumenta i limiti PHP prima dell'estrazione
+        if ($body_size > 50 * 1024 * 1024) { // > 50MB
+            Logger::log('info', 'File grande rilevato, aumento limiti PHP per estrazione...');
+            @ini_set('max_execution_time', '0');
+            @ini_set('memory_limit', '512M');
+            @set_time_limit(0);
+        }
+        
         // Unzip il file
         Logger::log('info', 'Estrazione dell\'aggiornamento...');
         
@@ -630,6 +638,9 @@ class Updater {
         }
         
         Logger::log('info', 'Directory plugin trovata: ' . basename($source_dir));
+        
+        // Pulisci file non necessari dalla directory estratta per ridurre dimensione
+        $this->cleanup_unnecessary_files($source_dir);
         
         // Determina la directory del plugin da aggiornare
         // Preferisci slug configurato; se assente:
@@ -756,7 +767,21 @@ class Updater {
             // Se rename fallisce (es. filesystem diversi), usa copy_dir come fallback
             Logger::log('info', 'Rename fallito, uso copy_dir come fallback...');
             
-            $copy_result = copy_dir($source_dir, $plugin_dir);
+            // Per plugin con molti file, aumentiamo i limiti PHP prima della copia
+            $file_count = $this->count_files_recursive($source_dir);
+            Logger::log('info', 'File da copiare: ' . number_format($file_count, 0, ',', '.'));
+            
+            if ($file_count > 10000) {
+                // Plugin grande: aumenta limiti PHP
+                Logger::log('info', 'Plugin grande rilevato, aumento limiti PHP...');
+                @ini_set('max_execution_time', '0'); // Nessun limite
+                @ini_set('memory_limit', '512M'); // Aumenta memoria
+                @set_time_limit(0); // Disabilita timeout
+                Logger::log('info', 'Limiti PHP aumentati per gestire plugin grande');
+            }
+            
+            // Usa la funzione di copia ottimizzata per plugin grandi
+            $copy_result = $this->copy_directory_optimized($source_dir, $plugin_dir, $wp_filesystem, $file_count);
             
             if (is_wp_error($copy_result)) {
                 // Ripristina il backup se esiste
@@ -766,7 +791,8 @@ class Updater {
                 Logger::log('error', 'Errore installazione: ' . $error_msg, array(
                     'source' => $source_dir,
                     'destination' => $plugin_dir,
-                    'error_data' => $error_data
+                    'error_data' => $error_data,
+                    'file_count' => $file_count
                 ));
                 
                 if ($backup_dir && file_exists($backup_dir)) {
@@ -909,6 +935,179 @@ class Updater {
     }
     
     /**
+     * Pulisce file non necessari dalla directory estratta per ridurre dimensione
+     * Esclude: documentazione, test, tools, build files, node_modules, etc.
+     */
+    private function cleanup_unnecessary_files($dir) {
+        if (!is_dir($dir)) {
+            return;
+        }
+        
+        global $wp_filesystem;
+        if (!$wp_filesystem) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+            WP_Filesystem();
+        }
+        
+        $files_removed = 0;
+        $size_saved = 0;
+        
+        // Pattern di file e directory da escludere
+        $exclude_patterns = array(
+            // Directory da rimuovere completamente
+            'directories' => array(
+                'tests',
+                'test',
+                'testsuite',
+                'tools',
+                'examples',
+                'docs',
+                'documentation',
+                'node_modules',
+                '.git',
+                '.github',
+                'build',
+                'dist',
+                // vendor/ NON viene escluso perché necessario per autoload Composer
+            ),
+            // Pattern di file da rimuovere
+            'file_patterns' => array(
+                '*.md', // Documentazione markdown
+                '*.txt', // File di testo (eccetto readme.txt che WordPress richiede)
+                '*.sh', // Script shell
+                '*.bat', // Script batch
+                '*.ps1', // PowerShell
+                'phpunit.xml*', // Configurazione test
+                'phpcs.xml*', // Configurazione code style
+                'phpstan.neon*', // Configurazione static analysis
+                '.gitignore',
+                '.gitattributes',
+                'composer.lock', // Lock file (composer.json va mantenuto)
+                'package-lock.json', // Lock file npm
+                'Dockerfile*',
+                'docker-compose*.yml',
+                '*.log',
+                '*.cache',
+            ),
+            // File specifici da mantenere (eccezioni)
+            'keep_files' => array(
+                'readme.txt', // WordPress richiede questo file
+                'README.md', // Manteniamo il README principale
+                'composer.json', // Necessario per autoload
+                'package.json', // Potrebbe essere necessario
+            ),
+        );
+        
+        // Funzione ricorsiva per rimuovere file
+        $root_dir = $dir;
+        $cleanup_recursive = function($current_dir) use (&$cleanup_recursive, &$files_removed, &$size_saved, $exclude_patterns, $wp_filesystem, $root_dir) {
+            if (!is_dir($current_dir)) {
+                return;
+            }
+            
+            $items = @scandir($current_dir);
+            if ($items === false) {
+                return;
+            }
+            
+            foreach ($items as $item) {
+                if ($item === '.' || $item === '..') {
+                    continue;
+                }
+                
+                $item_path = $current_dir . '/' . $item;
+                $relative_path = str_replace($root_dir . '/', '', $item_path);
+                
+                // Controlla se è una directory da escludere
+                if (is_dir($item_path)) {
+                    $dir_name = strtolower(basename($item_path));
+                    if (in_array($dir_name, $exclude_patterns['directories'], true)) {
+                        $size = $this->get_directory_size($item_path);
+                        if ($wp_filesystem->delete($item_path, true)) {
+                            $files_removed++;
+                            $size_saved += $size;
+                            Logger::log('info', 'Rimossa directory: ' . $relative_path . ' (' . round($size / 1024, 2) . ' KB)');
+                        }
+                        continue;
+                    }
+                }
+                
+                // Controlla se è un file da escludere
+                if (is_file($item_path)) {
+                    $file_name = basename($item_path);
+                    $should_remove = false;
+                    
+                    // Controlla se è nella lista dei file da mantenere
+                    if (in_array($file_name, $exclude_patterns['keep_files'], true)) {
+                        $should_remove = false;
+                    } else {
+                        // Controlla pattern (usa preg_match per compatibilità cross-platform)
+                        foreach ($exclude_patterns['file_patterns'] as $pattern) {
+                            // Converte pattern wildcard in regex
+                            $regex = str_replace(
+                                array('\\*', '\\?', '\\[', '\\]'),
+                                array('.*', '.', '\\[', '\\]'),
+                                preg_quote($pattern, '/')
+                            );
+                            if (preg_match('/^' . $regex . '$/i', $file_name)) {
+                                $should_remove = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if ($should_remove) {
+                        $size = filesize($item_path);
+                        if ($wp_filesystem->delete($item_path, false)) {
+                            $files_removed++;
+                            $size_saved += $size;
+                            Logger::log('info', 'Rimosso file: ' . $relative_path . ' (' . round($size / 1024, 2) . ' KB)');
+                        }
+                        continue;
+                    }
+                }
+                
+                // Ricorsione per sottodirectory
+                if (is_dir($item_path)) {
+                    $cleanup_recursive($item_path);
+                }
+            }
+        };
+        
+        Logger::log('info', 'Pulizia file non necessari dalla directory estratta...');
+        $cleanup_recursive($dir);
+        
+        if ($files_removed > 0) {
+            Logger::log('info', 'Pulizia completata: rimossi ' . $files_removed . ' file/directory, risparmiati ' . round($size_saved / 1024 / 1024, 2) . ' MB');
+        } else {
+            Logger::log('info', 'Nessun file non necessario trovato da rimuovere');
+        }
+    }
+    
+    /**
+     * Calcola la dimensione totale di una directory
+     */
+    private function get_directory_size($dir) {
+        $size = 0;
+        if (!is_dir($dir)) {
+            return 0;
+        }
+        
+        $files = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+        
+        foreach ($files as $file) {
+            if ($file->isFile()) {
+                $size += $file->getSize();
+            }
+        }
+        
+        return $size;
+    }
+    
+    /**
      * Esegue l'auto-aggiornamento del plugin stesso
      * Usa un approccio più sicuro per evitare problemi durante l'esecuzione
      */
@@ -949,6 +1148,133 @@ class Updater {
                 'Si è verificato un errore durante l\'auto-aggiornamento: ' . $e->getMessage()
             );
             return false;
+        }
+    }
+    
+    /**
+     * Conta ricorsivamente il numero di file in una directory
+     * 
+     * @param string $dir Directory da analizzare
+     * @return int Numero di file
+     */
+    private function count_files_recursive($dir) {
+        $count = 0;
+        if (!is_dir($dir) || !is_readable($dir)) {
+            return 0;
+        }
+        
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+        
+        foreach ($iterator as $file) {
+            if ($file->isFile()) {
+                $count++;
+            }
+        }
+        
+        return $count;
+    }
+    
+    /**
+     * Copia una directory in modo ottimizzato per plugin grandi
+     * Gestisce meglio timeout e memoria per plugin con molti file
+     * 
+     * @param string $source_dir Directory sorgente
+     * @param string $dest_dir Directory destinazione
+     * @param \WP_Filesystem_Base $wp_filesystem Istanza WP_Filesystem
+     * @param int $total_files Numero totale di file (per logging progressivo)
+     * @return true|WP_Error
+     */
+    private function copy_directory_optimized($source_dir, $dest_dir, $wp_filesystem, $total_files = 0) {
+        // Crea la directory di destinazione se non esiste
+        if (!$wp_filesystem->exists($dest_dir)) {
+            if (!$wp_filesystem->mkdir($dest_dir, FS_CHMOD_DIR)) {
+                return new \WP_Error(
+                    'mkdir_failed',
+                    'Impossibile creare la directory di destinazione',
+                    $dest_dir
+                );
+            }
+        }
+        
+        $copied = 0;
+        $last_log_time = time();
+        $log_interval = 5; // Log ogni 5 secondi
+        
+        try {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($source_dir, \RecursiveDirectoryIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::SELF_FIRST
+            );
+            
+            foreach ($iterator as $item) {
+                $source_path = $item->getPathname();
+                $relative_path = str_replace($source_dir . DIRECTORY_SEPARATOR, '', $source_path);
+                $dest_path = $dest_dir . DIRECTORY_SEPARATOR . $relative_path;
+                
+                if ($item->isDir()) {
+                    // Crea la directory se non esiste
+                    if (!$wp_filesystem->exists($dest_path)) {
+                        if (!$wp_filesystem->mkdir($dest_path, FS_CHMOD_DIR)) {
+                            return new \WP_Error(
+                                'mkdir_failed',
+                                'Impossibile creare la directory: ' . $dest_path,
+                                $dest_path
+                            );
+                        }
+                    }
+                } elseif ($item->isFile()) {
+                    // Copia il file
+                    if (!$wp_filesystem->copy($source_path, $dest_path, true, FS_CHMOD_FILE)) {
+                        // Retry con chmod
+                        $wp_filesystem->chmod($dest_path, FS_CHMOD_FILE);
+                        if (!$wp_filesystem->copy($source_path, $dest_path, true, FS_CHMOD_FILE)) {
+                            return new \WP_Error(
+                                'copy_failed',
+                                'Impossibile copiare il file: ' . $dest_path,
+                                $dest_path
+                            );
+                        }
+                    }
+                    
+                    $copied++;
+                    
+                    // Log progressivo ogni N secondi per plugin grandi
+                    if ($total_files > 1000 && (time() - $last_log_time) >= $log_interval) {
+                        $percent = round(($copied / $total_files) * 100, 1);
+                        Logger::log('info', sprintf(
+                            'Copia in corso: %s/%s file (%s%%)',
+                            number_format($copied, 0, ',', '.'),
+                            number_format($total_files, 0, ',', '.'),
+                            $percent
+                        ));
+                        $last_log_time = time();
+                    }
+                    
+                    // Invalida opcache per file PHP
+                    if (pathinfo($dest_path, PATHINFO_EXTENSION) === 'php') {
+                        wp_opcache_invalidate($dest_path);
+                    }
+                }
+            }
+            
+            if ($total_files > 0) {
+                Logger::log('info', sprintf(
+                    'Copia completata: %s file copiati con successo',
+                    number_format($copied, 0, ',', '.')
+                ));
+            }
+            
+            return true;
+            
+        } catch (\Exception $e) {
+            return new \WP_Error(
+                'copy_exception',
+                'Eccezione durante la copia: ' . $e->getMessage(),
+                $e->getCode()
+            );
         }
     }
 }
