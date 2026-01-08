@@ -594,16 +594,27 @@ class Updater {
                         $download_url = "https://api.github.com/repos/{$repo}/zipball/{$branch}";
                         $args['headers']['Accept'] = 'application/vnd.github.v3+json';
                         $args['headers']['Authorization'] = 'token ' . $token;
-                        Logger::log('info', 'Usando API GitHub con token per repository privato');
+                        Logger::log('info', 'Usando API GitHub con token per repository privato', array(
+                            'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                            'repository' => $repo,
+                            'branch' => $branch,
+                            'token_prefix' => substr($token, 0, 4) . '...' // Log solo prefisso per sicurezza
+                        ));
                     } else {
                         // Token decryption failed, fallback a URL pubblico
                         $download_url = "https://github.com/{$repo}/archive/refs/heads/{$branch}.zip";
-                        Logger::log('warning', 'Token decryption fallito, uso URL pubblico');
+                        Logger::log('warning', 'Token decryption fallito, uso URL pubblico', array(
+                            'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                            'repository' => $repo
+                        ));
                     }
                 } else {
                     // Repository pubblico: usa URL diretto senza API (no autenticazione richiesta)
                     $download_url = "https://github.com/{$repo}/archive/refs/heads/{$branch}.zip";
-                    Logger::log('info', 'Repository pubblico, usando URL diretto GitHub (nessun token)');
+                    Logger::log('info', 'Repository pubblico, usando URL diretto GitHub (nessun token)', array(
+                        'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                        'repository' => $repo
+                    ));
                 }
             }
         } catch (\Exception $e) {
@@ -658,35 +669,92 @@ class Updater {
                 $response_message = wp_remote_retrieve_response_message($response);
                 $response_body = wp_remote_retrieve_body($response);
                 
-                @unlink($temp_file);
-                
-                // Messaggio di errore più dettagliato
-                $error_details = 'HTTP ' . $response_code;
-                if ($response_message) {
-                    $error_details .= ' - ' . $response_message;
+                // Se errore 401 e abbiamo un token, prova fallback a URL pubblico
+                // (potrebbe essere un repository pubblico con token non valido)
+                if ($response_code === 401 && !empty($encrypted_token) && !empty($repo)) {
+                    Logger::log('warning', 'Token GitHub non valido o scaduto (401). Tentativo fallback a URL pubblico...', array(
+                        'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                        'plugin_name' => isset($plugin['name']) ? $plugin['name'] : 'unknown',
+                        'repository' => $repo
+                    ));
+                    
+                    @unlink($temp_file);
+                    
+                    // Prova con URL pubblico GitHub (senza autenticazione)
+                    $public_download_url = "https://github.com/{$repo}/archive/refs/heads/{$branch}.zip";
+                    $public_args = array(
+                        'timeout' => 300,
+                        'redirection' => 5,
+                        'headers' => array(
+                            'User-Agent' => 'FP-Git-Updater/' . FP_GIT_UPDATER_VERSION,
+                        ),
+                    );
+                    
+                    Logger::log('info', 'Tentativo download da URL pubblico: ' . $public_download_url);
+                    
+                    // Usa download_url() nativo WordPress per repository pubblici
+                    $downloaded = download_url($public_download_url, 300);
+                    
+                    if (is_wp_error($downloaded)) {
+                        Logger::log('error', 'Fallback a URL pubblico fallito: ' . $downloaded->get_error_message(), array(
+                            'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                            'plugin_name' => isset($plugin['name']) ? $plugin['name'] : 'unknown'
+                        ));
+                        
+                        // Se anche il fallback fallisce, potrebbe essere un repository privato
+                        $user_message = 'Errore autenticazione (401). Il token GitHub potrebbe essere scaduto o non valido. ';
+                        $user_message .= 'Se il repository è privato, verifica che il token abbia i permessi necessari.';
+                        $this->send_notification('Errore aggiornamento', $user_message);
+                        delete_transient($lock_key);
+                        return false;
+                    }
+                    
+                    // download_url() restituisce il path del file temporaneo, rinominiamolo
+                    if (!@rename($downloaded, $temp_file)) {
+                        if (!@copy($downloaded, $temp_file)) {
+                            @unlink($downloaded);
+                            Logger::log('error', 'Errore nel copiare il file scaricato dal fallback');
+                            $this->send_notification('Errore aggiornamento', 'Errore nel copiare il file scaricato');
+                            delete_transient($lock_key);
+                            return false;
+                        }
+                        @unlink($downloaded);
+                    }
+                    
+                    Logger::log('info', 'Download completato tramite fallback URL pubblico (token non valido)');
+                    // Continua con l'estrazione del file
+                } else {
+                    // Altri errori HTTP o 401 senza possibilità di fallback
+                    @unlink($temp_file);
+                    
+                    // Messaggio di errore più dettagliato
+                    $error_details = 'HTTP ' . $response_code;
+                    if ($response_message) {
+                        $error_details .= ' - ' . $response_message;
+                    }
+                    
+                    Logger::log('error', 'Errore download: ' . $error_details, array(
+                        'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                        'plugin_name' => isset($plugin['name']) ? $plugin['name'] : 'unknown',
+                        'response_code' => $response_code,
+                        'response_message' => $response_message,
+                        'response_body_preview' => substr($response_body, 0, 200),
+                        'download_url' => $download_url
+                    ));
+                    
+                    $user_message = 'Errore HTTP durante il download: ' . $error_details;
+                    if ($response_code === 404) {
+                        $user_message .= '. Repository o branch non trovato.';
+                    } elseif ($response_code === 401) {
+                        $user_message .= '. Autenticazione fallita. Verifica il token GitHub. Se il repository è pubblico, rimuovi il token dalla configurazione.';
+                    } elseif ($response_code === 403) {
+                        $user_message .= '. Accesso negato. Verifica i permessi del repository o il rate limit di GitHub.';
+                    }
+                    
+                    $this->send_notification('Errore aggiornamento', $user_message);
+                    delete_transient($lock_key);
+                    return false;
                 }
-                
-                Logger::log('error', 'Errore download: ' . $error_details, array(
-                    'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
-                    'plugin_name' => isset($plugin['name']) ? $plugin['name'] : 'unknown',
-                    'response_code' => $response_code,
-                    'response_message' => $response_message,
-                    'response_body_preview' => substr($response_body, 0, 200),
-                    'download_url' => $download_url
-                ));
-                
-                $user_message = 'Errore HTTP durante il download: ' . $error_details;
-                if ($response_code === 404) {
-                    $user_message .= '. Repository o branch non trovato.';
-                } elseif ($response_code === 401) {
-                    $user_message .= '. Autenticazione fallita. Verifica il token GitHub.';
-                } elseif ($response_code === 403) {
-                    $user_message .= '. Accesso negato. Verifica i permessi del repository o il rate limit.';
-                }
-                
-                $this->send_notification('Errore aggiornamento', $user_message);
-                delete_transient($lock_key);
-                return false;
             }
         } else {
             // Per repository pubblici, usa download_url() nativo WordPress (più efficiente)
