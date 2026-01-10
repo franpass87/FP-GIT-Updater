@@ -7,6 +7,110 @@
     
     $(document).ready(function() {
         
+        // ===== TAB NAVIGATION =====
+        // Funzione per cambiare tab - nasconde tutti e mostra solo quello selezionato
+        function switchTab(tabName) {
+            if (!tabName) return;
+            
+            // Nascondi TUTTI i tab contents usando sia CSS che JavaScript
+            $('.fp-tab-content').each(function() {
+                $(this).removeClass('active');
+                $(this).css('display', 'none');
+            });
+            
+            // Rimuovi active da TUTTI i tab items nella navigation
+            $('.fp-tab-item').removeClass('active');
+            
+            // Trova il tab target
+            const $targetLink = $('.fp-tab-link[data-tab="' + tabName + '"]');
+            const $targetItem = $targetLink.closest('.fp-tab-item');
+            const $targetContent = $('#fp-tab-' + tabName);
+            
+            if ($targetItem.length && $targetContent.length) {
+                // Attiva il tab item nella navigation
+                $targetItem.addClass('active');
+                
+                // Mostra SOLO il tab selezionato usando sia CSS che JavaScript
+                $targetContent.addClass('active');
+                $targetContent.css('display', 'block');
+                
+                // Aggiorna URL hash senza ricaricare
+                if (history.pushState) {
+                    history.pushState(null, null, '#' + tabName);
+                }
+                
+                // Scroll smooth al top della navigation
+                $('html, body').animate({
+                    scrollTop: $('.fp-tab-nav').offset().top - 100
+                }, 300);
+            }
+        }
+        
+        // Gestione click sui tab links
+        $(document).on('click', '.fp-tab-link', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const tabName = $(this).data('tab');
+            if (tabName) {
+                switchTab(tabName);
+            }
+            return false;
+        });
+        
+        // Inizializzazione al caricamento della pagina
+        // Funzione helper per inizializzare i tab
+        function initTabs() {
+            // Nascondi TUTTI i tab usando JavaScript (forza display: none)
+            $('.fp-tab-content').each(function() {
+                $(this).css('display', 'none');
+            });
+            
+            // Rimuovi active da tutti i tab
+            $('.fp-tab-item').removeClass('active');
+            $('.fp-tab-content').removeClass('active');
+            
+            const hash = window.location.hash.replace('#', '');
+            const validTabs = ['plugins', 'settings', 'backup', 'instructions'];
+            
+            if (hash && validTabs.includes(hash)) {
+                // Se c'è un hash valido nell'URL, carica quel tab
+                switchTab(hash);
+            } else {
+                // Default: mostra SOLO il tab "plugins"
+                $('.fp-tab-link[data-tab="plugins"]').closest('.fp-tab-item').addClass('active');
+                $('#fp-tab-plugins').addClass('active').css('display', 'block');
+                
+                // Aggiorna URL con hash plugins se non c'è hash
+                if (history.pushState) {
+                    history.pushState(null, null, '#plugins');
+                }
+            }
+        }
+        
+        // Esegui l'inizializzazione immediatamente
+        initTabs();
+        
+        // Fallback: esegui anche dopo un breve delay per assicurarsi che tutto sia caricato
+        setTimeout(function() {
+            // Verifica che i tab non attivi siano nascosti, altrimenti reinizializza
+            const hiddenTabs = $('.fp-tab-content:not(.active)');
+            if (hiddenTabs.length > 0 && hiddenTabs.filter(function() { return $(this).css('display') !== 'none'; }).length > 0) {
+                initTabs();
+            }
+        }, 100);
+        
+        // Gestisci back/forward del browser (hashchange)
+        $(window).on('hashchange', function() {
+            const hash = window.location.hash.replace('#', '');
+            const validTabs = ['plugins', 'settings', 'backup', 'instructions'];
+            if (hash && validTabs.includes(hash)) {
+                switchTab(hash);
+            } else {
+                switchTab('plugins');
+            }
+        });
+        
+        // ===== PLUGIN MANAGEMENT =====
         let pluginIndex = $('.fp-plugin-item').length;
         
         // Aggiungi nuovo plugin
@@ -393,18 +497,7 @@
             }, 500);
         }
         
-        // Animazione spin per i dashicons
-        const style = document.createElement('style');
-        style.innerHTML = `
-            .dashicons.spin {
-                animation: dashicons-spin 1s linear infinite;
-            }
-            @keyframes dashicons-spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        `;
-        document.head.appendChild(style);
+        // Animazioni disabilitate - nessuna animazione spin
     });
     
     // Gestione statistiche backup
@@ -421,7 +514,7 @@
             type: 'POST',
             data: {
                 action: 'fp_git_updater_get_backup_stats',
-                nonce: fpGitUpdaterAdmin.nonce
+                nonce: fpGitUpdater.nonce
             },
             success: function(response) {
                 if (response.success && response.data) {

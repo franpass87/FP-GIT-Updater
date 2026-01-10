@@ -3,7 +3,7 @@
  * Plugin Name: FP Git Updater
  * Plugin URI: https://www.francescopasseri.com
  * Description: Gestione sicura degli aggiornamenti dei plugin da GitHub. Supporta sia aggiornamenti automatici che manuali tramite webhook, proteggendo i tuoi siti da aggiornamenti problematici.
- * Version: 1.2.7
+ * Version: 1.2.9
  * Author: Francesco Passeri
  * Author URI: https://www.francescopasseri.com
  * License: GPL v2 or later
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Definisci costanti del plugin
-define('FP_GIT_UPDATER_VERSION', '1.2.7');
+define('FP_GIT_UPDATER_VERSION', '1.2.9');
 define('FP_GIT_UPDATER_PLUGIN_DIR', dirname(__FILE__) . '/');
 define('FP_GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FP_GIT_UPDATER_PLUGIN_FILE', __FILE__);
@@ -57,6 +57,9 @@ class FP_Git_Updater {
         // Hooks essenziali
         register_activation_hook(__FILE__, array($this, 'activate'));
         register_deactivation_hook(__FILE__, array($this, 'deactivate'));
+        
+        // Inizializza l'auto-aggiornamento del plugin stesso (sempre, non solo in admin)
+        add_action('plugins_loaded', array($this, 'init_self_update'), 5);
         
         // Carica l'admin subito se siamo nell'admin (prima di admin_menu!)
         if (is_admin()) {
@@ -163,17 +166,30 @@ class FP_Git_Updater {
     
     /**
      * Inizializza l'auto-aggiornamento del plugin stesso
+     * Pubblico per essere chiamato dall'hook plugins_loaded
      */
-    private function init_self_update() {
+    public function init_self_update() {
         // Aggiungi il plugin stesso alla lista dei plugin gestiti se non è già presente
-        $settings = get_option('fp_git_updater_settings');
+        $settings = get_option('fp_git_updater_settings', array());
         $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
         
         // Verifica se il plugin stesso è già configurato
         $self_plugin_exists = false;
-        foreach ($plugins as $plugin) {
-            if (isset($plugin['plugin_slug']) && $plugin['plugin_slug'] === 'fp-git-updater') {
+        $self_plugin_index = null;
+        foreach ($plugins as $index => $plugin) {
+            if (isset($plugin['id']) && $plugin['id'] === 'fp_git_updater_self') {
                 $self_plugin_exists = true;
+                $self_plugin_index = $index;
+                break;
+            } elseif (isset($plugin['plugin_slug']) && $plugin['plugin_slug'] === 'fp-git-updater') {
+                $self_plugin_exists = true;
+                $self_plugin_index = $index;
+                // Aggiorna l'ID se mancante
+                if (!isset($plugin['id']) || $plugin['id'] !== 'fp_git_updater_self') {
+                    $plugins[$index]['id'] = 'fp_git_updater_self';
+                    $settings['plugins'] = $plugins;
+                    update_option('fp_git_updater_settings', $settings);
+                }
                 break;
             }
         }
@@ -183,10 +199,9 @@ class FP_Git_Updater {
             $self_plugin = array(
                 'id' => 'fp_git_updater_self',
                 'name' => 'FP Git Updater (Auto-aggiornamento)',
-                'github_repo' => 'franpass87/FP-GIT-Updater',
+                'github_repo' => 'FranPass87/FP-GIT-Updater', // Username corretto con maiuscole
                 'plugin_slug' => 'fp-git-updater',
                 'branch' => 'main',
-                'github_token' => '',
                 'enabled' => true,
             );
             
@@ -194,7 +209,28 @@ class FP_Git_Updater {
             $settings['plugins'] = $plugins;
             update_option('fp_git_updater_settings', $settings);
             
-            Logger::log('info', 'Plugin FP Git Updater aggiunto automaticamente alla lista per auto-aggiornamento');
+            if (class_exists('\FP\GitUpdater\Logger')) {
+                Logger::log('info', 'Plugin FP Git Updater aggiunto automaticamente alla lista per auto-aggiornamento');
+            }
+        } else {
+            // Aggiorna il repository se necessario (correzione username)
+            if ($self_plugin_index !== null && isset($plugins[$self_plugin_index])) {
+                $needs_update = false;
+                if (isset($plugins[$self_plugin_index]['github_repo']) && 
+                    $plugins[$self_plugin_index]['github_repo'] !== 'FranPass87/FP-GIT-Updater') {
+                    $plugins[$self_plugin_index]['github_repo'] = 'FranPass87/FP-GIT-Updater';
+                    $needs_update = true;
+                }
+                // Assicurati che sia sempre abilitato per l'auto-aggiornamento
+                if (!isset($plugins[$self_plugin_index]['enabled']) || !$plugins[$self_plugin_index]['enabled']) {
+                    $plugins[$self_plugin_index]['enabled'] = true;
+                    $needs_update = true;
+                }
+                if ($needs_update) {
+                    $settings['plugins'] = $plugins;
+                    update_option('fp_git_updater_settings', $settings);
+                }
+            }
         }
     }
     

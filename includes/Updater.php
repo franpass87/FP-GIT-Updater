@@ -102,6 +102,10 @@ class Updater {
             return new WP_Error('plugin_disabled', 'Plugin disabilitato');
         }
         
+        // Invalida la cache della versione GitHub quando viene fatto un controllo manuale
+        // così viene recuperata la versione fresca
+        delete_transient('fp_git_updater_github_version_' . $plugin_id);
+        
         return $this->check_plugin_for_updates($plugin);
     }
     
@@ -256,6 +260,327 @@ class Updater {
     }
     
     /**
+     * Ottiene la versione del plugin installato
+     * Restituisce la versione o stringa vuota se non trovata
+     */
+    /**
+     * Ottiene la versione del plugin installato (pubblico per uso nei template)
+     * Restituisce la versione o stringa vuota se non trovata
+     * 
+     * @param array|string $plugin Array del plugin o ID del plugin
+     * @return string Versione del plugin o stringa vuota
+     */
+    public function get_installed_plugin_version($plugin) {
+        // Se viene passato solo l'ID, cerca il plugin nelle impostazioni
+        if (is_string($plugin)) {
+            $settings = get_option('fp_git_updater_settings', array());
+            $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
+            foreach ($plugins as $p) {
+                if (isset($p['id']) && $p['id'] === $plugin) {
+                    $plugin = $p;
+                    break;
+                }
+            }
+            if (is_string($plugin)) {
+                return '';
+            }
+        }
+        
+        // Prova prima usando get_plugins() di WordPress (più affidabile)
+        if (!function_exists('get_plugins')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+        
+        $all_plugins = get_plugins();
+        $plugin_name_lower = strtolower($plugin['name']);
+        
+        // Cerca il plugin per nome
+        foreach ($all_plugins as $plugin_path => $plugin_data) {
+            $plugin_file_name = strtolower($plugin_data['Name']);
+            if ($plugin_file_name === $plugin_name_lower || 
+                stripos($plugin_file_name, $plugin_name_lower) !== false ||
+                stripos($plugin_name_lower, $plugin_file_name) !== false) {
+                if (!empty($plugin_data['Version'])) {
+                    return $plugin_data['Version'];
+                }
+            }
+        }
+        // Determina lo slug del plugin
+        $plugin_slug = !empty($plugin['plugin_slug']) ? $plugin['plugin_slug'] : '';
+        
+        $repo_name = '';
+        
+        if (empty($plugin_slug)) {
+            // Prova a dedurre lo slug dal repository
+            $repo_parts = explode('/', $plugin['github_repo']);
+            if (count($repo_parts) === 2) {
+                $repo_name = $repo_parts[1];
+                $plugin_slug = strtolower($repo_name);
+                
+                // Prima prova direttamente pattern comuni (-1, -2, ecc.)
+                $plugins_dir = WP_PLUGIN_DIR;
+                $common_patterns = array(
+                    $repo_name,           // Nome esatto
+                    $repo_name . '-1',    // Pattern comune
+                    $repo_name . '-2',    // Pattern comune
+                    strtolower($repo_name), // Lowercase
+                    strtolower($repo_name) . '-1',
+                );
+                
+                foreach ($common_patterns as $pattern) {
+                    $test_dir = $plugins_dir . '/' . $pattern;
+                    if (is_dir($test_dir)) {
+                        $test_main_file = $this->find_plugin_main_file($test_dir);
+                        if ($test_main_file) {
+                            $file_data = @file_get_contents($test_main_file, false, null, 0, 8192);
+                            if ($file_data && (stripos($file_data, $plugin['name']) !== false || 
+                                preg_match('/Plugin Name:/i', $file_data))) {
+                                $plugin_slug = $pattern;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // Se non trovato, cerca tra tutte le cartelle dei plugin
+                if ((empty($plugin_slug) || strtolower($plugin_slug) === strtolower($repo_name)) && is_dir($plugins_dir)) {
+                    $dirs = @scandir($plugins_dir);
+                    if ($dirs !== false) {
+                        foreach ($dirs as $dir) {
+                            if ($dir === '.' || $dir === '..' || !is_dir($plugins_dir . '/' . $dir)) {
+                                continue;
+                            }
+                            
+                            // Confronta con possibili variazioni
+                            $dir_lower = strtolower($dir);
+                            
+                            // Verifica se la directory corrisponde al repository (varie forme)
+                            // Prova anche pattern comuni come -1, -2, ecc. alla fine del nome
+                            $matches_pattern = (
+                                $dir_lower === strtolower($repo_name) || 
+                                $dir_lower === strtolower($repo_name . '-1') ||
+                                $dir_lower === strtolower($repo_name . '-2') ||
+                                stripos($dir, $repo_name) !== false ||
+                                stripos($repo_name, basename($dir)) !== false ||
+                                $dir_lower === $plugin_slug ||
+                                stripos($dir, str_replace('-', '', $repo_name)) !== false ||
+                                // Pattern: repo_name-1, repo_name-2, ecc.
+                                preg_match('/^' . preg_quote(strtolower($repo_name), '/') . '-\d+$/i', $dir_lower) ||
+                                // Pattern: contiene il nome base senza trattini
+                                stripos(str_replace('-', '', $dir), str_replace('-', '', $repo_name)) !== false
+                            );
+                            
+                            if ($matches_pattern) {
+                                // Verifica che sia davvero il plugin cercato usando find_plugin_main_file
+                                // Questo è più affidabile perché cerca il file principale in qualsiasi forma
+                                $test_main_file = $this->find_plugin_main_file($plugins_dir . '/' . $dir);
+                                if ($test_main_file) {
+                                    $file_data = @file_get_contents($test_main_file, false, null, 0, 8192);
+                                    if ($file_data) {
+                                        // Verifica che contenga il nome del plugin o "Plugin Name:"
+                                        if (stripos($file_data, $plugin['name']) !== false || 
+                                            preg_match('/Plugin Name:\s*' . preg_quote($plugin['name'], '/') . '/i', $file_data)) {
+                                            $plugin_slug = $dir;
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                // Fallback: verifica anche con file standard
+                                $test_file = $plugins_dir . '/' . $dir . '/' . $dir . '.php';
+                                if (file_exists($test_file)) {
+                                    $file_data = @file_get_contents($test_file, false, null, 0, 8192);
+                                    if ($file_data && (stripos($file_data, $plugin['name']) !== false || 
+                                        preg_match('/Plugin Name:/i', $file_data))) {
+                                        $plugin_slug = $dir;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (empty($plugin_slug)) {
+            return '';
+        }
+        
+        // Cerca il file principale del plugin (prova con vari possibili slug)
+        $possible_dirs = array($plugin_slug);
+        
+        // Se abbiamo il repo_name, prova anche variazioni comuni
+        if (!empty($repo_name)) {
+            if (strtolower($plugin_slug) !== strtolower($repo_name)) {
+                $possible_dirs[] = $repo_name; // Nome originale
+            }
+            // Pattern comune: Nome-Plugin-1, Nome-Plugin-2, ecc.
+            $possible_dirs[] = $repo_name . '-1';
+            $possible_dirs[] = $repo_name . '-2';
+            // Se lo slug contiene già un numero (es: FP-Privacy-1), lo abbiamo già
+            // Altrimenti aggiungi anche versioni alternative
+            if (!preg_match('/-\d+$/', $plugin_slug) && !preg_match('/-\d+$/', $repo_name)) {
+                $possible_dirs[] = $repo_name . '-1';
+            }
+        }
+        
+        $main_file = false;
+        foreach ($possible_dirs as $dir) {
+            $plugin_dir = WP_PLUGIN_DIR . '/' . $dir;
+            if (!is_dir($plugin_dir)) {
+                continue;
+            }
+            
+            $main_file = $this->find_plugin_main_file($plugin_dir);
+            
+            if ($main_file) {
+                break;
+            }
+            
+            // Prova anche con nomi di file comuni
+            $possible_main_files = array(
+                $plugin_dir . '/' . basename($dir) . '.php',
+                $plugin_dir . '/' . strtolower(basename($dir)) . '.php',
+                $plugin_dir . '/' . str_replace('-', '-', basename($dir)) . '.php',
+            );
+            
+            foreach ($possible_main_files as $possible_main_file) {
+                if (file_exists($possible_main_file)) {
+                    $file_data = @file_get_contents($possible_main_file, false, null, 0, 8192);
+                    if ($file_data && preg_match('/Plugin Name:/i', $file_data)) {
+                        $main_file = $possible_main_file;
+                        break 2;
+                    }
+                }
+            }
+        }
+        
+        if (!$main_file) {
+            return '';
+        }
+        
+        // Usa get_plugin_data di WordPress se disponibile
+        if (!function_exists('get_plugin_data')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+        
+        $plugin_data = get_plugin_data($main_file, false, false);
+        
+        if (!empty($plugin_data['Version'])) {
+            return $plugin_data['Version'];
+        }
+        
+        // Fallback: leggi direttamente dall'header
+        $file_data = @file_get_contents($main_file, false, null, 0, 8192);
+        if ($file_data && preg_match('/Version:\s*([^\n\r]+)/i', $file_data, $matches)) {
+            return trim($matches[1]);
+        }
+        
+        return '';
+    }
+    
+    /**
+     * Ottiene la versione del plugin dal repository GitHub (pubblico per uso nei template)
+     * Restituisce la versione o stringa vuota se non trovata
+     * 
+     * @param array $plugin Array del plugin
+     * @param string|null $commit_sha SHA del commit specifico (opzionale)
+     * @return string Versione del plugin su GitHub o stringa vuota
+     */
+    public function get_github_plugin_version($plugin, $commit_sha = null) {
+        $repo = $plugin['github_repo'];
+        $branch = isset($plugin['branch']) ? $plugin['branch'] : 'main';
+        
+        // Se non abbiamo il commit SHA, otteniamo l'ultimo commit
+        if (empty($commit_sha)) {
+            $commit_result = $this->get_latest_commit($plugin);
+            if (is_wp_error($commit_result)) {
+                return '';
+            }
+            $commit_sha = $commit_result;
+        }
+        
+        // Determina lo slug del plugin per trovare il file principale
+        $plugin_slug = !empty($plugin['plugin_slug']) ? $plugin['plugin_slug'] : '';
+        if (empty($plugin_slug)) {
+            $repo_parts = explode('/', $repo);
+            if (count($repo_parts) === 2) {
+                $plugin_slug = strtolower($repo_parts[1]);
+            }
+        }
+        
+        if (empty($plugin_slug)) {
+            return '';
+        }
+        
+        // Prova prima con lo slug come nome file
+        $possible_files = array(
+            $plugin_slug . '.php',
+            basename($repo) . '.php'
+        );
+        
+        // Aggiungi anche il nome del repository originale
+        $repo_parts = explode('/', $repo);
+        if (count($repo_parts) === 2) {
+            $possible_files[] = $repo_parts[1] . '.php';
+        }
+        
+        // Prova a ottenere il contenuto del file principale
+        foreach ($possible_files as $file_path) {
+            $api_url = "https://api.github.com/repos/{$repo}/contents/{$file_path}";
+            if (!empty($commit_sha)) {
+                $api_url .= "?ref={$commit_sha}";
+            } else {
+                $api_url .= "?ref={$branch}";
+            }
+            
+            $args = array(
+                'headers' => array(
+                    'Accept' => 'application/vnd.github.v3+json',
+                    'User-Agent' => 'FP-Git-Updater/' . FP_GIT_UPDATER_VERSION,
+                ),
+                'timeout' => 30,
+            );
+            
+            // Usa token globale se disponibile
+            $settings = get_option('fp_git_updater_settings', array());
+            if (!empty($settings['global_github_token'])) {
+                $encryption = Encryption::get_instance();
+                $token = $encryption->decrypt($settings['global_github_token']);
+                if ($token !== false && !empty($token)) {
+                    $args['headers']['Authorization'] = 'token ' . $token;
+                }
+            }
+            
+            $response = wp_remote_get($api_url, $args);
+            
+            if (!is_wp_error($response)) {
+                $code = wp_remote_retrieve_response_code($response);
+                if ($code === 200) {
+                    $body = wp_remote_retrieve_body($response);
+                    $data = json_decode($body, true);
+                    
+                    if (isset($data['content']) && isset($data['encoding'])) {
+                        // Decodifica il contenuto (base64)
+                        $content = base64_decode($data['content']);
+                        
+                        // Leggi solo le prime 8KB per l'header
+                        $header_content = substr($content, 0, 8192);
+                        
+                        // Cerca la versione nell'header
+                        if (preg_match('/Version:\s*([^\n\r]+)/i', $header_content, $matches)) {
+                            return trim($matches[1]);
+                        }
+                    }
+                }
+            }
+        }
+        
+        return '';
+    }
+    
+    /**
      * Controlla se ci sono aggiornamenti per un plugin specifico
      */
     private function check_plugin_for_updates($plugin) {
@@ -294,6 +619,9 @@ class Updater {
             'branch' => isset($plugin['branch']) ? $plugin['branch'] : 'main'
         ));
         
+        // Ottieni versione installata corrente
+        $current_version = $this->get_installed_plugin_version($plugin);
+        
         $latest_commit = $this->get_latest_commit($plugin);
         
         if (is_wp_error($latest_commit)) {
@@ -313,12 +641,27 @@ class Updater {
         $current_commit = get_option('fp_git_updater_current_commit_' . $plugin['id'], '');
         
         if ($latest_commit !== $current_commit) {
+            // Ottieni versione disponibile su GitHub
+            $available_version = $this->get_github_plugin_version($plugin, $latest_commit);
+            
+            // Aggiorna la cache della versione GitHub (validità 5 minuti)
+            if (!empty($available_version)) {
+                set_transient('fp_git_updater_github_version_' . $plugin['id'], $available_version, 300);
+            }
+            
             Logger::log('info', 'Nuovo aggiornamento disponibile per ' . $plugin['name'], array(
                 'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
                 'current_commit' => $current_commit ? substr($current_commit, 0, 7) : 'none',
                 'latest_commit' => substr($latest_commit, 0, 7),
+                'current_version' => $current_version,
+                'available_version' => $available_version,
                 'repository' => $plugin['github_repo']
             ));
+            
+            // Salva versione corrente se non già salvata
+            if (!empty($current_version)) {
+                update_option('fp_git_updater_current_version_' . $plugin['id'], $current_version);
+            }
             
             // Registra l'aggiornamento come pending
             $commit_short = substr($latest_commit, 0, 7);
@@ -330,6 +673,8 @@ class Updater {
                 'branch' => isset($plugin['branch']) ? $plugin['branch'] : 'main',
                 'timestamp' => current_time('mysql'),
                 'plugin_name' => $plugin['name'],
+                'current_version' => $current_version,
+                'available_version' => $available_version,
             ));
             
             // Se l'aggiornamento automatico è abilitato, eseguilo
@@ -412,7 +757,6 @@ class Updater {
     private function get_latest_commit($plugin) {
         $repo = $plugin['github_repo'];
         $branch = isset($plugin['branch']) ? $plugin['branch'] : 'main';
-        $encrypted_token = isset($plugin['github_token']) ? $plugin['github_token'] : '';
         
         // Valida repository
         $repo_validation = $this->validate_repository($repo);
@@ -437,10 +781,11 @@ class Updater {
             'timeout' => 30,
         );
         
-        // Decripta e aggiungi il token se presente
-        if (!empty($encrypted_token)) {
+        // Usa token globale se disponibile
+        $settings = get_option('fp_git_updater_settings', array());
+        if (!empty($settings['global_github_token'])) {
             $encryption = Encryption::get_instance();
-            $token = $encryption->decrypt($encrypted_token);
+            $token = $encryption->decrypt($settings['global_github_token']);
             
             if ($token !== false && !empty($token)) {
                 $args['headers']['Authorization'] = 'token ' . $token;
@@ -552,7 +897,6 @@ class Updater {
             
             $repo = $plugin['github_repo'];
             $branch = isset($plugin['branch']) ? $plugin['branch'] : 'main';
-            $encrypted_token = isset($plugin['github_token']) ? $plugin['github_token'] : '';
 
             // Supporto modalità semplice: URL ZIP pubblico opzionale
             $zip_url = isset($plugin['zip_url']) ? trim($plugin['zip_url']) : '';
@@ -585,30 +929,29 @@ class Updater {
                     ),
                 );
 
-                // Se c'è un token, usa l'API GitHub (per repository privati)
-                if (!empty($encrypted_token)) {
+                // Ottieni token globale
+                $settings = get_option('fp_git_updater_settings', array());
+                $has_token = false;
+                
+                if (!empty($settings['global_github_token'])) {
                     $encryption = Encryption::get_instance();
-                    $token = $encryption->decrypt($encrypted_token);
+                    $token = $encryption->decrypt($settings['global_github_token']);
                     if ($token !== false && !empty($token)) {
                         // Usa API zipball con autenticazione per repository privati
                         $download_url = "https://api.github.com/repos/{$repo}/zipball/{$branch}";
                         $args['headers']['Accept'] = 'application/vnd.github.v3+json';
                         $args['headers']['Authorization'] = 'token ' . $token;
-                        Logger::log('info', 'Usando API GitHub con token per repository privato', array(
+                        $has_token = true;
+                        Logger::log('info', 'Usando API GitHub con token globale per repository', array(
                             'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
                             'repository' => $repo,
                             'branch' => $branch,
                             'token_prefix' => substr($token, 0, 4) . '...' // Log solo prefisso per sicurezza
                         ));
-                    } else {
-                        // Token decryption failed, fallback a URL pubblico
-                        $download_url = "https://github.com/{$repo}/archive/refs/heads/{$branch}.zip";
-                        Logger::log('warning', 'Token decryption fallito, uso URL pubblico', array(
-                            'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
-                            'repository' => $repo
-                        ));
                     }
-                } else {
+                }
+                
+                if (!$has_token) {
                     // Repository pubblico: usa URL diretto senza API (no autenticazione richiesta)
                     $download_url = "https://github.com/{$repo}/archive/refs/heads/{$branch}.zip";
                     Logger::log('info', 'Repository pubblico, usando URL diretto GitHub (nessun token)', array(
@@ -669,9 +1012,12 @@ class Updater {
                 $response_message = wp_remote_retrieve_response_message($response);
                 $response_body = wp_remote_retrieve_body($response);
                 
-                // Se errore 401 e abbiamo un token, prova fallback a URL pubblico
+                // Se errore 401 e abbiamo un token globale, prova fallback a URL pubblico
                 // (potrebbe essere un repository pubblico con token non valido)
-                if ($response_code === 401 && !empty($encrypted_token) && !empty($repo)) {
+                $settings = get_option('fp_git_updater_settings', array());
+                $has_global_token = !empty($settings['global_github_token']);
+                
+                if ($response_code === 401 && $has_global_token && !empty($repo)) {
                     Logger::log('warning', 'Token GitHub non valido o scaduto (401). Tentativo fallback a URL pubblico...', array(
                         'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
                         'plugin_name' => isset($plugin['name']) ? $plugin['name'] : 'unknown',
@@ -1106,11 +1452,25 @@ class Updater {
         // Salva il commit corrente per questo plugin
         if ($commit_sha) {
             update_option('fp_git_updater_current_commit_' . $plugin['id'], $commit_sha);
+            
+            // Salva anche la nuova versione installata
+            $new_version = $this->get_installed_plugin_version($plugin);
+            if (!empty($new_version)) {
+                update_option('fp_git_updater_current_version_' . $plugin['id'], $new_version);
+                // Aggiorna anche la cache della versione GitHub (ora dovrebbe corrispondere)
+                set_transient('fp_git_updater_github_version_' . $plugin['id'], $new_version, 300);
+            }
         } else if (!empty($plugin['github_repo'])) {
             // Solo se abbiamo un repo configurato
             $latest_commit = $this->get_latest_commit($plugin);
             if (!is_wp_error($latest_commit)) {
                 update_option('fp_git_updater_current_commit_' . $plugin['id'], $latest_commit);
+                
+                // Salva anche la nuova versione installata
+                $new_version = $this->get_installed_plugin_version($plugin);
+                if (!empty($new_version)) {
+                    update_option('fp_git_updater_current_version_' . $plugin['id'], $new_version);
+                }
             }
         } else {
             // Modalità ZIP-only: salva un identificatore sintetico basato su timestamp

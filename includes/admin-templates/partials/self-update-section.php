@@ -18,6 +18,60 @@ use FP\GitUpdater\Updater;
 
 $updater = Updater::get_instance();
 $self_pending = get_option('fp_git_updater_pending_update_fp_git_updater_self');
+
+// Recupera le impostazioni per ottenere il repository del plugin stesso
+$settings = get_option('fp_git_updater_settings', array());
+$plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
+
+// Trova il plugin FP Git Updater nella lista dei plugin gestiti
+$self_plugin = null;
+foreach ($plugins as $plugin) {
+    if (isset($plugin['id']) && $plugin['id'] === 'fp_git_updater_self') {
+        $self_plugin = $plugin;
+        break;
+    }
+    // Fallback: controlla se il repository è quello del plugin stesso
+    if (isset($plugin['github_repo'])) {
+        $repo_lower = strtolower($plugin['github_repo']);
+        if ($repo_lower === 'franpass87/fp-git-updater' || $repo_lower === 'franpass87/fp-git-updater') {
+            $self_plugin = $plugin;
+            break;
+        }
+    }
+}
+
+// Se non trovato, crea un array di default per il plugin stesso
+if (!$self_plugin) {
+    $self_plugin = array(
+        'id' => 'fp_git_updater_self',
+        'github_repo' => 'FranPass87/FP-GIT-Updater',
+        'branch' => 'main',
+        'enabled' => true
+    );
+}
+
+// Ottieni versione GitHub
+$github_version = '';
+if ($self_pending && !empty($self_pending['available_version'])) {
+    // Usa la versione già recuperata nell'aggiornamento pending
+    $github_version = $self_pending['available_version'];
+} else {
+    // Controlla se abbiamo una versione GitHub salvata in cache (validità 5 minuti)
+    $cached_github_version = get_transient('fp_git_updater_github_version_' . $self_plugin['id']);
+    if ($cached_github_version !== false) {
+        $github_version = $cached_github_version;
+    } elseif (!empty($self_plugin['github_repo'])) {
+        // Recupera la versione GitHub solo se non in cache
+        $github_version = $updater->get_github_plugin_version($self_plugin);
+        // Salva in cache per 5 minuti (300 secondi)
+        if (!empty($github_version)) {
+            set_transient('fp_git_updater_github_version_' . $self_plugin['id'], $github_version, 300);
+        }
+    }
+}
+
+// Determina se le versioni sono diverse
+$versions_differ = !empty($current_version) && !empty($github_version) && version_compare($current_version, $github_version, '<');
 ?>
 
 <div class="fp-git-updater-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">
@@ -26,16 +80,39 @@ $self_pending = get_option('fp_git_updater_pending_update_fp_git_updater_self');
         <?php _e('Auto-aggiornamento FP Git Updater', 'fp-git-updater'); ?>
     </h2>
     
-    <div style="display: flex; align-items: center; gap: 20px; margin-top: 15px;">
-        <div>
-            <strong><?php _e('Versione Attuale:', 'fp-git-updater'); ?></strong> 
-            <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 3px; font-family: monospace;">
-                <?php echo esc_html($current_version); ?>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 20px; margin-top: 15px;">
+        <!-- Versioni -->
+        <div style="background: rgba(255,255,255,0.15); padding: 10px 15px; border-radius: 5px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; font-size: 13px;">
+            <span style="font-weight: 600; white-space: nowrap;">
+                <?php _e('Versione:', 'fp-git-updater'); ?>
             </span>
+            <span style="white-space: nowrap;">
+                <strong><?php _e('Installata:', 'fp-git-updater'); ?></strong>
+                <code style="background: rgba(0,0,0,0.2); padding: 3px 8px; border-radius: 3px; font-family: monospace; margin-left: 5px;">
+                    <?php echo esc_html($current_version); ?>
+                </code>
+            </span>
+            <span style="white-space: nowrap;">
+                <strong><?php _e('GitHub:', 'fp-git-updater'); ?></strong>
+                <code style="background: rgba(0,0,0,0.2); padding: 3px 8px; border-radius: 3px; font-family: monospace; margin-left: 5px; <?php echo $versions_differ ? 'color: #ffd700; border: 1px solid #ffd700;' : 'color: #90EE90;'; ?>">
+                    <?php echo !empty($github_version) ? esc_html($github_version) : '—'; ?>
+                </code>
+            </span>
+            <?php if ($versions_differ): ?>
+                <span style="white-space: nowrap; color: #ffd700;">
+                    <span class="dashicons dashicons-warning" style="font-size: 16px; vertical-align: middle;"></span>
+                    <?php printf(__('Aggiornamento disponibile: %s → %s', 'fp-git-updater'), esc_html($current_version), esc_html($github_version)); ?>
+                </span>
+            <?php elseif (!empty($current_version) && !empty($github_version) && $current_version === $github_version): ?>
+                <span style="white-space: nowrap; color: #90EE90;">
+                    <span class="dashicons dashicons-yes-alt" style="font-size: 16px; vertical-align: middle;"></span>
+                    <?php _e('Plugin aggiornato all\'ultima versione', 'fp-git-updater'); ?>
+                </span>
+            <?php endif; ?>
         </div>
         
         <?php if ($self_update_info): ?>
-            <div>
+            <div style="white-space: nowrap;">
                 <strong><?php _e('Ultimo Aggiornamento:', 'fp-git-updater'); ?></strong> 
                 <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 3px;">
                     <?php echo esc_html($self_update_info['timestamp']); ?>

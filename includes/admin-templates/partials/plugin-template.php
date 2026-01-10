@@ -42,14 +42,10 @@ if (!defined('ABSPATH')) {
                     <th><label><?php _e('Repository GitHub', 'fp-git-updater'); ?></label></th>
                     <td>
                         <?php 
-                        $current_settings = get_option('fp_git_updater_settings', array());
-                        $has_default_username = !empty($current_settings['default_github_username']);
-                        $repo_placeholder_new = $has_default_username 
-                            ? sprintf(__('FP-Forms oppure %s/FP-Forms', 'fp-git-updater'), $current_settings['default_github_username'])
-                            : 'username/repository';
-                        $repo_description_new = $has_default_username
-                            ? sprintf(__('Inserisci solo il nome (es: FP-Forms) o il formato completo. Username predefinito: <strong>%s</strong>', 'fp-git-updater'), $current_settings['default_github_username'])
-                            : __('Es: tuousername/mio-plugin', 'fp-git-updater');
+                        // Username hardcodato a FranPass87
+                        $default_username = 'FranPass87';
+                        $repo_placeholder_new = sprintf(__('FP-Forms oppure %s/FP-Forms', 'fp-git-updater'), $default_username);
+                        $repo_description_new = sprintf(__('Inserisci solo il nome (es: FP-Forms) o il formato completo. Username predefinito: <strong>%s</strong>', 'fp-git-updater'), $default_username);
                         ?>
                         <div style="display: flex; gap: 10px; align-items: flex-start;">
                             <input type="text" 
@@ -58,15 +54,13 @@ if (!defined('ABSPATH')) {
                                    class="regular-text fp-repo-input" 
                                    data-index="{{INDEX}}"
                                    placeholder="<?php echo esc_attr($repo_placeholder_new); ?>" required>
-                            <?php if ($has_default_username): ?>
-                                <button type="button" 
-                                        class="button fp-load-repos-btn" 
-                                        data-index="{{INDEX}}"
-                                        title="<?php esc_attr_e('Carica repository da GitHub', 'fp-git-updater'); ?>">
-                                    <span class="dashicons dashicons-download" style="margin-top: 3px;"></span>
-                                    <?php _e('Carica dalla lista', 'fp-git-updater'); ?>
-                                </button>
-                            <?php endif; ?>
+                            <button type="button" 
+                                    class="button fp-load-repos-btn" 
+                                    data-index="{{INDEX}}"
+                                    title="<?php esc_attr_e('Carica repository da GitHub', 'fp-git-updater'); ?>">
+                                <span class="dashicons dashicons-download" style="margin-top: 3px;"></span>
+                                <?php _e('Carica dalla lista', 'fp-git-updater'); ?>
+                            </button>
                         </div>
                         <p class="description"><?php echo $repo_description_new; ?></p>
                     </td>
@@ -102,17 +96,6 @@ if (!defined('ABSPATH')) {
                                value="" 
                                class="regular-text" placeholder="https://.../package.zip">
                         <p class="description"><?php _e('Se impostato, l\'aggiornamento userà direttamente questo ZIP senza token.', 'fp-git-updater'); ?></p>
-                    </td>
-                </tr>
-                <tr>
-                    <th><label><?php _e('GitHub Token', 'fp-git-updater'); ?></label></th>
-                    <td>
-                        <input type="password" 
-                               name="fp_git_updater_settings[plugins][{{INDEX}}][github_token]" 
-                               value="" 
-                               class="regular-text" 
-                               placeholder="ghp_...">
-                        <p class="description"><?php _e('Opzionale, per repository privati', 'fp-git-updater'); ?></p>
                     </td>
                 </tr>
                 <tr>

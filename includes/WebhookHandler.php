@@ -173,16 +173,25 @@ class WebhookHandler {
             'message' => $commit_message,
         ));
         
-            // Registra l'aggiornamento disponibile
-            update_option('fp_git_updater_pending_update_' . $matched_plugin['id'], array(
-                'commit_sha' => $commit_sha,
-                'commit_sha_short' => $commit_sha_short,
-                'commit_message' => $commit_message,
-                'commit_author' => $commit_author,
-                'branch' => $branch,
-                'timestamp' => current_time('mysql'),
-                'plugin_name' => $matched_plugin['name'],
-            ));
+        // Ottieni versioni corrente e disponibile
+        $updater = Updater::get_instance();
+        
+        // Ora i metodi sono pubblici, possiamo chiamarli direttamente
+        $current_version = $updater->get_installed_plugin_version($matched_plugin);
+        $available_version = $updater->get_github_plugin_version($matched_plugin, $commit_sha);
+        
+        // Registra l'aggiornamento disponibile
+        update_option('fp_git_updater_pending_update_' . $matched_plugin['id'], array(
+            'commit_sha' => $commit_sha,
+            'commit_sha_short' => $commit_sha_short,
+            'commit_message' => $commit_message,
+            'commit_author' => $commit_author,
+            'branch' => $branch,
+            'timestamp' => current_time('mysql'),
+            'plugin_name' => $matched_plugin['name'],
+            'current_version' => $current_version,
+            'available_version' => $available_version,
+        ));
             
             // Se l'aggiornamento automatico è abilitato, avvia l'aggiornamento
             if (isset($settings['auto_update']) && $settings['auto_update']) {

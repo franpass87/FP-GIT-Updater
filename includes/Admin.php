@@ -119,21 +119,26 @@ class Admin {
         $output = array();
         $encryption = Encryption::get_instance();
         
-        // Sanitizza username GitHub predefinito
-        $default_github_username = isset($input['default_github_username']) ? sanitize_text_field($input['default_github_username']) : '';
-        if (!empty($default_github_username)) {
-            // Valida username (solo caratteri alfanumerici e trattini)
-            if (!preg_match('/^[a-zA-Z0-9_-]+$/', $default_github_username)) {
-                Logger::log('error', 'Username GitHub non valido: ' . $default_github_username);
+        // Username hardcodato a FranPass87
+        $output['default_github_username'] = 'FranPass87';
+        
+        // Sanitizza token GitHub globale
+        $global_github_token = isset($input['global_github_token']) ? sanitize_text_field($input['global_github_token']) : '';
+        if (!empty($global_github_token)) {
+            if (strlen($global_github_token) > 500) {
+                Logger::log('error', 'Token GitHub globale troppo lungo (max 500 caratteri)');
                 add_settings_error(
                     'fp_git_updater_settings',
-                    'invalid_github_username',
-                    sprintf(__('Username GitHub non valido: "%s". Usa solo lettere, numeri, _ e -', 'fp-git-updater'), $default_github_username)
+                    'token_too_long',
+                    __('Token GitHub globale troppo lungo. Usa un token valido.', 'fp-git-updater')
                 );
-                $default_github_username = '';
+                $global_github_token = '';
+            } elseif (!$encryption->is_encrypted($global_github_token)) {
+                $encrypted_token = $encryption->encrypt($global_github_token);
+                $global_github_token = $encrypted_token !== false ? $encrypted_token : $global_github_token;
             }
         }
-        $output['default_github_username'] = $default_github_username;
+        $output['global_github_token'] = $global_github_token;
         
         // Sanitizza la lista di plugin
         if (isset($input['plugins']) && is_array($input['plugins'])) {
@@ -144,9 +149,9 @@ class Admin {
                 $github_repo = isset($plugin['github_repo']) ? sanitize_text_field($plugin['github_repo']) : '';
                 $branch = isset($plugin['branch']) ? sanitize_text_field($plugin['branch']) : 'main';
 
-                // Auto-completa repository con username predefinito se manca lo slash
-                if (!empty($github_repo) && !empty($default_github_username) && strpos($github_repo, '/') === false) {
-                    $github_repo = $default_github_username . '/' . $github_repo;
+                // Auto-completa repository con username predefinito (FranPass87) se manca lo slash
+                if (!empty($github_repo) && strpos($github_repo, '/') === false) {
+                    $github_repo = 'FranPass87/' . $github_repo;
                     Logger::log('info', 'Repository auto-completato: ' . $github_repo);
                 }
 
@@ -211,23 +216,6 @@ class Admin {
                     }
                 }
 
-                // Cripta il token GitHub se presente
-                $github_token = isset($plugin['github_token']) ? sanitize_text_field($plugin['github_token']) : '';
-                if (!empty($github_token)) {
-                    if (strlen($github_token) > 500) {
-                        Logger::log('error', 'Token GitHub troppo lungo (max 500 caratteri)');
-                        add_settings_error(
-                            'fp_git_updater_settings',
-                            'token_too_long',
-                            __('Token GitHub troppo lungo. Usa un token valido.', 'fp-git-updater')
-                        );
-                        $github_token = '';
-                    } elseif (!$encryption->is_encrypted($github_token)) {
-                        $encrypted_token = $encryption->encrypt($github_token);
-                        $github_token = $encrypted_token !== false ? $encrypted_token : $github_token;
-                    }
-                }
-
                 // Richiede almeno una sorgente (repo o zip)
                 if (empty($github_repo) && empty($zip_url)) {
                     Logger::log('warning', 'Plugin ignorato: manca repository e URL ZIP');
@@ -247,7 +235,6 @@ class Admin {
                     'github_repo' => $github_repo,
                     'plugin_slug' => $plugin_slug,
                     'branch' => $branch,
-                    'github_token' => $github_token,
                     'zip_url' => $zip_url,
                     'enabled' => isset($plugin['enabled']) ? true : false,
                 );
@@ -405,6 +392,14 @@ class Admin {
                         <?php foreach ($pending_updates as $pending): ?>
                             <li>
                                 <strong><?php echo esc_html($pending['plugin_name']); ?></strong> - 
+                                <?php 
+                                $current_version = isset($pending['current_version']) ? $pending['current_version'] : '';
+                                $available_version = isset($pending['available_version']) ? $pending['available_version'] : '';
+                                if (!empty($current_version) && !empty($available_version)): ?>
+                                    Versione: <strong><?php echo esc_html($current_version); ?></strong> → <strong style="color: #d63638;"><?php echo esc_html($available_version); ?></strong> - 
+                                <?php elseif (!empty($available_version)): ?>
+                                    Nuova versione: <strong style="color: #d63638;"><?php echo esc_html($available_version); ?></strong> - 
+                                <?php endif; ?>
                                 Commit: <code><?php echo esc_html($pending['commit_sha_short']); ?></code>
                                 <?php if (!empty($pending['commit_message']) && $pending['commit_message'] !== 'Aggiornamento rilevato dal controllo schedulato'): ?>
                                     <br><em style="color: #666;"><?php echo esc_html($pending['commit_message']); ?></em>
@@ -553,17 +548,6 @@ class Admin {
                                             </td>
                                         </tr>
                                         <tr>
-                                            <th><label>GitHub Token</label></th>
-                                            <td>
-                                                <input type="password" 
-                                                       name="fp_git_updater_settings[plugins][<?php echo $index; ?>][github_token]" 
-                                                       value="<?php echo esc_attr($plugin['github_token']); ?>" 
-                                                       class="regular-text" 
-                                                       placeholder="ghp_...">
-                                                <p class="description">Opzionale, per repository privati</p>
-                                            </td>
-                                        </tr>
-                                        <tr>
                                             <th><label>Abilitato</label></th>
                                             <td>
                                                 <label>
@@ -654,9 +638,13 @@ class Admin {
                                     <input type="checkbox" 
                                            name="fp_git_updater_settings[enable_notifications]" 
                                            value="1" 
-                                           <?php checked($settings['enable_notifications'] ?? true, true); ?>>
-                                    Invia notifiche email per gli aggiornamenti
+                                           <?php checked($settings['enable_notifications'] ?? false, true); ?>>
+                                    Abilita notifiche email per gli aggiornamenti
                                 </label>
+                                <p class="description">
+                                    <span class="dashicons dashicons-info" style="color: #2271b1;"></span>
+                                    Le notifiche email sono <strong>disabilitate di default</strong>. Attiva questa opzione solo se desideri ricevere email quando sono disponibili nuovi aggiornamenti.
+                                </p>
                             </td>
                         </tr>
                         
@@ -1316,6 +1304,7 @@ class Admin {
         
         try {
             $updater = Updater::get_instance();
+            // Il metodo check_plugin_update_by_id invalida già la cache della versione GitHub
             $result = $updater->check_plugin_update_by_id('fp_git_updater_self');
             
             if (is_wp_error($result)) {
@@ -1353,6 +1342,9 @@ class Admin {
             if (is_wp_error($result)) {
                 wp_send_json_error(array('message' => $result->get_error_message()), 500);
             } elseif ($result) {
+                // Invalida la cache della versione GitHub dopo l'aggiornamento
+                delete_transient('fp_git_updater_github_version_fp_git_updater_self');
+                
                 wp_send_json_success(array(
                     'message' => 'Auto-aggiornamento completato con successo! La pagina verrà ricaricata.',
                     'reload' => true
@@ -1381,14 +1373,9 @@ class Admin {
             wp_die();
         }
         
-        // Ottieni username predefinito
+        // Username hardcodato a FranPass87
         $settings = get_option('fp_git_updater_settings', array());
-        $default_username = isset($settings['default_github_username']) ? $settings['default_github_username'] : '';
-        
-        if (empty($default_username)) {
-            wp_send_json_error(array('message' => 'Configura prima lo username GitHub predefinito nelle impostazioni'), 400);
-            wp_die();
-        }
+        $default_username = 'FranPass87';
         
         try {
             // Controlla cache (valida per 5 minuti)
@@ -1414,10 +1401,10 @@ class Admin {
                 )
             );
             
-            // Usa token se disponibile per aumentare rate limit
-            if (!empty($settings['github_token'])) {
+            // Usa token globale se disponibile per aumentare rate limit
+            if (!empty($settings['global_github_token'])) {
                 $encryption = Encryption::get_instance();
-                $token = $encryption->decrypt($settings['github_token']);
+                $token = $encryption->decrypt($settings['global_github_token']);
                 if (!empty($token)) {
                     $args['headers']['Authorization'] = 'token ' . $token;
                 }

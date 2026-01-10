@@ -10,35 +10,63 @@ if (!defined('ABSPATH')) {
     return;
 }
 
-$default_github_username = isset($settings['default_github_username']) ? $settings['default_github_username'] : '';
+// Username hardcodato a FranPass87
+$default_github_username = 'FranPass87';
+$global_github_token = isset($settings['global_github_token']) ? $settings['global_github_token'] : '';
 $webhook_secret = isset($settings['webhook_secret']) ? $settings['webhook_secret'] : '';
 $auto_update = isset($settings['auto_update']) ? $settings['auto_update'] : false;
 $update_check_interval = isset($settings['update_check_interval']) ? $settings['update_check_interval'] : 'hourly';
-$enable_notifications = isset($settings['enable_notifications']) ? $settings['enable_notifications'] : true;
+$enable_notifications = isset($settings['enable_notifications']) ? $settings['enable_notifications'] : false;
 $notification_email = isset($settings['notification_email']) ? $settings['notification_email'] : get_option('admin_email');
 $max_backups = isset($settings['max_backups']) ? intval($settings['max_backups']) : 5;
 $max_backup_age_days = isset($settings['max_backup_age_days']) ? intval($settings['max_backup_age_days']) : 7;
 ?>
 
-<h2><?php _e('Impostazioni Generali', 'fp-git-updater'); ?></h2>
+<div style="margin: 40px 0 25px 0;">
+    <h2 style="font-size: 22px; font-weight: 600; color: #1d2327; margin-bottom: 8px; display: flex; align-items: center; gap: 10px;">
+        <span class="dashicons dashicons-admin-settings" style="color: #2271b1; font-size: 24px;"></span>
+        <?php _e('Impostazioni Generali', 'fp-git-updater'); ?>
+    </h2>
+    <p style="font-size: 14px; color: #50575e; margin: 0;">
+        <?php _e('Configura le impostazioni principali del plugin per gestire gli aggiornamenti.', 'fp-git-updater'); ?>
+    </p>
+</div>
 
-<table class="form-table">
+<div style="background: #fff; border: 1px solid #dcdcde; border-radius: 8px; padding: 25px; box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.24);">
+<table class="form-table" style="margin: 0;">
     <tbody>
         <tr>
             <th scope="row">
-                <label for="default_github_username"><?php _e('Username GitHub Predefinito', 'fp-git-updater'); ?></label>
+                <label><?php _e('Username GitHub', 'fp-git-updater'); ?></label>
             </th>
             <td>
                 <input type="text" 
-                       id="default_github_username" 
-                       name="fp_git_updater_settings[default_github_username]" 
                        value="<?php echo esc_attr($default_github_username); ?>" 
                        class="regular-text" 
-                       placeholder="franpass87">
+                       readonly>
                 <p class="description">
                     <span class="dashicons dashicons-info" style="color: #2271b1;"></span>
-                    <?php _e('Il tuo username GitHub. Se impostato, potrai inserire solo il nome del repository (es: "FP-Forms") invece di "username/repository".', 'fp-git-updater'); ?>
+                    <?php _e('Username GitHub predefinito. Tutti i plugin utilizzano questo username.', 'fp-git-updater'); ?>
                     <?php echo \FP\GitUpdater\I18nHelper::help_link('default_github_username'); ?>
+                </p>
+            </td>
+        </tr>
+        
+        <tr>
+            <th scope="row">
+                <label for="global_github_token"><?php _e('Token GitHub Globale', 'fp-git-updater'); ?></label>
+            </th>
+            <td>
+                <input type="password" 
+                       id="global_github_token" 
+                       name="fp_git_updater_settings[global_github_token]" 
+                       value="<?php echo esc_attr($global_github_token); ?>" 
+                       class="regular-text" 
+                       placeholder="ghp_...">
+                <p class="description">
+                    <span class="dashicons dashicons-info" style="color: #2271b1;"></span>
+                    <?php _e('Token GitHub globale valido per tutti i plugin. Necessario solo per repository privati.', 'fp-git-updater'); ?>
+                    <?php echo \FP\GitUpdater\I18nHelper::help_link('github_token'); ?>
                 </p>
             </td>
         </tr>
@@ -122,8 +150,8 @@ $max_backup_age_days = isset($settings['max_backup_age_days']) ? intval($setting
                            name="fp_git_updater_settings[enable_notifications]" 
                            value="1" 
                            <?php checked($enable_notifications, true); ?>>
-                    <?php _e('Invia notifiche email per gli aggiornamenti', 'fp-git-updater'); ?>
-                </label>
+                    <?php _e('Abilita notifiche email per gli aggiornamenti', 'fp-git-updater'); ?>
+                </label>`n                <p class="description">`n                    <span class="dashicons dashicons-info" style="color: #2271b1;"></span>`n                    <?php _e('Le notifiche email sono <strong>disabilitate di default</strong>. Attiva questa opzione solo se desideri ricevere email quando sono disponibili nuovi aggiornamenti.', 'fp-git-updater'); ?>`n                </p>
             </td>
         </tr>
         
@@ -141,69 +169,6 @@ $max_backup_age_days = isset($settings['max_backup_age_days']) ? intval($setting
         </tr>
     </tbody>
 </table>
+</div>
 
-<h2><?php _e('Gestione Backup', 'fp-git-updater'); ?></h2>
-<p class="description">
-    <?php _e('Configura i limiti per i backup automatici per evitare di saturare lo spazio disco.', 'fp-git-updater'); ?>
-</p>
 
-<table class="form-table">
-    <tbody>
-        <tr>
-            <th scope="row">
-                <label for="max_backups"><?php _e('Numero Massimo Backup', 'fp-git-updater'); ?></label>
-            </th>
-            <td>
-                <input type="number" 
-                       id="max_backups" 
-                       name="fp_git_updater_settings[max_backups]" 
-                       value="<?php echo esc_attr($max_backups); ?>" 
-                       class="small-text" 
-                       min="1" 
-                       max="20" 
-                       step="1">
-                <p class="description">
-                    <span class="dashicons dashicons-info" style="color: #2271b1;"></span>
-                    <?php _e('Numero massimo di backup da mantenere. I backup più vecchi verranno eliminati automaticamente. (Consigliato: 5)', 'fp-git-updater'); ?>
-                </p>
-            </td>
-        </tr>
-        
-        <tr>
-            <th scope="row">
-                <label for="max_backup_age_days"><?php _e('Età Massima Backup (giorni)', 'fp-git-updater'); ?></label>
-            </th>
-            <td>
-                <input type="number" 
-                       id="max_backup_age_days" 
-                       name="fp_git_updater_settings[max_backup_age_days]" 
-                       value="<?php echo esc_attr($max_backup_age_days); ?>" 
-                       class="small-text" 
-                       min="1" 
-                       max="30" 
-                       step="1">
-                <p class="description">
-                    <span class="dashicons dashicons-info" style="color: #2271b1;"></span>
-                    <?php _e('I backup più vecchi di questo numero di giorni verranno eliminati automaticamente. (Consigliato: 7)', 'fp-git-updater'); ?>
-                </p>
-            </td>
-        </tr>
-        
-        <tr>
-            <th scope="row"><?php _e('Statistiche Backup', 'fp-git-updater'); ?></th>
-            <td>
-                <div id="fp-backup-stats" style="background: #f9f9f9; padding: 15px; border: 1px solid #ddd; border-radius: 4px;">
-                    <p><strong><?php _e('Caricamento statistiche...', 'fp-git-updater'); ?></strong></p>
-                </div>
-                <p>
-                    <button type="button" class="button" id="fp-refresh-backup-stats">
-                        <span class="dashicons dashicons-update"></span> <?php _e('Aggiorna Statistiche', 'fp-git-updater'); ?>
-                    </button>
-                    <button type="button" class="button button-secondary" id="fp-cleanup-backups-now">
-                        <span class="dashicons dashicons-trash"></span> <?php _e('Pulisci Backup Vecchi Ora', 'fp-git-updater'); ?>
-                    </button>
-                </p>
-            </td>
-        </tr>
-    </tbody>
-</table>
