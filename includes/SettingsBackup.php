@@ -198,7 +198,7 @@ class SettingsBackup {
     public function show_restore_notice() {
         ?>
         <div class="notice notice-success is-dismissible">
-            <p><strong>FP Git Updater:</strong> Le tue impostazioni sono state ripristinate automaticamente dal backup dopo l'aggiornamento.</p>
+            <p><strong>FP Updater:</strong> Le tue impostazioni sono state ripristinate automaticamente dal backup dopo l'aggiornamento.</p>
         </div>
         <?php
     }
@@ -209,7 +209,7 @@ class SettingsBackup {
     public function show_restore_failed_notice() {
         ?>
         <div class="notice notice-error">
-            <p><strong>FP Git Updater:</strong> Non è stato possibile ripristinare le impostazioni automaticamente. Vai su <a href="<?php echo admin_url('admin.php?page=fp-git-updater-backup'); ?>">Backup e Ripristino</a> per un ripristino manuale.</p>
+            <p><strong>FP Updater:</strong> Non è stato possibile ripristinare le impostazioni automaticamente. Vai su <a href="<?php echo admin_url('admin.php?page=fp-git-updater-backup'); ?>">Backup e Ripristino</a> per un ripristino manuale.</p>
         </div>
         <?php
     }

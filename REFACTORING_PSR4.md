@@ -1,4 +1,4 @@
-# Refactoring PSR-4 - FP Git Updater
+# Refactoring PSR-4 - FP Updater
 
 ## 📋 Riepilogo Modifiche
 

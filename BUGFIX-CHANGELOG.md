@@ -1,4 +1,4 @@
-# Bugfix Changelog - FP Git Updater v1.2.0
+# Bugfix Changelog - FP Updater v1.2.0
 
 ## 🐛 Bug Corretti
 

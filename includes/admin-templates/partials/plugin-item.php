@@ -14,14 +14,13 @@ if (!defined('ABSPATH')) {
 ?>
 
 <div class="fp-plugin-item <?php echo $has_pending_update ? 'has-update' : ''; ?>" 
-     data-index="<?php echo $index; ?>" 
-     <?php echo $has_pending_update ? 'style="border-left: 4px solid #d63638;"' : ''; ?>>
+     data-index="<?php echo $index; ?>">
     
     <div class="fp-plugin-header">
         <h3>
             <?php echo esc_html($plugin['name']); ?>
             <?php if ($has_pending_update): ?>
-                <span class="log-badge" style="background: #d63638; margin-left: 10px;">
+                <span class="log-badge log-badge-error">
                     <?php _e('AGGIORNAMENTO DISPONIBILE', 'fp-git-updater'); ?>
                 </span>
             <?php endif; ?>
@@ -37,42 +36,13 @@ if (!defined('ABSPATH')) {
     </div>
     
     <?php if ($has_pending_update && $pending_info): ?>
-        <div class="fp-notice fp-notice-error" style="margin: 0; border-left-color: #d63638; background: linear-gradient(to right, #fcf0f1 0%, #fff 10%);">
-            <p style="margin: 0;">
-                <strong>
-                    <span class="dashicons dashicons-update" style="font-size: 18px; vertical-align: middle;"></span>
-                    <?php _e('Nuovo aggiornamento pronto!', 'fp-git-updater'); ?>
-                </strong>
-                <div style="margin-top: 10px; padding-left: 26px; font-size: 13px; line-height: 1.8;">
-                    <?php 
-                    $current_version = isset($pending_info['current_version']) ? $pending_info['current_version'] : get_option('fp_git_updater_current_version_' . $plugin['id'], '');
-                    $available_version = isset($pending_info['available_version']) ? $pending_info['available_version'] : '';
-                    ?>
-                    <?php if (!empty($current_version) && !empty($available_version)): ?>
-                        <div>
-                            <strong><?php _e('Versione:', 'fp-git-updater'); ?></strong> 
-                            <code style="background: #fff; padding: 3px 8px; border-radius: 4px; border: 1px solid #dcdcde;"><?php echo esc_html($current_version); ?></code> 
-                            <span style="margin: 0 8px; color: #d63638;">→</span>
-                            <code style="background: #fff; padding: 3px 8px; border-radius: 4px; border: 1px solid #d63638; color: #d63638; font-weight: 600;"><?php echo esc_html($available_version); ?></code>
-                        </div>
-                    <?php elseif (!empty($available_version)): ?>
-                        <div>
-                            <strong><?php _e('Nuova versione:', 'fp-git-updater'); ?></strong> 
-                            <code style="background: #fff; padding: 3px 8px; border-radius: 4px; border: 1px solid #d63638; color: #d63638; font-weight: 600;"><?php echo esc_html($available_version); ?></code>
-                        </div>
-                    <?php endif; ?>
-                    <div style="margin-top: 8px;">
-                        <strong><?php _e('Commit:', 'fp-git-updater'); ?></strong> 
-                        <code style="background: #f6f7f7; padding: 3px 8px; border-radius: 4px; font-family: 'Monaco', 'Menlo', monospace;"><?php echo esc_html($pending_info['commit_sha_short']); ?></code>
-                        <?php if (!empty($pending_info['commit_message']) && $pending_info['commit_message'] !== 'Aggiornamento rilevato dal controllo schedulato'): ?>
-                            <span style="color: #50575e; margin-left: 8px;">- <?php echo esc_html($pending_info['commit_message']); ?></span>
-                        <?php endif; ?>
-                    </div>
-                    <div style="margin-top: 8px; color: #50575e; font-size: 12px;">
-                        <span class="dashicons dashicons-clock" style="font-size: 14px; vertical-align: middle;"></span>
-                        <?php printf(__('Ricevuto: %s', 'fp-git-updater'), esc_html($pending_info['timestamp'])); ?>
-                    </div>
-                </div>
+        <div class="fp-notice fp-notice-error fp-plugin-update-notice">
+            <p>
+                <span class="dashicons dashicons-update"></span>
+                <strong><?php _e('Aggiornamento disponibile', 'fp-git-updater'); ?></strong>
+                <span class="fp-notice-separator">•</span>
+                <span><?php _e('Commit:', 'fp-git-updater'); ?></span>
+                <code><?php echo esc_html($pending_info['commit_sha_short']); ?></code>
             </p>
         </div>
     <?php endif; ?>
@@ -119,7 +89,7 @@ if (!defined('ABSPATH')) {
         $versions_differ = !empty($current_version) && !empty($github_version) && $current_version !== $github_version;
         ?>
         
-        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 8px; font-size: 13px;">
+        <div class="fp-plugin-meta-row">
             <span><strong><?php _e('Repository:', 'fp-git-updater'); ?></strong> <code><?php echo esc_html($plugin['github_repo']); ?></code></span>
             <span><strong><?php _e('Branch:', 'fp-git-updater'); ?></strong> <code><?php echo esc_html($plugin['branch']); ?></code></span>
             <span class="fp-plugin-status <?php echo $plugin['enabled'] ? 'enabled' : 'disabled'; ?>">
@@ -132,40 +102,35 @@ if (!defined('ABSPATH')) {
         </div>
         
         <!-- Sezione Versioni - Compatta -->
-        <div style="background: #f6f7f7; border: 1px solid #dcdcde; border-radius: 3px; padding: 8px 10px; margin: 8px 0; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; font-size: 13px;">
-            <span style="font-weight: 600; color: #1d2327; white-space: nowrap;">
-                <?php _e('Versioni:', 'fp-git-updater'); ?>
+        <div class="fp-plugin-versions-compact">
+            <span class="fp-version-label"><?php _e('Versioni:', 'fp-git-updater'); ?></span>
+            
+            <span class="fp-version-installed">
+                <strong><?php _e('Installata:', 'fp-git-updater'); ?></strong>
+                <code><?php echo !empty($current_version) ? esc_html($current_version) : '—'; ?></code>
             </span>
             
-            <!-- Versione Installata -->
-            <span style="display: inline-flex; align-items: center; gap: 4px;">
-                <span style="color: #50575e; font-size: 12px;"><?php _e('Installata', 'fp-git-updater'); ?>:</span>
-                <code style="background: #fff; padding: 3px 6px; border-radius: 2px; border-left: 3px solid #2271b1; font-size: 13px; font-weight: 600; color: #2271b1;">
-                    <?php echo !empty($current_version) ? esc_html($current_version) : '—'; ?>
-                </code>
-            </span>
-            
-            <!-- Versione GitHub -->
-            <span style="display: inline-flex; align-items: center; gap: 4px;">
-                <span style="color: #50575e; font-size: 12px;"><?php _e('GitHub', 'fp-git-updater'); ?>:</span>
-                <code style="background: #fff; padding: 3px 6px; border-radius: 2px; border-left: 3px solid <?php echo $versions_differ ? '#d63638' : '#00a32a'; ?>; font-size: 13px; font-weight: 600; color: <?php echo $versions_differ ? '#d63638' : '#00a32a'; ?>;">
+            <span class="fp-version-github">
+                <strong><?php _e('GitHub:', 'fp-git-updater'); ?></strong>
+                <code class="<?php echo $versions_differ ? 'fp-version-diff' : 'fp-version-same'; ?>" data-plugin-id="<?php echo esc_attr($plugin['id']); ?>">
                     <?php echo !empty($github_version) ? esc_html($github_version) : '—'; ?>
                 </code>
+                <button type="button" 
+                        class="button button-small fp-refresh-github-version" 
+                        data-plugin-id="<?php echo esc_attr($plugin['id']); ?>"
+                        title="<?php esc_attr_e('Aggiorna versione GitHub', 'fp-git-updater'); ?>">
+                    <span class="dashicons dashicons-update"></span>
+                </button>
             </span>
             
-            <!-- Indicatore differenza versioni inline -->
             <?php if ($versions_differ): ?>
-                <span style="margin-left: auto; color: #d63638; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
-                    <span class="dashicons dashicons-update" style="font-size: 14px;"></span>
-                    <?php printf(
-                        __('%s → %s', 'fp-git-updater'),
-                        esc_html($current_version),
-                        '<strong>' . esc_html($github_version) . '</strong>'
-                    ); ?>
+                <span class="fp-version-status fp-version-status-update">
+                    <span class="dashicons dashicons-update"></span>
+                    <?php printf(__('%s → %s', 'fp-git-updater'), esc_html($current_version), '<strong>' . esc_html($github_version) . '</strong>'); ?>
                 </span>
             <?php elseif (!empty($current_version) && !empty($github_version) && $current_version === $github_version): ?>
-                <span style="margin-left: auto; color: #00a32a; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;">
-                    <span class="dashicons dashicons-yes-alt" style="font-size: 14px;"></span>
+                <span class="fp-version-status fp-version-status-ok">
+                    <span class="dashicons dashicons-yes-alt"></span>
                     <?php _e('Aggiornato', 'fp-git-updater'); ?>
                 </span>
             <?php endif; ?>
@@ -178,8 +143,7 @@ if (!defined('ABSPATH')) {
         </button>
         <button type="button" 
                 class="button button-small <?php echo $has_pending_update ? 'button-primary' : ''; ?> fp-install-update" 
-                data-plugin-id="<?php echo esc_attr($plugin['id']); ?>" 
-                <?php echo $has_pending_update ? 'style="animation: pulse 2s infinite;"' : ''; ?>>
+                data-plugin-id="<?php echo esc_attr($plugin['id']); ?>">
             <span class="dashicons dashicons-<?php echo $has_pending_update ? 'download' : 'update'; ?>"></span> 
             <?php echo $has_pending_update 
                 ? __('Installa Aggiornamento Ora', 'fp-git-updater')
@@ -188,7 +152,7 @@ if (!defined('ABSPATH')) {
         </button>
     </div>
     
-    <div id="plugin-details-<?php echo $index; ?>" class="fp-plugin-details" style="display: none;">
+    <div id="plugin-details-<?php echo $index; ?>" class="fp-plugin-details">
         <input type="hidden" name="fp_git_updater_settings[plugins][<?php echo $index; ?>][id]" value="<?php echo esc_attr($plugin['id']); ?>">
         
         <table class="form-table">
@@ -210,7 +174,7 @@ if (!defined('ABSPATH')) {
                     $repo_placeholder = sprintf(__('FP-Forms oppure %s/FP-Forms', 'fp-git-updater'), $default_username);
                     $repo_description = sprintf(__('Inserisci solo il nome (es: FP-Forms) o il formato completo. Username predefinito: <strong>%s</strong>', 'fp-git-updater'), $default_username);
                     ?>
-                    <div style="display: flex; gap: 10px; align-items: flex-start;">
+                    <div class="fp-input-group">
                         <input type="text" 
                                name="fp_git_updater_settings[plugins][<?php echo $index; ?>][github_repo]" 
                                value="<?php echo esc_attr($plugin['github_repo']); ?>" 
@@ -221,7 +185,7 @@ if (!defined('ABSPATH')) {
                                 class="button fp-load-repos-btn" 
                                 data-index="<?php echo $index; ?>"
                                 title="<?php esc_attr_e('Carica repository da GitHub', 'fp-git-updater'); ?>">
-                            <span class="dashicons dashicons-download" style="margin-top: 3px;"></span>
+                            <span class="dashicons dashicons-download"></span>
                             <?php _e('Carica dalla lista', 'fp-git-updater'); ?>
                         </button>
                     </div>

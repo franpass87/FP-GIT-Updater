@@ -1,8 +1,8 @@
-# Copyright (C) 2025 FP Git Updater
+# Copyright (C) 2025 FP Updater
 # This file is distributed under the GPL v2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: FP Git Updater 1.2.0\n"
+"Project-Id-Version: FP Updater 1.2.0\n"
 "Report-Msgid-Bugs-To: info@francescopasseri.com\n"
 "POT-Creation-Date: 2025-10-11 16:00+0000\n"
 "MIME-Version: 1.0\n"
@@ -21,7 +21,7 @@ msgid "Impostazioni"
 msgstr ""
 
 #: includes/admin-templates/settings-page.php:19
-msgid "FP Git Updater - Impostazioni"
+msgid "FP Updater - Impostazioni"
 msgstr ""
 
 #: includes/admin-templates/settings-page.php:26

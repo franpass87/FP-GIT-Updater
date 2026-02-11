@@ -1,5 +1,5 @@
 /**
- * FP Git Updater - Admin JavaScript
+ * FP Updater - Admin JavaScript
  */
 
 (function($) {
@@ -58,8 +58,20 @@
         });
         
         // Inizializzazione al caricamento della pagina
+        // Flag per evitare doppia esecuzione
+        let tabsInitialized = false;
+        
         // Funzione helper per inizializzare i tab
         function initTabs() {
+            // Evita doppia esecuzione se già inizializzato correttamente
+            if (tabsInitialized) {
+                // Verifica solo se i tab sono ancora nello stato corretto
+                const activeTab = $('.fp-tab-content.active');
+                if (activeTab.length === 1 && activeTab.css('display') !== 'none') {
+                    return; // Già inizializzato correttamente
+                }
+            }
+            
             // Nascondi TUTTI i tab usando JavaScript (forza display: none)
             $('.fp-tab-content').each(function() {
                 $(this).css('display', 'none');
@@ -85,6 +97,8 @@
                     history.pushState(null, null, '#plugins');
                 }
             }
+            
+            tabsInitialized = true;
         }
         
         // Esegui l'inizializzazione immediatamente
@@ -95,6 +109,7 @@
             // Verifica che i tab non attivi siano nascosti, altrimenti reinizializza
             const hiddenTabs = $('.fp-tab-content:not(.active)');
             if (hiddenTabs.length > 0 && hiddenTabs.filter(function() { return $(this).css('display') !== 'none'; }).length > 0) {
+                tabsInitialized = false; // Reset flag se necessario reinizializzare
                 initTabs();
             }
         }, 100);
@@ -136,7 +151,14 @@
         $(document).on('click', '.fp-toggle-plugin', function(e) {
             e.preventDefault();
             const target = $(this).data('target');
-            $('#' + target).slideToggle();
+            const $target = $('#' + target);
+            $target.toggleClass('active');
+            
+            if ($target.hasClass('active')) {
+                $target.css('display', 'block');
+            } else {
+                $target.css('display', 'none');
+            }
         });
         
         // Rimuovi plugin
@@ -251,6 +273,148 @@
                     showNotice('error', message);
                     $button.prop('disabled', false);
                     $button.html(originalText);
+                }
+            });
+        });
+        
+        // Aggiorna versione GitHub
+        $(document).on('click', '.fp-refresh-github-version', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const $button = $(this);
+            const pluginId = $button.data('plugin-id');
+            const $versionCode = $button.siblings('code');
+            const $versionContainer = $button.closest('.fp-version-github, .fp-version-item');
+            
+            // Determina se siamo nella sezione plugin o self-update
+            const $versionsCompact = $button.closest('.fp-plugin-versions-compact');
+            const $versionBox = $button.closest('.fp-version-box');
+            const isSelfUpdate = $versionBox.length > 0;
+            
+            const originalHtml = $button.html();
+            const originalVersion = $versionCode.text();
+            
+            $button.prop('disabled', true);
+            $button.addClass('spin');
+            $button.html('<span class="dashicons dashicons-update"></span>');
+            $versionCode.text('...');
+            
+            $.ajax({
+                url: fpGitUpdater.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'fp_git_updater_refresh_github_version',
+                    plugin_id: pluginId,
+                    nonce: fpGitUpdater.nonce
+                },
+                timeout: 30000, // 30 secondi
+                success: function(response) {
+                    if (response.success) {
+                        const githubVersion = response.data.github_version || '—';
+                        const currentVersion = response.data.current_version || '';
+                        
+                        // Aggiorna il codice versione GitHub
+                        $versionCode.text(githubVersion);
+                        
+                        // Aggiorna lo stato delle versioni
+                        const versionsDiffer = currentVersion && githubVersion && currentVersion !== githubVersion;
+                        
+                        if (versionsDiffer) {
+                            $versionCode.removeClass('fp-version-same').addClass('fp-version-diff');
+                        } else if (currentVersion === githubVersion) {
+                            $versionCode.removeClass('fp-version-diff').addClass('fp-version-same');
+                        } else {
+                            $versionCode.removeClass('fp-version-diff fp-version-same');
+                        }
+                        
+                        // Aggiorna lo stato nella sezione versioni (plugin item o self-update)
+                        let $status;
+                        if (isSelfUpdate) {
+                            $status = $versionBox.find('.fp-version-status');
+                        } else {
+                            $status = $versionsCompact.find('.fp-version-status');
+                        }
+                        
+                        if (versionsDiffer) {
+                            if ($status.length === 0) {
+                                $status = $('<span class="fp-version-status fp-version-status-update"><span class="dashicons dashicons-warning"></span></span>');
+                                if (isSelfUpdate) {
+                                    $versionBox.append($status);
+                                } else {
+                                    $versionsCompact.append($status);
+                                }
+                            }
+                            $status.removeClass('fp-version-status-ok').addClass('fp-version-status-update');
+                            if (isSelfUpdate) {
+                                $status.html('<span class="dashicons dashicons-warning"></span> ' + 
+                                    'Aggiornamento disponibile: ' + currentVersion + ' → ' + githubVersion);
+                            } else {
+                                $status.html('<span class="dashicons dashicons-update"></span> ' + 
+                                    currentVersion + ' → <strong>' + githubVersion + '</strong>');
+                            }
+                        } else if (currentVersion === githubVersion) {
+                            if ($status.length === 0) {
+                                $status = $('<span class="fp-version-status fp-version-status-ok"><span class="dashicons dashicons-yes-alt"></span></span>');
+                                if (isSelfUpdate) {
+                                    $versionBox.append($status);
+                                } else {
+                                    $versionsCompact.append($status);
+                                }
+                            }
+                            $status.removeClass('fp-version-status-update').addClass('fp-version-status-ok');
+                            if (isSelfUpdate) {
+                                $status.html('<span class="dashicons dashicons-yes-alt"></span> ' + 
+                                    'Plugin aggiornato all\'ultima versione');
+                            } else {
+                                $status.html('<span class="dashicons dashicons-yes-alt"></span> Aggiornato');
+                            }
+                        } else {
+                            $status.remove();
+                        }
+                        
+                        // Aggiorna anche la versione installata se disponibile
+                        if (currentVersion) {
+                            if (isSelfUpdate) {
+                                const $installedCode = $versionBox.find('.fp-version-item:first code');
+                                if ($installedCode.length) {
+                                    $installedCode.text(currentVersion);
+                                }
+                            } else {
+                                const $installedCode = $versionsCompact.find('.fp-version-installed code');
+                                if ($installedCode.length && (!$installedCode.text() || $installedCode.text() === '—')) {
+                                    $installedCode.text(currentVersion);
+                                }
+                            }
+                        }
+                        
+                        showNotice('success', response.data.message || 'Versione GitHub aggiornata con successo');
+                    } else {
+                        const errorMessage = response.data.message || 'Errore durante l\'aggiornamento della versione GitHub';
+                        showNotice('error', errorMessage);
+                        $versionCode.text(originalVersion);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    let errorMessage = 'Errore durante l\'aggiornamento della versione GitHub.';
+                    if (status === 'timeout') {
+                        errorMessage = 'Timeout: la richiesta ha impiegato troppo tempo. Riprova.';
+                    } else if (xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
+                        errorMessage = xhr.responseJSON.data.message;
+                    } else if (xhr.status === 404) {
+                        errorMessage = 'Plugin non trovato. Ricarica la pagina.';
+                    } else if (xhr.status === 403) {
+                        errorMessage = 'Permessi insufficienti.';
+                    } else if (xhr.status === 500) {
+                        errorMessage = 'Errore del server. Verifica il repository e il branch.';
+                    }
+                    showNotice('error', errorMessage);
+                    $versionCode.text(originalVersion);
+                },
+                complete: function() {
+                    $button.prop('disabled', false);
+                    $button.removeClass('spin');
+                    $button.html(originalHtml);
                 }
             });
         });

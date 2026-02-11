@@ -538,7 +538,7 @@ class Updater {
             $args = array(
                 'headers' => array(
                     'Accept' => 'application/vnd.github.v3+json',
-                    'User-Agent' => 'FP-Git-Updater/' . FP_GIT_UPDATER_VERSION,
+                    'User-Agent' => 'FP-Updater/' . FP_GIT_UPDATER_VERSION,
                 ),
                 'timeout' => 30,
             );
@@ -776,7 +776,7 @@ class Updater {
         $args = array(
             'headers' => array(
                 'Accept' => 'application/vnd.github.v3+json',
-                'User-Agent' => 'FP-Git-Updater/' . FP_GIT_UPDATER_VERSION,
+                'User-Agent' => 'FP-Updater/' . FP_GIT_UPDATER_VERSION,
             ),
             'timeout' => 30,
         );
@@ -912,7 +912,7 @@ class Updater {
                     'timeout' => 300,
                     'redirection' => 5,
                     'headers' => array(
-                        'User-Agent' => 'FP-Git-Updater/' . FP_GIT_UPDATER_VERSION,
+                        'User-Agent' => 'FP-Updater/' . FP_GIT_UPDATER_VERSION,
                     ),
                 );
                 // Log se estensione non è .zip
@@ -925,7 +925,7 @@ class Updater {
                     'timeout' => 300,
                     'redirection' => 5,
                     'headers' => array(
-                        'User-Agent' => 'FP-Git-Updater/' . FP_GIT_UPDATER_VERSION,
+                        'User-Agent' => 'FP-Updater/' . FP_GIT_UPDATER_VERSION,
                     ),
                 );
 
@@ -1032,7 +1032,7 @@ class Updater {
                         'timeout' => 300,
                         'redirection' => 5,
                         'headers' => array(
-                            'User-Agent' => 'FP-Git-Updater/' . FP_GIT_UPDATER_VERSION,
+                            'User-Agent' => 'FP-Updater/' . FP_GIT_UPDATER_VERSION,
                         ),
                     );
                     
@@ -1249,7 +1249,7 @@ class Updater {
         
         // Verifica se stiamo cercando di aggiornare il plugin stesso
         if ($plugin_slug === 'fp-git-updater' || $plugin_slug === dirname(FP_GIT_UPDATER_PLUGIN_BASENAME)) {
-            Logger::log('info', 'Auto-aggiornamento del plugin FP Git Updater in corso...');
+            Logger::log('info', 'Auto-aggiornamento del plugin FP Updater in corso...');
             
             // Per l'auto-aggiornamento, usiamo un approccio più sicuro
             return $this->run_self_update($plugin, $commit_sha);
@@ -1977,7 +1977,7 @@ class Updater {
      * Usa un approccio più sicuro per evitare problemi durante l'esecuzione
      */
     private function run_self_update($plugin, $commit_sha) {
-        Logger::log('info', 'Inizio auto-aggiornamento del plugin FP Git Updater');
+        Logger::log('info', 'Inizio auto-aggiornamento del plugin FP Updater');
         
         try {
             // Crea un backup delle impostazioni prima dell'aggiornamento
@@ -1988,12 +1988,12 @@ class Updater {
             $result = $this->run_plugin_update($plugin, $commit_sha);
             
             if ($result) {
-                Logger::log('success', 'Auto-aggiornamento del plugin FP Git Updater completato con successo');
+                Logger::log('success', 'Auto-aggiornamento del plugin FP Updater completato con successo');
                 
                 // Invia notifica speciale per l'auto-aggiornamento
                 $this->send_notification(
-                    'FP Git Updater - Auto-aggiornamento completato',
-                    'Il plugin FP Git Updater è stato aggiornato automaticamente con successo!'
+                    'FP Updater - Auto-aggiornamento completato',
+                    'Il plugin FP Updater è stato aggiornato automaticamente con successo!'
                 );
                 
                 // Aggiungi un flag per indicare che è stato fatto un auto-aggiornamento
@@ -2009,7 +2009,7 @@ class Updater {
         } catch (\Exception $e) {
             Logger::log('error', 'Errore durante auto-aggiornamento: ' . $e->getMessage());
             $this->send_notification(
-                'FP Git Updater - Errore auto-aggiornamento',
+                'FP Updater - Errore auto-aggiornamento',
                 'Si è verificato un errore durante l\'auto-aggiornamento: ' . $e->getMessage()
             );
             return false;

@@ -13,14 +13,18 @@ $max_backups = isset($settings['max_backups']) ? intval($settings['max_backups']
 $max_backup_age_days = isset($settings['max_backup_age_days']) ? intval($settings['max_backup_age_days']) : 7;
 ?>
 
-<div style="margin: 0 0 25px 0;">
-    <p style="font-size: 14px; color: #50575e; margin: 0;">
+<div class="fp-section-header">
+    <h2 class="fp-section-title">
+        <span class="dashicons dashicons-backup"></span>
+        <?php _e('Gestione Backup', 'fp-git-updater'); ?>
+    </h2>
+    <p class="fp-section-description">
         <?php _e('Configura i limiti per i backup automatici per evitare di saturare lo spazio disco.', 'fp-git-updater'); ?>
     </p>
 </div>
 
-<div style="background: #fff; border: 1px solid #dcdcde; border-radius: 8px; padding: 25px; box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.24);">
-    <table class="form-table" style="margin: 0;">
+<div class="fp-settings-card">
+    <table class="form-table">
         <tbody>
             <tr>
                 <th scope="row">
@@ -36,7 +40,7 @@ $max_backup_age_days = isset($settings['max_backup_age_days']) ? intval($setting
                            max="20" 
                            step="1">
                     <p class="description">
-                        <span class="dashicons dashicons-info" style="color: #2271b1;"></span>
+                        <span class="dashicons dashicons-info"></span>
                         <?php _e('Numero massimo di backup da mantenere. I backup più vecchi verranno eliminati automaticamente. (Consigliato: 5)', 'fp-git-updater'); ?>
                     </p>
                 </td>
@@ -56,7 +60,7 @@ $max_backup_age_days = isset($settings['max_backup_age_days']) ? intval($setting
                            max="30" 
                            step="1">
                     <p class="description">
-                        <span class="dashicons dashicons-info" style="color: #2271b1;"></span>
+                        <span class="dashicons dashicons-info"></span>
                         <?php _e('I backup più vecchi di questo numero di giorni verranno eliminati automaticamente. (Consigliato: 7)', 'fp-git-updater'); ?>
                     </p>
                 </td>
@@ -65,7 +69,7 @@ $max_backup_age_days = isset($settings['max_backup_age_days']) ? intval($setting
             <tr>
                 <th scope="row"><?php _e('Statistiche Backup', 'fp-git-updater'); ?></th>
                 <td>
-                    <div id="fp-backup-stats" style="background: #f6f7f7; padding: 15px; border: 1px solid #dcdcde; border-radius: 4px; margin-bottom: 15px;">
+                    <div id="fp-backup-stats" class="fp-backup-stats">
                         <p><strong><?php _e('Caricamento statistiche...', 'fp-git-updater'); ?></strong></p>
                     </div>
                     <p>

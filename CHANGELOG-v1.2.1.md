@@ -220,5 +220,5 @@ Questa è una feature additiva. I plugin esistenti:
 
 ---
 
-*Questo changelog documenta tutte le modifiche introdotte nella versione 1.2.1 del plugin FP Git Updater.*
+*Questo changelog documenta tutte le modifiche introdotte nella versione 1.2.1 del plugin FP Updater.*
 

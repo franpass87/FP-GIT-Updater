@@ -1,4 +1,4 @@
-# Directory Traduzioni - FP Git Updater
+# Directory Traduzioni - FP Updater
 
 Questa directory contiene i file per le traduzioni del plugin.
 
@@ -79,7 +79,7 @@ wp i18n make-pot . languages/fp-git-updater.pot --domain=fp-git-updater
 1. Carica i file `.mo` in questa directory
 2. Vai su WordPress → Impostazioni → Generali
 3. Cambia "Lingua del sito" nella lingua tradotta
-4. Vai su FP Git Updater per vedere la traduzione
+4. Vai su FP Updater per vedere la traduzione
 
 ## 📊 Statistiche Attuali
 

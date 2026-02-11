@@ -228,14 +228,14 @@ Totale: 520ms (-65%)
 
 **1. Assicurati di aver configurato lo username predefinito**
 ```
-Git Updater → Impostazioni
+FP Updater → Impostazioni
 Username GitHub Predefinito: franpass87
 Salva
 ```
 
 **2. Aggiungi un nuovo plugin**
 ```
-Git Updater → Impostazioni
+FP Updater → Impostazioni
 Click "Aggiungi Plugin"
 ```
 
@@ -317,7 +317,7 @@ GET https://api.github.com/users/{username}/repos
 **Headers:**
 ```
 Accept: application/vnd.github.v3+json
-User-Agent: FP-Git-Updater-Plugin
+User-Agent: FP-Updater-Plugin
 Authorization: token {github_token} (opzionale)
 ```
 

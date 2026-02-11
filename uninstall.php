@@ -1,6 +1,6 @@
 <?php
 /**
- * Uninstall FP Git Updater
+ * Uninstall FP Updater
  * 
  * Pulisce tutte le opzioni e tabelle del database quando il plugin viene disinstallato
  */

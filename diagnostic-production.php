@@ -1,6 +1,6 @@
 <?php
 /**
- * DIAGNOSTICA PRODUZIONE - FP Git Updater
+ * DIAGNOSTICA PRODUZIONE - FP Updater
  * 
  * Carica questo file su agriavengers.it e aprilo nel browser
  * URL: https://agriavengers.it/wp-content/plugins/fp-git-updater/diagnostic-production.php
@@ -11,7 +11,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 echo "<pre style='background:#f0f0f0; padding:20px; font-family:monospace;'>";
-echo "=== DIAGNOSTICA FP GIT UPDATER - PRODUZIONE ===\n\n";
+echo "=== DIAGNOSTICA FP UPDATER - PRODUZIONE ===\n\n";
 
 // 1. Verifica path
 echo "1. PATH CORRENTE:\n";

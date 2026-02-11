@@ -90,7 +90,7 @@ class Migration {
                     ?>
                     <div class="notice notice-success is-dismissible">
                         <p>
-                            <strong><?php _e('FP Git Updater:', 'fp-git-updater'); ?></strong> 
+                            <strong><?php _e('FP Updater:', 'fp-git-updater'); ?></strong> 
                             <?php _e('I tuoi token GitHub e webhook secret sono stati criptati per maggiore sicurezza.', 'fp-git-updater'); ?>
                         </p>
                     </div>

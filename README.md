@@ -1,4 +1,4 @@
-# FP Git Updater
+# FP Updater
 
 [![Build](https://github.com/TUOUSERNAME/fp-git-updater/actions/workflows/build-release.yml/badge.svg)](https://github.com/TUOUSERNAME/fp-git-updater/actions/workflows/build-release.yml)
 [![Test](https://github.com/TUOUSERNAME/fp-git-updater/actions/workflows/test.yml/badge.svg)](https://github.com/TUOUSERNAME/fp-git-updater/actions/workflows/test.yml)
@@ -71,7 +71,7 @@ Se vuoi partire subito, leggi anche `QUICKSTART.md` (2 percorsi: GitHub o ZIP pu
 
 3. **Attiva il plugin**
    - Vai su `Plugin` nel pannello WordPress
-   - Trova "FP Git Updater" e clicca su "Attiva"
+   - Trova "FP Updater" e clicca su "Attiva"
 
 ## ⚙️ Configurazione
 
@@ -79,7 +79,7 @@ Se vuoi partire subito, leggi anche `QUICKSTART.md` (2 percorsi: GitHub o ZIP pu
 
 **✨ Novità:** Imposta il tuo username GitHub predefinito per semplificare l'aggiunta di plugin!
 
-1. Vai su **Git Updater** → **Impostazioni** nel menu WordPress
+1. Vai su **FP Updater** → **Impostazioni** nel menu WordPress
 2. Nel campo **Username GitHub Predefinito** inserisci il tuo username (es: `franpass87`)
 3. Clicca su **Salva Impostazioni**
 
@@ -91,7 +91,7 @@ Se vuoi partire subito, leggi anche `QUICKSTART.md` (2 percorsi: GitHub o ZIP pu
 
 ### 1. Configura il Plugin
 
-1. Vai su **Git Updater** → **Impostazioni** nel menu WordPress
+1. Vai su **FP Updater** → **Impostazioni** nel menu WordPress
 2. Compila i seguenti campi (scegli una delle due modalità):
    
    Modalità GitHub (completa):
@@ -146,7 +146,7 @@ Se vuoi partire subito, leggi anche `QUICKSTART.md` (2 percorsi: GitHub o ZIP pu
 
 ### Visualizza i Log
 
-Vai su **Git Updater** → **Log** per vedere:
+Vai su **FP Updater** → **Log** per vedere:
 - Tutti i webhook ricevuti
 - Aggiornamenti eseguiti
 - Eventuali errori
@@ -182,7 +182,7 @@ Il plugin include un sistema avanzato di backup e ripristino per proteggere la t
 - **Dopo attivazione**: Ripristino automatico se le impostazioni sono state resettate
 
 ### Gestione Backup
-Vai su **Git Updater → Backup e Ripristino** per:
+Vai su **FP Updater → Backup e Ripristino** per:
 - ✅ Creare backup manuali in qualsiasi momento
 - ✅ Visualizzare la cronologia degli ultimi 10 backup
 - ✅ Ripristinare backup specifici
@@ -258,7 +258,7 @@ Il plugin può aggiornare se stesso automaticamente! Questa funzionalità è sta
 
 ### 📱 Interfaccia Admin
 
-Nella pagina **Impostazioni** troverai una sezione speciale "Auto-aggiornamento FP Git Updater" con:
+Nella pagina **Impostazioni** troverai una sezione speciale "Auto-aggiornamento FP Updater" con:
 - Versione attuale del plugin
 - Ultimo aggiornamento eseguito
 - Pulsante per controllare aggiornamenti

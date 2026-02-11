@@ -43,7 +43,7 @@ class Logger {
             }
         } catch (\Exception $e) {
             // Fallback: logga su error_log se il database fallisce
-            error_log('FP Git Updater - Errore logging: ' . $e->getMessage());
+            error_log('FP Updater - Errore logging: ' . $e->getMessage());
         }
     }
     
@@ -103,7 +103,7 @@ class Logger {
                 'totale_rimanenti' => $count
             ));
         } catch (\Exception $e) {
-            error_log('FP Git Updater - Errore pulizia log: ' . $e->getMessage());
+            error_log('FP Updater - Errore pulizia log: ' . $e->getMessage());
         }
     }
     

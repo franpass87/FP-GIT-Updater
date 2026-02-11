@@ -12,6 +12,7 @@ return array(
     'FP\\GitUpdater\\Encryption' => $baseDir . '/includes/Encryption.php',
     'FP\\GitUpdater\\I18nHelper' => $baseDir . '/includes/I18nHelper.php',
     'FP\\GitUpdater\\Logger' => $baseDir . '/includes/Logger.php',
+    'FP\\GitUpdater\\MasterEndpoint' => $baseDir . '/includes/MasterEndpoint.php',
     'FP\\GitUpdater\\Migration' => $baseDir . '/includes/Migration.php',
     'FP\\GitUpdater\\RateLimiter' => $baseDir . '/includes/RateLimiter.php',
     'FP\\GitUpdater\\SettingsBackup' => $baseDir . '/includes/SettingsBackup.php',

@@ -1,4 +1,4 @@
-# 🐛 Bugfix Profondo - FP Git Updater
+# 🐛 Bugfix Profondo - FP Updater
 **Data:** 3 Novembre 2025  
 **Versione Plugin:** 1.2.0  
 **Tipo Audit:** Critical Security Analysis (Webhook, Encryption, Updates)
@@ -7,7 +7,7 @@
 
 ## 📋 Executive Summary
 
-È stato eseguito un audit di sicurezza approfondito e **critico** sul plugin FP Git Updater, che gestisce aggiornamenti automatici da GitHub con webhook pubblici ed encryption di credenziali. L'analisi ha identificato e risolto **8 problemi di sicurezza critici**:
+È stato eseguito un audit di sicurezza approfondito e **critico** sul plugin FP Updater, che gestisce aggiornamenti automatici da GitHub con webhook pubblici ed encryption di credenziali. L'analisi ha identificato e risolto **8 problemi di sicurezza critici**:
 
 - **8 Nonce Non Sanitizzati** prima della verifica (CRITICHE)
 
@@ -17,7 +17,7 @@ Tutti i problemi identificati sono stati **risolti** e il codice è stato testat
 
 ## 🔐 Contesto del Plugin
 
-**FP Git Updater** è un plugin **estremamente sensibile** dal punto di vista della sicurezza perché:
+**FP Updater** è un plugin **estremamente sensibile** dal punto di vista della sicurezza perché:
 
 1. **Espone endpoint pubblici** (webhook) accessibili da Internet
 2. **Esegue aggiornamenti automatici** di codice PHP
@@ -355,7 +355,7 @@ includes/Admin.php                    [SECURITY FIX x8]
 
 ## ✨ Conclusione
 
-Il plugin **FP Git Updater** ha superato un audit di sicurezza approfondito focalizzato su **infrastructure security critica**. 
+Il plugin **FP Updater** ha superato un audit di sicurezza approfondito focalizzato su **infrastructure security critica**. 
 
 ### 🎯 Stato Pre-Audit
 - ⚠️ 8 nonce non sanitizzati (potenziale CSRF bypass edge-case)

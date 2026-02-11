@@ -1,4 +1,4 @@
-# ✅ FP Git Updater v1.2.3 - Release Finale FUNZIONANTE
+# ✅ FP Updater v1.2.3 - Release Finale FUNZIONANTE
 
 **Data:** 5 Novembre 2025  
 **Versione:** 1.2.3  
@@ -76,7 +76,7 @@ tar -a -c -f fp-git-updater.zip fp-git-updater
 ### ✅ Plugin Completamente Funzionante
 
 **Testato in locale:**
-- ✅ Menu "Git Updater" visibile nella sidebar
+- ✅ Menu "FP Updater" visibile nella sidebar
 - ✅ Sottomenu funzionanti (Impostazioni, Backup, Log)
 - ✅ Pagina impostazioni si carica correttamente
 - ✅ Campo "Username GitHub Predefinito" presente
@@ -140,13 +140,13 @@ tar -a -c -f fp-git-updater.zip fp-git-updater
 3. Scegli: fp-git-updater.zip
 4. Installa ora
 5. Attiva
-6. ✅ Il menu "Git Updater" APPARIRÀ nella sidebar!
+6. ✅ Il menu "FP Updater" APPARIRÀ nella sidebar!
 ```
 
 ### Configurazione Rapida:
 
 ```
-1. Git Updater → Impostazioni
+1. FP Updater → Impostazioni
 2. Username GitHub Predefinito: franpass87
 3. Salva Impostazioni
 4. Click "Aggiungi Plugin"
@@ -225,7 +225,7 @@ Cerca errori contenenti "FP-GIT-UPDATER" o "Admin"
 ```
 1. wp-config.php
 2. wp-settings.php inizia
-3. wp-content/plugins/* vengono caricati  ← FP Git Updater caricato QUI
+3. wp-content/plugins/* vengono caricati  ← FP Updater caricato QUI
 4. pluggable.php caricato                  ← wp_get_current_user() QUI
 5. Hook admin_menu                         ← Menu creati QUI
 6. Hook admin_init                         ← Troppo tardo!
@@ -254,9 +254,9 @@ if (is_admin()) {
 - ✅ Pulsante "Aggiungi Plugin"
 
 ### Auto-aggiornamento Plugin:
-- ✅ Sezione "Auto-aggiornamento FP Git Updater"
+- ✅ Sezione "Auto-aggiornamento FP Updater"
 - ✅ Versione Attuale: 1.2.3
-- ✅ Status: "FP Git Updater è aggiornato!"
+- ✅ Status: "FP Updater è aggiornato!"
 - ✅ Pulsante "Controlla Aggiornamenti"
 
 ---
@@ -274,7 +274,7 @@ if (is_admin()) {
 
 ## ✅ Checklist Finale
 
-- [x] Menu "Git Updater" visibile in sidebar
+- [x] Menu "FP Updater" visibile in sidebar
 - [x] Pagina impostazioni funzionante
 - [x] Username predefinito implementato
 - [x] Caricamento lista repository implementato
@@ -289,7 +289,7 @@ if (is_admin()) {
 
 ## 🎉 CONCLUSIONE
 
-Il plugin **FP Git Updater v1.2.3** è **COMPLETAMENTE FUNZIONANTE** e pronto per essere installato su qualsiasi sito WordPress.
+Il plugin **FP Updater v1.2.3** è **COMPLETAMENTE FUNZIONANTE** e pronto per essere installato su qualsiasi sito WordPress.
 
 **Problema principale risolto:** Check `wp_get_current_user()` che bloccava l'inizializzazione
 

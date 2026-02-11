@@ -280,7 +280,7 @@ Ora puoi:
 
 **Step 1: Configura Username** (se non già fatto)
 ```
-Git Updater → Impostazioni → Username GitHub Predefinito: franpass87
+FP Updater → Impostazioni → Username GitHub Predefinito: franpass87
 ```
 
 **Step 2: Aggiungi Plugin con Caricamento Lista**
@@ -349,7 +349,7 @@ set_transient($cache_key, $repo_list, 5 * MINUTE_IN_SECONDS);
 GET https://api.github.com/users/{username}/repos
 Headers:
   - Accept: application/vnd.github.v3+json
-  - User-Agent: FP-Git-Updater-Plugin
+  - User-Agent: FP-Updater-Plugin
   - Authorization: token {optional_token}
 ```
 
@@ -393,5 +393,5 @@ Headers:
 
 ---
 
-*Questo changelog documenta tutte le modifiche introdotte nella versione 1.2.2 del plugin FP Git Updater.*
+*Questo changelog documenta tutte le modifiche introdotte nella versione 1.2.2 del plugin FP Updater.*
 

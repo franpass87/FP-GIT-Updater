@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name: FP Git Updater
+ * Plugin Name: FP Updater
  * Plugin URI: https://www.francescopasseri.com
  * Description: Gestione sicura degli aggiornamenti dei plugin da GitHub. Supporta sia aggiornamenti automatici che manuali tramite webhook, proteggendo i tuoi siti da aggiornamenti problematici.
- * Version: 1.2.9
+ * Version: 1.3.1
  * Author: Francesco Passeri
  * Author URI: https://www.francescopasseri.com
  * License: GPL v2 or later
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Definisci costanti del plugin
-define('FP_GIT_UPDATER_VERSION', '1.2.9');
+define('FP_GIT_UPDATER_VERSION', '1.3.1');
 define('FP_GIT_UPDATER_PLUGIN_DIR', dirname(__FILE__) . '/');
 define('FP_GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FP_GIT_UPDATER_PLUGIN_FILE', __FILE__);
@@ -60,6 +60,9 @@ class FP_Git_Updater {
         
         // Inizializza l'auto-aggiornamento del plugin stesso (sempre, non solo in admin)
         add_action('plugins_loaded', array($this, 'init_self_update'), 5);
+
+        // REST API: webhook e endpoint Master (sempre caricati per richieste esterne)
+        add_action('rest_api_init', array($this, 'register_rest_endpoints'));
         
         // Carica l'admin subito se siamo nell'admin (prima di admin_menu!)
         if (is_admin()) {
@@ -67,6 +70,16 @@ class FP_Git_Updater {
         }
     }
     
+    /**
+     * Registra gli endpoint REST (webhook GitHub + API Master per client Bridge)
+     */
+    public function register_rest_endpoints() {
+        \FP\GitUpdater\WebhookHandler::get_instance();
+        if (class_exists('\FP\GitUpdater\MasterEndpoint')) {
+            \FP\GitUpdater\MasterEndpoint::register();
+        }
+    }
+
     /**
      * Carica l'admin (PSR-4 autoload via Composer)
      */
@@ -166,70 +179,38 @@ class FP_Git_Updater {
     
     /**
      * Inizializza l'auto-aggiornamento del plugin stesso
+     * Rimuove il plugin stesso dalla lista dei plugin gestiti (gestito separatamente in alto)
      * Pubblico per essere chiamato dall'hook plugins_loaded
      */
     public function init_self_update() {
-        // Aggiungi il plugin stesso alla lista dei plugin gestiti se non è già presente
+        // Rimuovi il plugin stesso dalla lista dei plugin gestiti (gestito nella sezione dedicata in alto)
         $settings = get_option('fp_git_updater_settings', array());
         $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
+        $original_count = count($plugins);
         
-        // Verifica se il plugin stesso è già configurato
-        $self_plugin_exists = false;
-        $self_plugin_index = null;
-        foreach ($plugins as $index => $plugin) {
+        // Filtra rimuovendo il plugin self-update dalla lista
+        $plugins = array_filter($plugins, function($plugin) {
+            // Rimuovi se ha l'ID del self-update
             if (isset($plugin['id']) && $plugin['id'] === 'fp_git_updater_self') {
-                $self_plugin_exists = true;
-                $self_plugin_index = $index;
-                break;
-            } elseif (isset($plugin['plugin_slug']) && $plugin['plugin_slug'] === 'fp-git-updater') {
-                $self_plugin_exists = true;
-                $self_plugin_index = $index;
-                // Aggiorna l'ID se mancante
-                if (!isset($plugin['id']) || $plugin['id'] !== 'fp_git_updater_self') {
-                    $plugins[$index]['id'] = 'fp_git_updater_self';
-                    $settings['plugins'] = $plugins;
-                    update_option('fp_git_updater_settings', $settings);
-                }
-                break;
+                return false;
             }
-        }
+            // Rimuovi anche se ha lo slug del self-update
+            if (isset($plugin['plugin_slug']) && $plugin['plugin_slug'] === 'fp-git-updater') {
+                return false;
+            }
+            return true;
+        });
         
-        // Se non esiste, aggiungilo automaticamente
-        if (!$self_plugin_exists) {
-            $self_plugin = array(
-                'id' => 'fp_git_updater_self',
-                'name' => 'FP Git Updater (Auto-aggiornamento)',
-                'github_repo' => 'FranPass87/FP-GIT-Updater', // Username corretto con maiuscole
-                'plugin_slug' => 'fp-git-updater',
-                'branch' => 'main',
-                'enabled' => true,
-            );
-            
-            $plugins[] = $self_plugin;
+        // Re-indicizza l'array dopo il filtro
+        $plugins = array_values($plugins);
+        
+        // Se sono stati rimossi elementi, salva le impostazioni
+        if (count($plugins) !== $original_count) {
             $settings['plugins'] = $plugins;
             update_option('fp_git_updater_settings', $settings);
             
             if (class_exists('\FP\GitUpdater\Logger')) {
-                Logger::log('info', 'Plugin FP Git Updater aggiunto automaticamente alla lista per auto-aggiornamento');
-            }
-        } else {
-            // Aggiorna il repository se necessario (correzione username)
-            if ($self_plugin_index !== null && isset($plugins[$self_plugin_index])) {
-                $needs_update = false;
-                if (isset($plugins[$self_plugin_index]['github_repo']) && 
-                    $plugins[$self_plugin_index]['github_repo'] !== 'FranPass87/FP-GIT-Updater') {
-                    $plugins[$self_plugin_index]['github_repo'] = 'FranPass87/FP-GIT-Updater';
-                    $needs_update = true;
-                }
-                // Assicurati che sia sempre abilitato per l'auto-aggiornamento
-                if (!isset($plugins[$self_plugin_index]['enabled']) || !$plugins[$self_plugin_index]['enabled']) {
-                    $plugins[$self_plugin_index]['enabled'] = true;
-                    $needs_update = true;
-                }
-                if ($needs_update) {
-                    $settings['plugins'] = $plugins;
-                    update_option('fp_git_updater_settings', $settings);
-                }
+                Logger::log('info', 'Plugin FP Updater rimosso dalla lista gestiti (gestito nella sezione dedicata)');
             }
         }
     }

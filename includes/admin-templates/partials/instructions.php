@@ -10,12 +10,12 @@ if (!defined('ABSPATH')) {
 
 <div class="fp-git-updater-instructions">
     <h2>
-        <span class="dashicons dashicons-book-alt" style="color: #2271b1;"></span>
+        <span class="dashicons dashicons-book-alt"></span>
         <?php _e('Come Funziona', 'fp-git-updater'); ?>
     </h2>
     
-    <h3 style="font-size: 18px; font-weight: 600; color: #1d2327; margin-top: 25px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-        <span class="dashicons dashicons-lock" style="color: #2271b1; font-size: 20px;"></span>
+    <h3 class="fp-instructions-subtitle">
+        <span class="dashicons dashicons-lock"></span>
         <?php _e('Aggiornamento Manuale (Consigliato per Siti di Produzione)', 'fp-git-updater'); ?>
     </h3>
     <p><?php _e('Con l\'aggiornamento manuale disabilitato (opzione sopra), il plugin funziona in questo modo:', 'fp-git-updater'); ?></p>
@@ -26,24 +26,24 @@ if (!defined('ABSPATH')) {
         <li><strong><?php _e('Tu decidi quando installare l\'aggiornamento cliccando sul pulsante "Installa Aggiornamento"', 'fp-git-updater'); ?></strong></li>
         <li><?php _e('Questo ti permette di testare prima gli aggiornamenti su un sito di staging', 'fp-git-updater'); ?></li>
     </ol>
-    <p><strong style="color: #00a32a;">✓ <?php _e('Vantaggi:', 'fp-git-updater'); ?></strong> <?php _e('Protezione totale da aggiornamenti problematici, controllo completo, ideale per siti di clienti.', 'fp-git-updater'); ?></p>
+    <p class="fp-instructions-note fp-instructions-note-success"><strong>✓ <?php _e('Vantaggi:', 'fp-git-updater'); ?></strong> <?php _e('Protezione totale da aggiornamenti problematici, controllo completo, ideale per siti di clienti.', 'fp-git-updater'); ?></p>
     
-    <h3 style="font-size: 18px; font-weight: 600; color: #1d2327; margin-top: 25px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-        <span class="dashicons dashicons-update" style="color: #dba617; font-size: 20px;"></span>
+    <h3 class="fp-instructions-subtitle">
+        <span class="dashicons dashicons-update"></span>
         <?php _e('Aggiornamento Automatico', 'fp-git-updater'); ?>
     </h3>
     <p><?php _e('Se abiliti l\'opzione "Aggiornamento Automatico" sopra:', 'fp-git-updater'); ?></p>
-    <ul style="padding-left: 20px;">
+    <ul class="fp-instructions-list">
         <li><?php _e('Gli aggiornamenti vengono installati immediatamente quando ricevi un push da GitHub', 'fp-git-updater'); ?></li>
         <li><?php _e('Utile per ambienti di sviluppo o plugin molto stabili', 'fp-git-updater'); ?></li>
-        <li><strong style="color: #d63638;">⚠ <?php _e('Attenzione:', 'fp-git-updater'); ?></strong> <?php _e('Un aggiornamento con bug andrà automaticamente in produzione', 'fp-git-updater'); ?></li>
+        <li class="fp-instructions-warning"><strong>⚠ <?php _e('Attenzione:', 'fp-git-updater'); ?></strong> <?php _e('Un aggiornamento con bug andrà automaticamente in produzione', 'fp-git-updater'); ?></li>
     </ul>
     
-    <h3 style="font-size: 18px; font-weight: 600; color: #1d2327; margin-top: 25px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-        <span class="dashicons dashicons-admin-links" style="color: #8c5ed9; font-size: 20px;"></span>
+    <h3 class="fp-instructions-subtitle">
+        <span class="dashicons dashicons-admin-links"></span>
         <?php _e('Configurazione Webhook su GitHub', 'fp-git-updater'); ?>
     </h3>
-    <p><strong><?php _e('Importante:', 'fp-git-updater'); ?></strong> <?php _e('Devi configurare il webhook per ogni repository che hai aggiunto sopra.', 'fp-git-updater'); ?></p>
+    <p class="fp-instructions-note"><strong><?php _e('Importante:', 'fp-git-updater'); ?></strong> <?php _e('Devi configurare il webhook per ogni repository che hai aggiunto sopra.', 'fp-git-updater'); ?></p>
     <ol>
         <li><?php _e('Vai sul repository GitHub del plugin che vuoi aggiornare', 'fp-git-updater'); ?></li>
         <li><?php printf(__('Clicca su %s → %s → %s', 'fp-git-updater'), '<strong>Settings</strong>', '<strong>Webhooks</strong>', '<strong>Add webhook</strong>'); ?></li>

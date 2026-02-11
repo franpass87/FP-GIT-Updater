@@ -26,7 +26,7 @@ Repository: franpass87/FP-Restaurant-Reservations
 
 ### Dopo (v1.2.1) ✅
 ```
-1. Vai su Git Updater → Impostazioni
+1. Vai su FP Updater → Impostazioni
 2. Imposta "Username GitHub Predefinito": franpass87
 3. Salva
 
@@ -111,7 +111,7 @@ Il sistema completa automaticamente a:
 
 ### Step 1: Imposta Username Predefinito
 ```
-1. Vai su WordPress → Git Updater → Impostazioni
+1. Vai su WordPress → FP Updater → Impostazioni
 2. Trova il campo "Username GitHub Predefinito" (primo campo)
 3. Inserisci: franpass87
 4. Clicca "Salva Impostazioni"
@@ -208,7 +208,7 @@ Plugin 3: FP-Experiences        → franpass87/FP-Experiences
 
 ### Per Te (Utente)
 1. ✅ Aggiorna plugin a v1.2.1
-2. ✅ Vai su Git Updater → Impostazioni
+2. ✅ Vai su FP Updater → Impostazioni
 3. ✅ Imposta "Username GitHub Predefinito": `franpass87`
 4. ✅ Salva impostazioni
 5. ✅ Aggiungi nuovi plugin usando solo il nome!

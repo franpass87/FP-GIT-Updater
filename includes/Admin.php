@@ -40,6 +40,7 @@ class Admin {
         add_action('wp_ajax_fp_git_updater_load_github_repos', array($this, 'ajax_load_github_repos'));
         add_action('wp_ajax_fp_git_updater_cleanup_backups', array($this, 'ajax_cleanup_backups'));
         add_action('wp_ajax_fp_git_updater_get_backup_stats', array($this, 'ajax_get_backup_stats'));
+        add_action('wp_ajax_fp_git_updater_refresh_github_version', array($this, 'ajax_refresh_github_version'));
     }
     
     /**
@@ -52,13 +53,13 @@ class Admin {
         $pending_count = count($pending_updates);
         
         // Crea il titolo del menu con badge se ci sono aggiornamenti
-        $menu_title = 'Git Updater';
+        $menu_title = 'FP Updater';
         if ($pending_count > 0) {
             $menu_title .= ' <span class="update-plugins count-' . $pending_count . '"><span class="update-count">' . $pending_count . '</span></span>';
         }
         
         add_menu_page(
-            'FP Git Updater',
+            'FP Updater',
             $menu_title,
             'manage_options',
             'fp-git-updater',
@@ -101,6 +102,17 @@ class Admin {
     public function register_settings() {
         register_setting('fp_git_updater_settings_group', 'fp_git_updater_settings', array(
             'sanitize_callback' => array($this, 'sanitize_settings')
+        ));
+
+        // Opzioni separate per Modalità Master
+        register_setting('fp_git_updater_master_group', 'fp_git_updater_master_mode', array(
+            'type' => 'boolean',
+            'default' => false,
+            'sanitize_callback' => function ($v) { return !empty($v); }
+        ));
+        register_setting('fp_git_updater_master_group', 'fp_git_updater_master_client_secret', array(
+            'type' => 'string',
+            'sanitize_callback' => function ($v) { return is_string($v) ? trim($v) : ''; }
         ));
     }
     
@@ -222,12 +234,16 @@ class Admin {
                     continue;
                 }
 
-                // Se il repository è FP-GIT-Updater, usa l'ID speciale per l'auto-aggiornamento
-                $plugin_id = isset($plugin['id']) ? sanitize_text_field($plugin['id']) : uniqid('plugin_');
-                if (stripos($github_repo, 'FP-GIT-Updater') !== false || stripos($github_repo, 'FP-Git-Updater') !== false) {
-                    $plugin_id = 'fp_git_updater_self';
-                    Logger::log('info', 'Rilevato repository self-update, assegnato ID speciale: fp_git_updater_self');
+                // Se il repository è FP-GIT-Updater, salta questo plugin (gestito separatamente nella sezione dedicata)
+                if (stripos($github_repo, 'FP-GIT-Updater') !== false || 
+                    stripos($github_repo, 'FP-Git-Updater') !== false || stripos($github_repo, 'FP-Updater') !== false ||
+                    isset($plugin['id']) && $plugin['id'] === 'fp_git_updater_self' ||
+                    $plugin_slug === 'fp-git-updater') {
+                    Logger::log('info', 'Plugin self-update escluso dalla lista gestiti (gestito nella sezione dedicata)');
+                    continue; // Salta questo plugin, non aggiungerlo alla lista
                 }
+                
+                $plugin_id = isset($plugin['id']) ? sanitize_text_field($plugin['id']) : uniqid('plugin_');
                 
                 $output['plugins'][] = array(
                     'id' => $plugin_id,
@@ -241,6 +257,20 @@ class Admin {
             }
         } else {
             $output['plugins'] = array();
+        }
+        
+        // Rimuovi eventuali plugin self-update rimasti nella lista (pulizia)
+        if (!empty($output['plugins'])) {
+            $output['plugins'] = array_filter($output['plugins'], function($plugin) {
+                if (isset($plugin['id']) && $plugin['id'] === 'fp_git_updater_self') {
+                    return false;
+                }
+                if (isset($plugin['plugin_slug']) && $plugin['plugin_slug'] === 'fp-git-updater') {
+                    return false;
+                }
+                return true;
+            });
+            $output['plugins'] = array_values($output['plugins']);
         }
         
         // Cripta il webhook secret se non è già criptato
@@ -360,9 +390,33 @@ class Admin {
         $webhook_url = WebhookHandler::get_webhook_url();
         $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
         
-        // Ottieni gli aggiornamenti pending
+        // Filtra il plugin self-update dalla lista (gestito separatamente nella sezione dedicata)
+        $plugins = array_filter($plugins, function($plugin) {
+            if (isset($plugin['id']) && $plugin['id'] === 'fp_git_updater_self') {
+                return false;
+            }
+            if (isset($plugin['plugin_slug']) && $plugin['plugin_slug'] === 'fp-git-updater') {
+                return false;
+            }
+            return true;
+        });
+        
+        // Re-indicizza l'array
+        $plugins = array_values($plugins);
+        
+        // Ottieni gli aggiornamenti pending (escludendo il self-update dalla lista)
         $updater = Updater::get_instance();
-        $pending_updates = $updater->get_pending_updates();
+        $all_pending_updates = $updater->get_pending_updates();
+        
+        // Filtra anche i pending updates per escludere il self-update dalla lista visualizzata
+        $pending_updates = array_filter($all_pending_updates, function($update) {
+            if (isset($update['plugin']['id']) && $update['plugin']['id'] === 'fp_git_updater_self') {
+                return false;
+            }
+            return true;
+        });
+        $pending_updates = array_values($pending_updates);
+        
         $auto_update_enabled = isset($settings['auto_update']) ? $settings['auto_update'] : false;
         
         // Usa il template separato
@@ -378,7 +432,7 @@ class Admin {
         <div class="wrap fp-git-updater-wrap">
             <h1>
                 <span class="dashicons dashicons-update"></span>
-                FP Git Updater - Impostazioni
+                FP Updater - Impostazioni
                 <?php if (!empty($pending_updates)): ?>
                     <span class="update-count"><?php echo count($pending_updates); ?></span>
                 <?php endif; ?>
@@ -805,7 +859,7 @@ class Admin {
         <div class="wrap fp-git-updater-wrap">
             <h1>
                 <span class="dashicons dashicons-list-view"></span>
-                FP Git Updater - Log
+                FP Updater - Log
             </h1>
             
             <div class="fp-logs-actions">
@@ -1071,7 +1125,7 @@ class Admin {
         <div class="wrap fp-git-updater-wrap">
             <h1>
                 <span class="dashicons dashicons-database"></span>
-                FP Git Updater - Backup e Ripristino
+                FP Updater - Backup e Ripristino
             </h1>
             
             <?php if ($has_settings_reset): ?>
@@ -1310,9 +1364,9 @@ class Admin {
             if (is_wp_error($result)) {
                 wp_send_json_error(array('message' => $result->get_error_message()), 500);
             } elseif ($result) {
-                wp_send_json_success(array('message' => 'Aggiornamento disponibile per FP Git Updater!'));
+                wp_send_json_success(array('message' => 'Aggiornamento disponibile per FP Updater!'));
             } else {
-                wp_send_json_success(array('message' => 'FP Git Updater è già aggiornato.'));
+                wp_send_json_success(array('message' => 'FP Updater è già aggiornato.'));
             }
         } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
@@ -1397,7 +1451,7 @@ class Admin {
                 'timeout' => 15,
                 'headers' => array(
                     'Accept' => 'application/vnd.github.v3+json',
-                    'User-Agent' => 'FP-Git-Updater-Plugin'
+                    'User-Agent' => 'FP-Updater-Plugin'
                 )
             );
             
@@ -1467,6 +1521,95 @@ class Admin {
                 'from_cache' => false,
                 'count' => count($repo_list)
             ));
+            
+        } catch (\Exception $e) {
+            wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
+        }
+        
+        wp_die();
+    }
+    
+    /**
+     * AJAX: Aggiorna versione GitHub per un plugin specifico
+     */
+    public function ajax_refresh_github_version() {
+        // Verifica il nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
+            wp_send_json_error(array('message' => 'Nonce non valido'), 400);
+            wp_die();
+        }
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
+            wp_die();
+        }
+        
+        $plugin_id = isset($_POST['plugin_id']) ? sanitize_text_field($_POST['plugin_id']) : '';
+        
+        if (empty($plugin_id)) {
+            wp_send_json_error(array('message' => 'ID plugin non fornito'), 400);
+            wp_die();
+        }
+        
+        try {
+            $settings = get_option('fp_git_updater_settings', array());
+            $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
+            
+            // Trova il plugin nella lista
+            $plugin = null;
+            foreach ($plugins as $p) {
+                if (isset($p['id']) && $p['id'] === $plugin_id) {
+                    $plugin = $p;
+                    break;
+                }
+            }
+            
+            // Se non trovato e si tratta del self-update, usa i default
+            if (!$plugin && $plugin_id === 'fp_git_updater_self') {
+                $plugin = array(
+                    'id' => 'fp_git_updater_self',
+                    'github_repo' => 'FranPass87/FP-GIT-Updater',
+                    'branch' => 'main',
+                    'enabled' => true
+                );
+            }
+            
+            if (!$plugin) {
+                wp_send_json_error(array('message' => 'Plugin non trovato'), 404);
+                wp_die();
+            }
+            
+            // Invalida la cache della versione GitHub
+            delete_transient('fp_git_updater_github_version_' . $plugin_id);
+            
+            // Recupera la nuova versione GitHub
+            $updater = Updater::get_instance();
+            $github_version = $updater->get_github_plugin_version($plugin);
+            
+            if (!empty($github_version)) {
+                // Salva in cache per 5 minuti
+                set_transient('fp_git_updater_github_version_' . $plugin_id, $github_version, 300);
+                
+                // Recupera anche la versione installata per confronto
+                if ($plugin_id === 'fp_git_updater_self') {
+                    // Per il self-update, usa la costante del plugin
+                    $current_version = defined('FP_GIT_UPDATER_VERSION') ? FP_GIT_UPDATER_VERSION : '';
+                } else {
+                    $current_version = $updater->get_installed_plugin_version($plugin);
+                }
+                
+                if (!empty($current_version)) {
+                    update_option('fp_git_updater_current_version_' . $plugin_id, $current_version);
+                }
+                
+                wp_send_json_success(array(
+                    'github_version' => $github_version,
+                    'current_version' => $current_version,
+                    'message' => 'Versione GitHub aggiornata con successo'
+                ));
+            } else {
+                wp_send_json_error(array('message' => 'Impossibile recuperare la versione GitHub. Verifica il repository e il branch.'), 500);
+            }
             
         } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);

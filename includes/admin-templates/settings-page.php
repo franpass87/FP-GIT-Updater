@@ -21,16 +21,10 @@ $i18n = I18nHelper::get_instance();
 <div class="wrap fp-git-updater-wrap">
     <h1>
         <span class="dashicons dashicons-update"></span>
-        <?php _e('FP Git Updater', 'fp-git-updater'); ?>
-        <span style="font-size: 18px; font-weight: 400; color: #50575e; margin-left: 10px;">
+        <?php _e('FP Updater', 'fp-git-updater'); ?>
+        <span class="fp-header-subtitle">
             <?php _e('Gestione aggiornamenti da GitHub', 'fp-git-updater'); ?>
         </span>
-        <?php if (!empty($pending_updates)): ?>
-            <span class="update-count">
-                <span class="dashicons dashicons-warning" style="font-size: 14px; margin-right: 4px;"></span>
-                <?php echo count($pending_updates); ?>
-            </span>
-        <?php endif; ?>
     </h1>
     
     <?php 
@@ -72,6 +66,12 @@ $i18n = I18nHelper::get_instance();
                 </a>
             </li>
             <li class="fp-tab-item">
+                <a href="#fp-tab-master" class="fp-tab-link" data-tab="master">
+                    <span class="dashicons dashicons-networking"></span>
+                    <?php _e('Modalità Master', 'fp-git-updater'); ?>
+                </a>
+            </li>
+            <li class="fp-tab-item">
                 <a href="#fp-tab-instructions" class="fp-tab-link" data-tab="instructions">
                     <span class="dashicons dashicons-book-alt"></span>
                     <?php _e('Istruzioni', 'fp-git-updater'); ?>
@@ -85,8 +85,8 @@ $i18n = I18nHelper::get_instance();
         
         <!-- Tab: Plugin Gestiti (Default attivo) -->
         <div id="fp-tab-plugins" class="fp-tab-content active">
-            <div style="margin: 0 0 25px 0;">
-                <p style="font-size: 14px; color: #50575e; margin: 0;">
+            <div class="fp-section-header">
+                <p class="fp-section-description">
                     <?php _e('Aggiungi e gestisci i plugin che vuoi aggiornare automaticamente da GitHub.', 'fp-git-updater'); ?>
                 </p>
             </div>
@@ -94,6 +94,14 @@ $i18n = I18nHelper::get_instance();
             <div id="fp-plugins-list">
                 <?php if (!empty($plugins)): ?>
                     <?php foreach ($plugins as $index => $plugin): 
+                        // Salta il plugin self-update (gestito nella sezione dedicata in alto)
+                        if (isset($plugin['id']) && $plugin['id'] === 'fp_git_updater_self') {
+                            continue;
+                        }
+                        if (isset($plugin['plugin_slug']) && $plugin['plugin_slug'] === 'fp-git-updater') {
+                            continue;
+                        }
+                        
                         // Controlla se questo plugin ha un aggiornamento pending
                         $has_pending_update = false;
                         $pending_info = null;
@@ -109,16 +117,14 @@ $i18n = I18nHelper::get_instance();
                         include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/partials/plugin-item.php';
                     endforeach; ?>
                 <?php else: ?>
-                    <div style="background: #fff; border: 1px solid #dcdcde; border-radius: 8px; padding: 30px; text-align: center; margin: 20px 0;">
-                        <span class="dashicons dashicons-admin-plugins" style="font-size: 48px; color: #dcdcde; margin-bottom: 15px; display: block;"></span>
-                        <p class="description" style="font-size: 15px; color: #50575e; margin: 0;">
-                            <?php _e('Nessun plugin configurato. Aggiungi il primo plugin qui sotto.', 'fp-git-updater'); ?>
-                        </p>
+                    <div class="fp-empty-state">
+                        <span class="dashicons dashicons-admin-plugins"></span>
+                        <p><?php _e('Nessun plugin configurato. Aggiungi il primo plugin qui sotto.', 'fp-git-updater'); ?></p>
                     </div>
                 <?php endif; ?>
             </div>
             
-            <button type="button" id="fp-add-plugin" class="button button-primary" style="margin-top: 20px;">
+            <button type="button" id="fp-add-plugin" class="button button-primary fp-add-plugin-btn">
                 <span class="dashicons dashicons-plus-alt"></span>
                 <?php _e('Aggiungi Nuovo Plugin', 'fp-git-updater'); ?>
             </button>
@@ -130,6 +136,11 @@ $i18n = I18nHelper::get_instance();
             // Includi sezione impostazioni generali
             include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/partials/general-settings.php';
             ?>
+        </div>
+        
+        <!-- Tab: Modalità Master -->
+        <div id="fp-tab-master" class="fp-tab-content">
+            <?php include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/partials/master-settings.php'; ?>
         </div>
         
         <!-- Tab: Backup -->
@@ -149,7 +160,7 @@ $i18n = I18nHelper::get_instance();
         </div>
         
         <!-- Bottone Salva (sempre visibile) -->
-        <div class="fp-form-actions" style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f0f0f1;">
+        <div class="fp-form-actions">
             <?php submit_button(__('Salva Impostazioni', 'fp-git-updater'), 'primary large', 'submit', false); ?>
         </div>
     </form>

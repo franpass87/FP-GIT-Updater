@@ -78,7 +78,7 @@ $args['headers']['Authorization'] = 'token ' . $token;
         'redirection' => 5,
         'headers' => array(
             'Accept' => 'application/vnd.github.v3+json',
-            'User-Agent' => 'FP-Git-Updater/' . FP_GIT_UPDATER_VERSION,
+            'User-Agent' => 'FP-Updater/' . FP_GIT_UPDATER_VERSION,
         ),
     );
 
@@ -101,7 +101,7 @@ $args['headers']['Authorization'] = 'token ' . $token;
         'timeout' => 300,
         'redirection' => 5,
         'headers' => array(
-            'User-Agent' => 'FP-Git-Updater/' . FP_GIT_UPDATER_VERSION,
+            'User-Agent' => 'FP-Updater/' . FP_GIT_UPDATER_VERSION,
         ),
     );
 
