@@ -235,7 +235,7 @@ class Admin {
                 }
 
                 // Se il repository è FP-GIT-Updater, salta questo plugin (gestito separatamente nella sezione dedicata)
-                if (stripos($github_repo, 'FP-GIT-Updater') !== false || 
+                if (stripos($github_repo, 'FP-Updater') !== false || stripos($github_repo, 'FP-GIT-Updater') !== false || 
                     stripos($github_repo, 'FP-Git-Updater') !== false || stripos($github_repo, 'FP-Updater') !== false ||
                     isset($plugin['id']) && $plugin['id'] === 'fp_git_updater_self' ||
                     $plugin_slug === 'fp-git-updater') {
@@ -1568,7 +1568,7 @@ class Admin {
             if (!$plugin && $plugin_id === 'fp_git_updater_self') {
                 $plugin = array(
                     'id' => 'fp_git_updater_self',
-                    'github_repo' => 'FranPass87/FP-GIT-Updater',
+                    'github_repo' => 'franpass87/FP-Updater',
                     'branch' => 'main',
                     'enabled' => true
                 );

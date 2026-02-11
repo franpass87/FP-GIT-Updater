@@ -1,5 +1,5 @@
 {
-    "name": "franpass87/fp-git-updater",
+    "name": "franpass87/fp-updater",
     "description": "Gestione sicura degli aggiornamenti dei plugin da GitHub",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",

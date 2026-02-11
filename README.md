@@ -1,7 +1,7 @@
 # FP Updater
 
-[![Build](https://github.com/TUOUSERNAME/fp-git-updater/actions/workflows/build-release.yml/badge.svg)](https://github.com/TUOUSERNAME/fp-git-updater/actions/workflows/build-release.yml)
-[![Test](https://github.com/TUOUSERNAME/fp-git-updater/actions/workflows/test.yml/badge.svg)](https://github.com/TUOUSERNAME/fp-git-updater/actions/workflows/test.yml)
+[![Build](https://github.com/franpass87/FP-Updater/actions/workflows/build-release.yml/badge.svg)](https://github.com/franpass87/FP-Updater/actions/workflows/build-release.yml)
+[![Test](https://github.com/franpass87/FP-Updater/actions/workflows/test.yml/badge.svg)](https://github.com/franpass87/FP-Updater/actions/workflows/test.yml)
 [![License](https://img.shields.io/badge/license-GPL%20v2-blue.svg)](LICENSE)
 [![WordPress](https://img.shields.io/badge/wordpress-5.0%2B-blue.svg)](https://wordpress.org/)
 [![PHP](https://img.shields.io/badge/php-7.4%2B-blue.svg)](https://php.net/)
@@ -62,7 +62,7 @@ Se vuoi partire subito, leggi anche `QUICKSTART.md` (2 percorsi: GitHub o ZIP pu
 
 1. **Scarica il plugin**
    ```bash
-   git clone https://github.com/tuousername/fp-git-updater.git
+   git clone https://github.com/franpass87/FP-Updater.git
    ```
 
 2. **Carica il plugin**
@@ -245,7 +245,7 @@ Il plugin può aggiornare se stesso automaticamente! Questa funzionalità è sta
 ### 🎯 Come Funziona
 
 1. **All'attivazione**: Il plugin si configura automaticamente per l'auto-aggiornamento
-2. **Repository predefinito**: Usa il repository `franpass87/FP-GIT-Updater` (modificabile)
+2. **Repository predefinito**: Usa il repository `franpass87/FP-Updater` (modificabile)
 3. **Webhook automatico**: Funziona con lo stesso webhook degli altri plugin
 4. **Aggiornamento sicuro**: Backup automatico e rollback in caso di errori
 
