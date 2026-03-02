@@ -1568,7 +1568,7 @@ class Admin {
             if (!$plugin && $plugin_id === 'fp_git_updater_self') {
                 $plugin = array(
                     'id' => 'fp_git_updater_self',
-                    'github_repo' => 'franpass87/FP-Updater',
+                    'github_repo' => 'franpass87/FP-GIT-Updater',
                     'branch' => 'main',
                     'enabled' => true
                 );

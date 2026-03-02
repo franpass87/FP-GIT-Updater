@@ -44,7 +44,7 @@ foreach ($plugins as $plugin) {
 if (!$self_plugin) {
     $self_plugin = array(
         'id' => 'fp_git_updater_self',
-        'github_repo' => 'franpass87/FP-Updater',
+        'github_repo' => 'franpass87/FP-GIT-Updater',
         'branch' => 'main',
         'enabled' => true
     );
