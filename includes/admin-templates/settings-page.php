@@ -28,9 +28,6 @@ $i18n = I18nHelper::get_instance();
     </h1>
     
     <?php 
-    // Includi notifiche per aggiornamenti pending
-    include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/partials/pending-updates-notice.php';
-    
     // Includi notifica per modalità aggiornamento
     include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/partials/update-mode-notice.php';
     
@@ -60,15 +57,15 @@ $i18n = I18nHelper::get_instance();
                 </a>
             </li>
             <li class="fp-tab-item">
-                <a href="#fp-tab-backup" class="fp-tab-link" data-tab="backup">
-                    <span class="dashicons dashicons-backup"></span>
-                    <?php _e('Gestione Backup', 'fp-git-updater'); ?>
-                </a>
-            </li>
-            <li class="fp-tab-item">
                 <a href="#fp-tab-master" class="fp-tab-link" data-tab="master">
                     <span class="dashicons dashicons-networking"></span>
                     <?php _e('Modalità Master', 'fp-git-updater'); ?>
+                </a>
+            </li>
+            <li class="fp-tab-item">
+                <a href="#fp-tab-backup" class="fp-tab-link" data-tab="backup">
+                    <span class="dashicons dashicons-backup"></span>
+                    <?php _e('Gestione Backup', 'fp-git-updater'); ?>
                 </a>
             </li>
             <li class="fp-tab-item">
@@ -117,9 +114,10 @@ $i18n = I18nHelper::get_instance();
                         include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/partials/plugin-item.php';
                     endforeach; ?>
                 <?php else: ?>
-                    <div class="fp-empty-state">
+                    <div class="fp-empty-state fp-empty-state--plugins">
                         <span class="dashicons dashicons-admin-plugins"></span>
-                        <p><?php _e('Nessun plugin configurato. Aggiungi il primo plugin qui sotto.', 'fp-git-updater'); ?></p>
+                        <p class="fp-empty-state-title"><?php _e('Nessun plugin configurato', 'fp-git-updater'); ?></p>
+                        <p class="fp-empty-state-desc"><?php _e('Aggiungi il primo plugin con il pulsante qui sotto. Inserisci repository GitHub (es. owner/repo) e branch.', 'fp-git-updater'); ?></p>
                     </div>
                 <?php endif; ?>
             </div>
@@ -138,8 +136,8 @@ $i18n = I18nHelper::get_instance();
             ?>
         </div>
         
-        <!-- Tab: Modalità Master -->
-        <div id="fp-tab-master" class="fp-tab-content">
+        <!-- Tab: Modalità Master (form proprio, Salva Impostazioni Master) -->
+        <div id="fp-tab-master" class="fp-tab-content fp-tab-content--own-form">
             <?php include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/partials/master-settings.php'; ?>
         </div>
         
@@ -159,8 +157,8 @@ $i18n = I18nHelper::get_instance();
             ?>
         </div>
         
-        <!-- Bottone Salva (sempre visibile) -->
-        <div class="fp-form-actions">
+        <!-- Bottone Salva (nascosto nella tab Modalità Master che ha form proprio) -->
+        <div class="fp-form-actions" id="fp-main-form-actions">
             <?php submit_button(__('Salva Impostazioni', 'fp-git-updater'), 'primary large', 'submit', false); ?>
         </div>
     </form>

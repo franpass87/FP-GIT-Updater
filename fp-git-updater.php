@@ -67,6 +67,9 @@ class FP_Git_Updater {
         // Carica l'admin subito se siamo nell'admin (prima di admin_menu!)
         if (is_admin()) {
             $this->load_admin();
+            if (class_exists('\FP\GitUpdater\Migration')) {
+                \FP\GitUpdater\Migration::get_instance();
+            }
         }
     }
     
@@ -77,6 +80,9 @@ class FP_Git_Updater {
         \FP\GitUpdater\WebhookHandler::get_instance();
         if (class_exists('\FP\GitUpdater\MasterEndpoint')) {
             \FP\GitUpdater\MasterEndpoint::register();
+        }
+        if (class_exists('\FP\GitUpdater\ReceiveBackupEndpoint')) {
+            \FP\GitUpdater\ReceiveBackupEndpoint::register();
         }
     }
 

@@ -1605,6 +1605,25 @@ html {
     margin: 0;
 }
 
+.fp-empty-state--plugins .fp-empty-state-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--fp-text);
+    margin-bottom: 6px;
+}
+
+.fp-empty-state--plugins .fp-empty-state-desc {
+    font-size: 14px;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Tab con form proprio: nasconde il Salva del form principale */
+.fp-tab-content--own-form .fp-settings-card {
+    margin-bottom: 0;
+}
+
 /* === INPUT GROUP === */
 .fp-input-group {
     display: flex;
@@ -1616,9 +1635,161 @@ html {
     flex: 1;
 }
 
+.fp-input-group--url .fp-url-input {
+    font-family: Consolas, Monaco, monospace;
+    font-size: 13px;
+}
+
+.fp-input-group--secret {
+    max-width: 400px;
+}
+
 /* === BUTTONS === */
 .fp-btn-copy {
     white-space: nowrap;
+}
+
+.fp-btn-copy .fp-btn-copy-icon {
+    margin-right: 4px;
+}
+
+.fp-btn-copy.fp-btn-copy--done .fp-btn-copy-icon {
+    color: var(--fp-success);
+}
+
+.fp-btn-toggle-password {
+    padding: 0 10px;
+}
+
+.fp-btn-toggle-password .dashicons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+}
+
+/* === MODALITÀ MASTER === */
+.fp-master-header-inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.fp-master-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: var(--fp-radius);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.fp-master-status--active {
+    background: var(--fp-success-light);
+    color: var(--fp-success);
+}
+
+.fp-master-status--inactive {
+    background: var(--fp-border-light);
+    color: var(--fp-text-muted);
+}
+
+.fp-master-card {
+    margin-bottom: 20px;
+}
+
+.fp-master-quick-setup {
+    border-left: 4px solid var(--fp-primary);
+}
+
+.fp-master-quick-setup-title {
+    margin: 0 0 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--fp-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fp-master-quick-setup-title .dashicons {
+    color: var(--fp-primary);
+}
+
+.fp-master-quick-setup-list {
+    margin: 0;
+    padding-left: 20px;
+    color: var(--fp-text-muted);
+    line-height: 1.8;
+}
+
+.fp-master-quick-setup-list li {
+    margin-bottom: 4px;
+}
+
+.fp-master-backup-card {
+    margin-top: 20px;
+}
+
+.fp-master-backup-title {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--fp-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fp-master-backup-title .dashicons {
+    color: var(--fp-primary);
+}
+
+.fp-master-backup-desc {
+    margin: 0 0 10px 0;
+    color: var(--fp-text-muted);
+    font-size: 14px;
+}
+
+.fp-master-backup-path {
+    margin: 10px 0;
+    padding: 10px 12px;
+    background: var(--fp-bg-alt);
+    border: 1px solid var(--fp-border);
+    border-radius: var(--fp-radius);
+    overflow-x: auto;
+}
+
+.fp-master-backup-path-code {
+    font-family: Consolas, Monaco, monospace;
+    font-size: 12px;
+    word-break: break-all;
+}
+
+.fp-master-backup-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 8px 0 0 0;
+    font-size: 13px;
+}
+
+.fp-master-backup-status .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+.fp-master-backup-status--ok .dashicons {
+    color: var(--fp-success);
+}
+
+.fp-master-backup-status--warn .dashicons {
+    color: var(--fp-warning);
+}
+
+.fp-master-backup-status--info .dashicons {
+    color: var(--fp-info);
 }
 
 .fp-add-plugin-btn {

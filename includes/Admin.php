@@ -1617,4 +1617,55 @@ class Admin {
         
         wp_die();
     }
+
+    /**
+     * AJAX: Statistiche backup client ricevuti dal Master
+     */
+    public function ajax_get_backup_stats() {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
+            wp_send_json_error(array('message' => 'Nonce non valido'), 400);
+            wp_die();
+        }
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
+            wp_die();
+        }
+
+        try {
+            $updater = Updater::get_instance();
+            $stats = $updater->get_backup_stats();
+            wp_send_json_success($stats);
+        } catch (\Exception $e) {
+            wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
+        }
+        wp_die();
+    }
+
+    /**
+     * AJAX: Pulizia backup vecchi
+     */
+    public function ajax_cleanup_backups() {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
+            wp_send_json_error(array('message' => 'Nonce non valido'), 400);
+            wp_die();
+        }
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
+            wp_die();
+        }
+
+        try {
+            $updater = Updater::get_instance();
+            $deleted = $updater->cleanup_old_backups(true);
+            wp_send_json_success(array(
+                'message' => sprintf('%d backup eliminati con successo.', $deleted),
+                'deleted' => $deleted,
+            ));
+        } catch (\Exception $e) {
+            wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
+        }
+        wp_die();
+    }
 }

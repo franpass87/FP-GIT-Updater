@@ -34,6 +34,9 @@
                 $targetContent.addClass('active');
                 $targetContent.css('display', 'block');
                 
+                // Nascondi Salva principale se il tab ha form proprio (es. Master)
+                updateFormActionsVisibility();
+                
                 // Aggiorna URL hash senza ricaricare
                 if (history.pushState) {
                     history.pushState(null, null, '#' + tabName);
@@ -57,6 +60,18 @@
             return false;
         });
         
+        // Mostra/nascondi Salva Impostazioni in base al tab (Master ha form proprio)
+        function updateFormActionsVisibility() {
+            var $actions = $('#fp-main-form-actions');
+            var activeTab = $('.fp-tab-link.active').length ? $('.fp-tab-link.active').data('tab') : $('.fp-tab-item.active .fp-tab-link').data('tab');
+            if (!activeTab) activeTab = $('.fp-tab-content.active').attr('id').replace('fp-tab-', '');
+            if ($('.fp-tab-content--own-form.active').length) {
+                $actions.hide();
+            } else {
+                $actions.show();
+            }
+        }
+
         // Inizializzazione al caricamento della pagina
         // Flag per evitare doppia esecuzione
         let tabsInitialized = false;
@@ -103,6 +118,7 @@
         
         // Esegui l'inizializzazione immediatamente
         initTabs();
+        updateFormActionsVisibility();
         
         // Fallback: esegui anche dopo un breve delay per assicurarsi che tutto sia caricato
         setTimeout(function() {
@@ -111,6 +127,7 @@
             if (hiddenTabs.length > 0 && hiddenTabs.filter(function() { return $(this).css('display') !== 'none'; }).length > 0) {
                 tabsInitialized = false; // Reset flag se necessario reinizializzare
                 initTabs();
+                updateFormActionsVisibility();
             }
         }, 100);
         
@@ -660,6 +677,52 @@
                 scrollTop: $('.fp-git-updater-wrap').offset().top - 50
             }, 500);
         }
+
+        // ===== MODALITÀ MASTER: Copia URL con feedback =====
+        $(document).on('click', '.fp-btn-copy-master', function() {
+            var targetId = $(this).data('copy-target');
+            var $input = $('#' + targetId);
+            if (!$input.length) return;
+            var url = $input.val();
+            if (typeof navigator.clipboard !== 'undefined' && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(url).then(function() {
+                    var $btn = $('.fp-btn-copy-master');
+                    $btn.find('.fp-btn-copy-text').text($btn.data('copied-text') || 'Copiato!');
+                    $btn.addClass('fp-btn-copy--done');
+                    setTimeout(function() {
+                        $btn.find('.fp-btn-copy-text').text($btn.data('copy-label') || 'Copia');
+                        $btn.removeClass('fp-btn-copy--done');
+                    }, 2000);
+                });
+            } else {
+                $input.select();
+                document.execCommand('copy');
+            }
+        });
+
+        // ===== MODALITÀ MASTER: Mostra/Nascondi secret =====
+        $(document).on('click', '.fp-btn-toggle-password', function() {
+            var $btn = $(this);
+            var $input = $btn.closest('.fp-input-group').find('input');
+            if ($input.attr('type') === 'password') {
+                $input.attr('type', 'text');
+                $btn.find('.dashicons').removeClass('dashicons-visibility').addClass('dashicons-hidden');
+            } else {
+                $input.attr('type', 'password');
+                $btn.find('.dashicons').removeClass('dashicons-hidden').addClass('dashicons-visibility');
+            }
+        });
+
+        // ===== MODALITÀ MASTER: Aggiorna badge stato al toggle =====
+        $(document).on('change', '#fp_git_updater_master_mode', function() {
+            var $status = $('.fp-master-status');
+            if (!$status.length) return;
+            var active = $(this).is(':checked');
+            var text = active ? ($status.data('label-active') || 'Attiva') : ($status.data('label-inactive') || 'Non attiva');
+            $status.removeClass('fp-master-status--active fp-master-status--inactive')
+                .addClass(active ? 'fp-master-status--active' : 'fp-master-status--inactive')
+                .text(text);
+        });
         
         // Animazioni disabilitate - nessuna animazione spin
     });
@@ -742,7 +805,7 @@
             type: 'POST',
             data: {
                 action: 'fp_git_updater_cleanup_backups',
-                nonce: fpGitUpdaterAdmin.nonce
+                nonce: fpGitUpdater.nonce
             },
             success: function(response) {
                 if (response.success) {
