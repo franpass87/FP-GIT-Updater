@@ -49,44 +49,43 @@ if (!defined('ABSPATH')) {
     
     <div class="fp-plugin-info">
         <?php 
-        $updater = \FP\GitUpdater\Updater::get_instance();
-        
-        // Ottieni versione installata corrente
-        // Prima prova a leggerla dall'opzione salvata
-        $current_version = get_option('fp_git_updater_current_version_' . $plugin['id'], '');
-        
-        // Se non c'è, prova a leggerla direttamente dal file del plugin
-        if (empty($current_version)) {
-            $current_version = $updater->get_installed_plugin_version($plugin);
-            
-            // Salva la versione trovata per la prossima volta
-            if (!empty($current_version)) {
-                update_option('fp_git_updater_current_version_' . $plugin['id'], $current_version);
-            }
-        }
-        
-        // Ottieni versione disponibile su GitHub (anche se non c'è aggiornamento pending)
+        $current_version = '';
         $github_version = '';
-        if ($has_pending_update && !empty($pending_info['available_version'])) {
-            // Usa la versione già recuperata nell'aggiornamento pending
-            $github_version = $pending_info['available_version'];
-        } else {
-            // Controlla se abbiamo una versione GitHub salvata in cache (validità 5 minuti)
-            $cached_github_version = get_transient('fp_git_updater_github_version_' . $plugin['id']);
-            if ($cached_github_version !== false) {
-                $github_version = $cached_github_version;
-            } elseif (!empty($plugin['github_repo'])) {
-                // Recupera la versione GitHub solo se non in cache
-                $github_version = $updater->get_github_plugin_version($plugin);
-                // Salva in cache per 5 minuti (300 secondi)
-                if (!empty($github_version)) {
-                    set_transient('fp_git_updater_github_version_' . $plugin['id'], $github_version, 300);
+        $versions_differ = false;
+        
+        try {
+            $updater = \FP\GitUpdater\Updater::get_instance();
+            
+            // Ottieni versione installata corrente
+            $current_version = get_option('fp_git_updater_current_version_' . $plugin['id'], '');
+            
+            if (empty($current_version)) {
+                $current_version = $updater->get_installed_plugin_version($plugin);
+                if (!empty($current_version)) {
+                    update_option('fp_git_updater_current_version_' . $plugin['id'], $current_version);
                 }
             }
+            
+            if ($has_pending_update && !empty($pending_info['available_version'])) {
+                $github_version = $pending_info['available_version'];
+            } else {
+                $cached_github_version = get_transient('fp_git_updater_github_version_' . $plugin['id']);
+                if ($cached_github_version !== false) {
+                    $github_version = $cached_github_version;
+                } elseif (!empty($plugin['github_repo'])) {
+                    $github_version = $updater->get_github_plugin_version($plugin);
+                    if (!empty($github_version)) {
+                        set_transient('fp_git_updater_github_version_' . $plugin['id'], $github_version, 300);
+                    }
+                }
+            }
+            
+            $versions_differ = !empty($current_version) && !empty($github_version) && $current_version !== $github_version;
+        } catch (\Throwable $e) {
+            if (class_exists('\FP\GitUpdater\Logger')) {
+                \FP\GitUpdater\Logger::log('error', 'Errore caricamento info plugin ' . ($plugin['name'] ?? $plugin['id']) . ': ' . $e->getMessage());
+            }
         }
-        
-        // Determina se le versioni sono diverse
-        $versions_differ = !empty($current_version) && !empty($github_version) && $current_version !== $github_version;
         ?>
         
         <div class="fp-plugin-meta-row">

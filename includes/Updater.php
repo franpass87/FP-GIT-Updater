@@ -1718,12 +1718,20 @@ class Updater {
         $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
         
         if (!is_dir($upgrade_dir)) {
+            $avail = 0;
+            try {
+                $avail = $this->get_available_disk_space(WP_CONTENT_DIR);
+            } catch (\Throwable $e) {
+                // Ignora errori filesystem
+            }
             return array(
                 'total_backups' => 0,
                 'total_size' => 0,
                 'total_size_formatted' => '0 B',
                 'oldest_backup' => null,
-                'newest_backup' => null
+                'newest_backup' => null,
+                'available_space' => $avail,
+                'available_space_formatted' => $this->format_bytes($avail)
             );
         }
         
@@ -1731,12 +1739,20 @@ class Updater {
         $backups = glob($backup_pattern, GLOB_ONLYDIR);
         
         if (empty($backups)) {
+            $avail = 0;
+            try {
+                $avail = $this->get_available_disk_space(WP_CONTENT_DIR);
+            } catch (\Throwable $e) {
+                // Ignora errori filesystem
+            }
             return array(
                 'total_backups' => 0,
                 'total_size' => 0,
                 'total_size_formatted' => '0 B',
                 'oldest_backup' => null,
-                'newest_backup' => null
+                'newest_backup' => null,
+                'available_space' => $avail,
+                'available_space_formatted' => $this->format_bytes($avail)
             );
         }
         
@@ -1745,16 +1761,26 @@ class Updater {
         $newest_time = 0;
         
         foreach ($backups as $backup) {
-            $size = $this->get_directory_size($backup);
-            $total_size += $size;
-            
-            $mtime = filemtime($backup);
-            if ($mtime < $oldest_time) {
-                $oldest_time = $mtime;
+            try {
+                $size = $this->get_directory_size($backup);
+                $total_size += $size;
+                $mtime = @filemtime($backup);
+                if ($mtime && $mtime < $oldest_time) {
+                    $oldest_time = $mtime;
+                }
+                if ($mtime && $mtime > $newest_time) {
+                    $newest_time = $mtime;
+                }
+            } catch (\Throwable $e) {
+                // Salta backup problematici
             }
-            if ($mtime > $newest_time) {
-                $newest_time = $mtime;
-            }
+        }
+        
+        $avail = 0;
+        try {
+            $avail = $this->get_available_disk_space(WP_CONTENT_DIR);
+        } catch (\Throwable $e) {
+            $avail = -1;
         }
         
         return array(
@@ -1763,8 +1789,8 @@ class Updater {
             'total_size_formatted' => $this->format_bytes($total_size),
             'oldest_backup' => $oldest_time < time() ? date('Y-m-d H:i:s', $oldest_time) : null,
             'newest_backup' => $newest_time > 0 ? date('Y-m-d H:i:s', $newest_time) : null,
-            'available_space' => $this->get_available_disk_space(WP_CONTENT_DIR),
-            'available_space_formatted' => $this->format_bytes($this->get_available_disk_space(WP_CONTENT_DIR))
+            'available_space' => $avail,
+            'available_space_formatted' => $this->format_bytes($avail)
         );
     }
     

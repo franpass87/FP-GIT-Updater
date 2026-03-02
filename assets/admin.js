@@ -747,9 +747,9 @@
                 if (response.success && response.data) {
                     const stats = response.data;
                     let html = '<table style="width: 100%;">';
-                    html += '<tr><td><strong>Backup Totali:</strong></td><td>' + stats.total_backups + '</td></tr>';
-                    html += '<tr><td><strong>Spazio Totale:</strong></td><td>' + stats.total_size_formatted + '</td></tr>';
-                    html += '<tr><td><strong>Spazio Disponibile:</strong></td><td>' + stats.available_space_formatted + '</td></tr>';
+                    html += '<tr><td><strong>Backup Totali:</strong></td><td>' + (stats.total_backups ?? 0) + '</td></tr>';
+                    html += '<tr><td><strong>Spazio Totale:</strong></td><td>' + (stats.total_size_formatted ?? '0 B') + '</td></tr>';
+                    html += '<tr><td><strong>Spazio Disponibile:</strong></td><td>' + (stats.available_space_formatted ?? 'N/A') + '</td></tr>';
                     if (stats.oldest_backup) {
                         html += '<tr><td><strong>Backup più Vecchio:</strong></td><td>' + stats.oldest_backup + '</td></tr>';
                     }
@@ -758,8 +758,8 @@
                     }
                     html += '</table>';
                     
-                    if (stats.total_backups > 0) {
-                        html += '<p style="margin-top: 10px; color: #d63638;"><strong>⚠ Attenzione:</strong> ' + stats.total_backups + ' backup occupano ' + stats.total_size_formatted + ' di spazio.</p>';
+                    if ((stats.total_backups ?? 0) > 0) {
+                        html += '<p style="margin-top: 10px; color: #d63638;"><strong>⚠ Attenzione:</strong> ' + (stats.total_backups ?? 0) + ' backup occupano ' + (stats.total_size_formatted ?? '0 B') + ' di spazio.</p>';
                     } else {
                         html += '<p style="margin-top: 10px; color: #00a32a;"><strong>✓ Nessun backup presente.</strong></p>';
                     }
