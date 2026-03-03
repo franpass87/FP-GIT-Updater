@@ -884,6 +884,38 @@
                 $btn.prop('disabled', false);
             });
         });
+
+        $(document).on('click', '#fp-refresh-clients-btn', function() {
+            var $btn = $(this);
+            var $content = $('#fp-master-clients-content');
+            var $badge = $('.fp-master-clients-badge');
+            var origHtml = $btn.html();
+            $btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> ' + ($btn.data('loading') || 'Aggiornamento...'));
+            $.post(fpGitUpdater.ajax_url, {
+                action: 'fp_git_updater_refresh_clients',
+                nonce: fpGitUpdater.nonce
+            }).done(function(response) {
+                if (response.success && response.data && response.data.html !== undefined) {
+                    $content.html(response.data.html);
+                    if (response.data.count > 0) {
+                        if ($badge.length) {
+                            $badge.text(response.data.count);
+                        } else {
+                            $('.fp-master-clients-title').append('<span class="fp-master-clients-badge">' + response.data.count + '</span>');
+                        }
+                    } else {
+                        $badge.remove();
+                    }
+                    showNotice('success', response.data.count > 0 ? response.data.count + ' clienti collegati.' : 'Nessun cliente collegato.');
+                } else {
+                    showNotice('error', 'Errore durante l\'aggiornamento.');
+                }
+            }).fail(function() {
+                showNotice('error', 'Errore di connessione.');
+            }).always(function() {
+                $btn.prop('disabled', false).html(origHtml);
+            });
+        });
         
         // Animazioni disabilitate - nessuna animazione spin
     });

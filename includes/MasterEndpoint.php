@@ -49,12 +49,16 @@ class MasterEndpoint
 
     public static function permission_check(WP_REST_Request $request): bool
     {
+        $client_id = $request->get_header(self::HEADER_CLIENT_ID) ?: $request->get_param('client_id');
+
         if (!get_option(self::OPTION_MASTER_MODE, false)) {
+            Logger::log('warning', 'Master: richiesta rifiutata (Modalità Master non attiva)', ['client_id' => $client_id]);
             return false;
         }
 
         $secret = get_option(self::OPTION_MASTER_CLIENT_SECRET, '');
         if (empty($secret)) {
+            Logger::log('warning', 'Master: richiesta rifiutata (chiave segreta non configurata)', ['client_id' => $client_id]);
             return false;
         }
 
@@ -63,10 +67,16 @@ class MasterEndpoint
             $provided = $request->get_param('secret');
         }
         if (empty($provided) || !is_string($provided)) {
+            Logger::log('warning', 'Master: richiesta rifiutata (secret non fornito)', ['client_id' => $client_id]);
             return false;
         }
 
-        return hash_equals($secret, $provided);
+        if (!hash_equals($secret, $provided)) {
+            Logger::log('warning', 'Master: richiesta rifiutata (secret non valido)', ['client_id' => $client_id]);
+            return false;
+        }
+
+        return true;
     }
 
     public static function handle_request(WP_REST_Request $request): WP_REST_Response

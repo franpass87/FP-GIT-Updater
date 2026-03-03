@@ -164,9 +164,16 @@ $versions_differ = !empty($current_version) && !empty($github_version) && versio
 </div>
 
 <script type="text/javascript">
+(function() {
+    var ajaxUrl = '<?php echo esc_js(admin_url('admin-ajax.php')); ?>';
+    var nonce = '<?php echo esc_js(wp_create_nonce('fp_git_updater_nonce')); ?>';
+    if (typeof fpGitUpdater !== 'undefined') {
+        if (fpGitUpdater.ajax_url) ajaxUrl = fpGitUpdater.ajax_url;
+        if (fpGitUpdater.nonce) nonce = fpGitUpdater.nonce;
+    } else if (typeof ajaxurl !== 'undefined') {
+        ajaxUrl = ajaxurl;
+    }
 jQuery(document).ready(function($) {
-    var ajaxUrl = (typeof fpGitUpdater !== 'undefined' && fpGitUpdater.ajax_url) ? fpGitUpdater.ajax_url : (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php');
-    var nonce = (typeof fpGitUpdater !== 'undefined' && fpGitUpdater.nonce) ? fpGitUpdater.nonce : '';
     
     // Controlla aggiornamenti per il plugin stesso
     $('#fp-check-self-update').on('click', function() {
@@ -228,4 +235,5 @@ jQuery(document).ready(function($) {
         window.open('<?php echo admin_url('admin.php?page=fp-git-updater-logs'); ?>', '_blank');
     });
 });
+})();
 </script>

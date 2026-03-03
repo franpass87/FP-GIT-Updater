@@ -157,21 +157,36 @@ $backup_dir_writable = $backup_dir_exists && is_writable($backup_dir);
 
 <!-- Client collegati -->
 <div class="fp-settings-card fp-master-clients-card">
-    <h3 class="fp-master-clients-title">
-        <span class="dashicons dashicons-groups"></span>
-        <?php _e('Clienti collegati', 'fp-git-updater'); ?>
-        <?php if (!empty($connected_clients)): ?>
-            <span class="fp-master-clients-badge"><?php echo count($connected_clients); ?></span>
-        <?php endif; ?>
-    </h3>
+    <div class="fp-master-clients-header">
+        <h3 class="fp-master-clients-title">
+            <span class="dashicons dashicons-groups"></span>
+            <?php _e('Clienti collegati', 'fp-git-updater'); ?>
+            <?php if (!empty($connected_clients)): ?>
+                <span class="fp-master-clients-badge"><?php echo count($connected_clients); ?></span>
+            <?php endif; ?>
+        </h3>
+        <button type="button" id="fp-refresh-clients-btn" class="button button-secondary" title="<?php esc_attr_e('Ricarica elenco clienti', 'fp-git-updater'); ?>">
+            <span class="dashicons dashicons-update"></span>
+            <?php _e('Aggiorna elenco', 'fp-git-updater'); ?>
+        </button>
+    </div>
     <p class="fp-master-clients-desc">
         <?php _e('Siti dei tuoi clienti con FP Remote Bridge che hanno contattato il Master negli ultimi 30 giorni. I plugin installati vengono rilevati automaticamente.', 'fp-git-updater'); ?>
     </p>
+    <div id="fp-master-clients-content">
     <?php if (empty($connected_clients)): ?>
-        <p class="fp-master-clients-empty">
-            <span class="dashicons dashicons-info"></span>
-            <?php _e('Nessun cliente collegato. I siti dei tuoi clienti appariranno qui dopo la prima connessione.', 'fp-git-updater'); ?>
-        </p>
+        <div class="fp-master-clients-empty" style="padding: 16px; background: #f0f6fc; border-left: 4px solid #2271b1; margin: 12px 0;">
+            <p style="margin: 0 0 12px;"><strong><?php _e('Nessun cliente collegato.', 'fp-git-updater'); ?></strong></p>
+            <p style="margin: 0 0 8px;"><?php _e('Per far apparire un sito qui:', 'fp-git-updater'); ?></p>
+            <ol style="margin: 0 0 0 20px; padding: 0;">
+                <li><?php _e('Sul sito del cliente: Impostazioni → FP Remote Bridge', 'fp-git-updater'); ?></li>
+                <li><?php _e('Inserisci URL Master (es. https://manager.francescopasseri.com) e la Chiave segreta (identica a quella qui sopra)', 'fp-git-updater'); ?></li>
+                <li><?php _e('Salva e clicca «Sincronizza ora» — il cliente apparirà subito in questa lista', 'fp-git-updater'); ?></li>
+            </ol>
+            <p style="margin: 12px 0 0; font-size: 12px; color: #646970;">
+                <?php _e('Se il cliente non appare: verifica che Modalità Master sia attiva, che la chiave segreta coincida esattamente e che il sito cliente riesca a raggiungere l\'URL del Master.', 'fp-git-updater'); ?>
+            </p>
+        </div>
     <?php else: ?>
         <table class="wp-list-table widefat fixed striped fp-master-clients-table">
             <thead>
@@ -195,6 +210,7 @@ $backup_dir_writable = $backup_dir_exists && is_writable($backup_dir);
             </tbody>
         </table>
     <?php endif; ?>
+    </div>
 </div>
 
 <!-- Setup rapido -->

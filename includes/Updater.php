@@ -128,7 +128,8 @@ class Updater {
         $pending = get_option('fp_git_updater_pending_update_' . $plugin_id);
         $commit_sha = $pending && isset($pending['commit_sha']) ? $pending['commit_sha'] : null;
         
-        $result = $this->run_plugin_update($plugin, $commit_sha);
+        $is_self = (isset($plugin['id']) && $plugin['id'] === 'fp_git_updater_self');
+        $result = $this->run_plugin_update($plugin, $commit_sha, $is_self);
         
         // Se l'aggiornamento ha successo, rimuovi il pending update
         if ($result && !is_wp_error($result)) {
@@ -910,7 +911,8 @@ class Updater {
                     continue;
                 }
                 
-                $result = $this->run_plugin_update($p, null);
+                $is_self = (isset($p['id']) && $p['id'] === 'fp_git_updater_self');
+                $result = $this->run_plugin_update($p, null, $is_self);
                 if (!$result) {
                     $success = false;
                 }
@@ -919,13 +921,15 @@ class Updater {
             return $success;
         }
         
-        return $this->run_plugin_update($plugin, $commit_sha);
+        $is_self = ($plugin && isset($plugin['id']) && $plugin['id'] === 'fp_git_updater_self');
+        return $this->run_plugin_update($plugin, $commit_sha, $is_self);
     }
     
     /**
      * Esegue l'aggiornamento di un plugin specifico
+     * @param bool $is_self_update Evita ricorsione quando chiamato da run_self_update
      */
-    private function run_plugin_update($plugin, $commit_sha = null) {
+    private function run_plugin_update($plugin, $commit_sha = null, $is_self_update = false) {
         // Verifica se c'è già un aggiornamento in corso per questo plugin (lock)
         $lock_key = 'fp_git_updater_lock_' . $plugin['id'];
         $lock_value = get_transient($lock_key);
@@ -1297,11 +1301,14 @@ class Updater {
         $plugin_dir = WP_PLUGIN_DIR . '/' . $plugin_slug;
         
         // Verifica se stiamo cercando di aggiornare il plugin stesso
-        if ($plugin_slug === 'fp-git-updater' || $plugin_slug === dirname(FP_GIT_UPDATER_PLUGIN_BASENAME)) {
+        $is_self_plugin = ($plugin_slug === 'fp-git-updater' || $plugin_slug === dirname(FP_GIT_UPDATER_PLUGIN_BASENAME));
+        if ($is_self_plugin && !$is_self_update) {
             Logger::log('info', 'Auto-aggiornamento del plugin FP Updater in corso...');
-            
-            // Per l'auto-aggiornamento, usiamo un approccio più sicuro
             return $this->run_self_update($plugin, $commit_sha);
+        }
+        // Per self-update: usa la directory effettiva del plugin (es. FP-GIT-Updater-main)
+        if ($is_self_plugin && $is_self_update) {
+            $plugin_dir = dirname(FP_GIT_UPDATER_PLUGIN_FILE);
         }
         
         // Backup della versione attuale (solo se la directory esiste)
@@ -2041,7 +2048,7 @@ class Updater {
             $backup_manager->create_backup(false);
             
             // Usa il metodo standard ma con alcune modifiche per la sicurezza
-            $result = $this->run_plugin_update($plugin, $commit_sha);
+            $result = $this->run_plugin_update($plugin, $commit_sha, true);
             
             if ($result) {
                 Logger::log('success', 'Auto-aggiornamento del plugin FP Updater completato con successo');

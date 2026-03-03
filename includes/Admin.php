@@ -43,6 +43,7 @@ class Admin {
         add_action('wp_ajax_fp_git_updater_refresh_github_version', array($this, 'ajax_refresh_github_version'));
         add_action('wp_ajax_fp_git_updater_deploy_install', array($this, 'ajax_deploy_install'));
         add_action('wp_ajax_fp_git_updater_deploy_update', array($this, 'ajax_deploy_update'));
+        add_action('wp_ajax_fp_git_updater_refresh_clients', array($this, 'ajax_refresh_clients'));
     }
     
     /**
@@ -1286,5 +1287,39 @@ class Admin {
             ),
             'valid_until' => $until,
         ));
+    }
+
+    /**
+     * AJAX: Aggiorna elenco clienti collegati (ricarica da DB)
+     */
+    public function ajax_refresh_clients() {
+        check_ajax_referer('fp_git_updater_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Accesso negato.', 'fp-git-updater')), 403);
+        }
+
+        $clients = MasterEndpoint::get_connected_clients();
+        $count = count($clients);
+        ob_start();
+        if (empty($clients)) {
+            echo '<p class="fp-master-clients-empty"><span class="dashicons dashicons-info"></span> ';
+            esc_html_e('Nessun cliente collegato. I siti dei tuoi clienti appariranno qui dopo la prima connessione.', 'fp-git-updater');
+            echo '</p>';
+        } else {
+            echo '<table class="wp-list-table widefat fixed striped fp-master-clients-table"><thead><tr>';
+            echo '<th scope="col" style="width:35%;">' . esc_html__('Sito cliente', 'fp-git-updater') . '</th>';
+            echo '<th scope="col" style="width:35%;">' . esc_html__('Plugin installati', 'fp-git-updater') . '</th>';
+            echo '<th scope="col">' . esc_html__('Ultima connessione', 'fp-git-updater') . '</th></tr></thead><tbody>';
+            foreach ($clients as $client_id => $data) {
+                $installed = $data['installed_plugins'] ?? [];
+                $installed_str = !empty($installed) ? implode(', ', array_slice($installed, 0, 8)) . (count($installed) > 8 ? '…' : '') : '—';
+                echo '<tr><td><strong>' . esc_html($client_id) . '</strong></td>';
+                echo '<td><small>' . esc_html($installed_str) . '</small></td>';
+                echo '<td>' . esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), $data['last_seen'] ?? 0)) . '</td></tr>';
+            }
+            echo '</tbody></table>';
+        }
+        $html = ob_get_clean();
+        wp_send_json_success(array('html' => $html, 'count' => $count));
     }
 }

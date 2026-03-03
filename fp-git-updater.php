@@ -17,6 +17,15 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// Guard: blocca caricamento se il plugin è in path annidato (upload errato che crea duplicati)
+$self_basename = plugin_basename(__FILE__);
+if (substr_count($self_basename, '/') > 1) {
+    add_action('admin_notices', function() {
+        echo '<div class="notice notice-error"><p><strong>FP Updater:</strong> Installazione errata rilevata (cartelle annidate). Elimina questo plugin dalla lista e reinstalla correttamente. Vedi istruzioni in FP Updater.</p></div>';
+    });
+    return;
+}
+
 // Definisci costanti del plugin
 define('FP_GIT_UPDATER_VERSION', '1.3.4');
 define('FP_GIT_UPDATER_PLUGIN_DIR', dirname(__FILE__) . '/');
@@ -63,6 +72,10 @@ class FP_Git_Updater {
 
         // REST API: webhook e endpoint Master (sempre caricati per richieste esterne)
         add_action('rest_api_init', array($this, 'register_rest_endpoints'));
+
+        // Updater sempre caricato: necessario per registrare l'handler del cron
+        // (wp-cron gira su richieste frontend/cron, non solo admin)
+        add_action('plugins_loaded', array($this, 'load_updater'), 10);
         
         // Carica l'admin subito se siamo nell'admin (prima di admin_menu!)
         if (is_admin()) {
@@ -83,6 +96,15 @@ class FP_Git_Updater {
         }
         if (class_exists('\FP\GitUpdater\ReceiveBackupEndpoint')) {
             \FP\GitUpdater\ReceiveBackupEndpoint::register();
+        }
+    }
+
+    /**
+     * Carica l'Updater su ogni richiesta (necessario per handler cron su frontend/cron)
+     */
+    public function load_updater() {
+        if (class_exists('\FP\GitUpdater\Updater')) {
+            \FP\GitUpdater\Updater::get_instance();
         }
     }
 
@@ -120,27 +142,22 @@ class FP_Git_Updater {
         $existing_settings = get_option('fp_git_updater_settings', array());
         $settings = wp_parse_args($existing_settings, $default_settings);
         update_option('fp_git_updater_settings', $settings);
+
+        // Fallback: schedula il cron se non già presente (Updater potrebbe non essere caricato)
+        $interval = isset($settings['update_check_interval']) ? $settings['update_check_interval'] : 'hourly';
+        if (!wp_next_scheduled('fp_git_updater_check_update')) {
+            wp_schedule_event(time() + 60, $interval, 'fp_git_updater_check_update');
+        }
     }
     
     /**
      * Disattivazione plugin
      */
     public function deactivate() {
-        // Pulisci i cron job
-        $timestamp = wp_next_scheduled('fp_git_updater_check_update');
-        if ($timestamp) {
-            wp_unschedule_event($timestamp, 'fp_git_updater_check_update');
-        }
-        
-        $timestamp = wp_next_scheduled('fp_git_updater_cleanup_old_logs');
-        if ($timestamp) {
-            wp_unschedule_event($timestamp, 'fp_git_updater_cleanup_old_logs');
-        }
-        
-        $timestamp = wp_next_scheduled('fp_git_updater_cleanup_old_backups');
-        if ($timestamp) {
-            wp_unschedule_event($timestamp, 'fp_git_updater_cleanup_old_backups');
-        }
+        // Pulisci tutti i cron job del plugin
+        wp_clear_scheduled_hook('fp_git_updater_check_update');
+        wp_clear_scheduled_hook('fp_git_updater_cleanup_old_logs');
+        wp_clear_scheduled_hook('fp_git_updater_cleanup_old_backups');
         
         flush_rewrite_rules();
     }

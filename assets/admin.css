@@ -2074,6 +2074,17 @@ html {
     border-left: 4px solid var(--fp-info);
 }
 
+.fp-master-clients-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+.fp-master-clients-header .fp-master-clients-title {
+    margin: 0;
+}
 .fp-master-clients-title {
     margin: 0 0 8px 0;
     font-size: 16px;
