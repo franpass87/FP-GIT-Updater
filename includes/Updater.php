@@ -933,12 +933,19 @@ class Updater {
         // Verifica se c'è già un aggiornamento in corso per questo plugin (lock)
         $lock_key = 'fp_git_updater_lock_' . $plugin['id'];
         $lock_value = get_transient($lock_key);
-        
+        $lock_max_age = 900; // 15 minuti: lock più vecchio = orfano (update crashato), sblocca
+
         if ($lock_value !== false) {
-            Logger::log('warning', 'Aggiornamento già in corso per: ' . $plugin['name'] . ' - saltato');
-            return false;
+            $lock_age = is_numeric($lock_value) ? (time() - (int) $lock_value) : $lock_max_age;
+            if ($lock_age >= $lock_max_age) {
+                delete_transient($lock_key);
+                Logger::log('info', 'Lock orfano rimosso per: ' . $plugin['name'] . ' (età ' . $lock_age . 's)');
+            } else {
+                Logger::log('warning', 'Aggiornamento già in corso per: ' . $plugin['name'] . ' - saltato (riprova tra ' . ($lock_max_age - $lock_age) . 's o aspetta 15 min)');
+                return false;
+            }
         }
-        
+
         // Imposta il lock (scade dopo 10 minuti come failsafe)
         set_transient($lock_key, time(), 600);
         

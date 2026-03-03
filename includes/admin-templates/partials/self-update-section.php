@@ -153,7 +153,10 @@ $versions_differ = !empty($current_version) && !empty($github_version) && versio
             <span class="dashicons dashicons-cloud"></span>
             <?php _e('Controlla Aggiornamenti', 'fp-git-updater'); ?>
         </button>
-        
+        <button type="button" id="fp-clear-update-lock" class="button button-link-delete" title="<?php esc_attr_e('Usa se l\'aggiornamento risulta bloccato da troppo tempo', 'fp-git-updater'); ?>">
+            <span class="dashicons dashicons-unlock"></span>
+            <?php _e('Sblocca e riprova', 'fp-git-updater'); ?>
+        </button>
         <?php if ($self_update_info): ?>
             <button type="button" id="fp-view-self-update-log" class="button">
                 <span class="dashicons dashicons-list-view"></span>
@@ -233,6 +236,24 @@ jQuery(document).ready(function($) {
     // Vedi log dell'ultimo aggiornamento
     $('#fp-view-self-update-log').on('click', function() {
         window.open('<?php echo admin_url('admin.php?page=fp-git-updater-logs'); ?>', '_blank');
+    });
+
+    // Sblocca aggiornamento bloccato
+    $('#fp-clear-update-lock').on('click', function() {
+        var $btn = $(this);
+        if (!nonce) return;
+        $btn.prop('disabled', true);
+        $.post(ajaxUrl, { action: 'fp_git_updater_clear_update_lock', nonce: nonce, plugin_id: 'fp_git_updater_self' })
+            .done(function(r) {
+                if (r && r.success) {
+                    alert(r.data && r.data.message ? r.data.message : '<?php echo esc_js(__('Sblocco completato.', 'fp-git-updater')); ?>');
+                    location.reload();
+                } else {
+                    alert('Errore: ' + (r && r.data && r.data.message ? r.data.message : 'Errore sconosciuto'));
+                }
+            })
+            .fail(function() { alert('Errore di rete'); })
+            .always(function() { $btn.prop('disabled', false); });
     });
 });
 })();

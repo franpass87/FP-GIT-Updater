@@ -44,6 +44,7 @@ class Admin {
         add_action('wp_ajax_fp_git_updater_deploy_install', array($this, 'ajax_deploy_install'));
         add_action('wp_ajax_fp_git_updater_deploy_update', array($this, 'ajax_deploy_update'));
         add_action('wp_ajax_fp_git_updater_refresh_clients', array($this, 'ajax_refresh_clients'));
+        add_action('wp_ajax_fp_git_updater_clear_update_lock', array($this, 'ajax_clear_update_lock'));
     }
     
     /**
@@ -1321,5 +1322,23 @@ class Admin {
         }
         $html = ob_get_clean();
         wp_send_json_success(array('html' => $html, 'count' => $count));
+    }
+
+    /**
+     * AJAX: Sblocca aggiornamento bloccato (rimuove lock orfano)
+     */
+    public function ajax_clear_update_lock() {
+        check_ajax_referer('fp_git_updater_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Accesso negato.', 'fp-git-updater')), 403);
+        }
+
+        $plugin_id = isset($_POST['plugin_id']) ? sanitize_text_field(wp_unslash($_POST['plugin_id'])) : 'fp_git_updater_self';
+        $lock_key = 'fp_git_updater_lock_' . $plugin_id;
+        delete_transient($lock_key);
+
+        Logger::log('info', 'Lock aggiornamento rimosso manualmente per: ' . $plugin_id);
+
+        wp_send_json_success(array('message' => __('Sblocco completato. Puoi riprovare l\'aggiornamento.', 'fp-git-updater')));
     }
 }
