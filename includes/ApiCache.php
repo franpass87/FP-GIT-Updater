@@ -86,48 +86,6 @@ class ApiCache {
     }
     
     /**
-     * Invalida una chiave specifica dalla cache
-     * 
-     * @param string $key Chiave da invalidare
-     * @return bool True se eliminata con successo
-     */
-    public function invalidate($key) {
-        $cache_key = $this->cache_prefix . md5($key);
-        $result = delete_transient($cache_key);
-        
-        // Log solo in debug mode per evitare spam nei log
-        if ($result && defined('WP_DEBUG') && WP_DEBUG) {
-            Logger::log('info', 'Cache invalidata per: ' . $key);
-        }
-        
-        return $result;
-    }
-    
-    /**
-     * Invalida tutta la cache del plugin
-     * 
-     * @return int Numero di cache invalidate
-     */
-    public function invalidate_all() {
-        global $wpdb;
-        
-        // Trova tutte le transient con il nostro prefix
-        $sql = $wpdb->prepare(
-            "DELETE FROM {$wpdb->options} 
-             WHERE option_name LIKE %s 
-             OR option_name LIKE %s",
-            $wpdb->esc_like('_transient_' . $this->cache_prefix) . '%',
-            $wpdb->esc_like('_transient_timeout_' . $this->cache_prefix) . '%'
-        );
-        
-        $deleted = $wpdb->query($sql);
-        
-        Logger::log('info', 'Cache invalidata completamente: ' . $deleted . ' voci eliminate');
-        
-        return $deleted;
-    }
-    
-    /**
      * Genera una chiave di cache per una chiamata API GitHub
      * 
      * @param string $endpoint Endpoint API
@@ -166,38 +124,6 @@ class ApiCache {
         }
         
         return $response;
-    }
-    
-    /**
-     * Ottieni statistiche della cache
-     * 
-     * @return array Array con statistiche
-     */
-    public function get_stats() {
-        global $wpdb;
-        
-        $count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->options} 
-             WHERE option_name LIKE %s",
-            $wpdb->esc_like('_transient_' . $this->cache_prefix) . '%'
-        ));
-        
-        return array(
-            'cached_items' => intval($count),
-            'cache_duration' => $this->cache_duration,
-            'prefix' => $this->cache_prefix
-        );
-    }
-    
-    /**
-     * Pulisci cache scadute (chiamato via cron)
-     */
-    public function cleanup_expired() {
-        // WordPress gestisce automaticamente le transient scadute,
-        // ma possiamo forzare la pulizia
-        delete_expired_transients(true);
-        
-        Logger::log('info', 'Pulizia cache scadute completata');
     }
 }
 

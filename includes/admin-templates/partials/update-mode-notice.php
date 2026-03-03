@@ -24,7 +24,7 @@ if (!defined('ABSPATH')) {
             <span class="dashicons dashicons-warning" style="color: #dba617;"></span>
             <strong><?php _e('Attenzione:', 'fp-git-updater'); ?></strong> 
             <?php _e('Aggiornamento Automatico Attivo - I plugin verranno aggiornati automaticamente quando ricevi un push da GitHub.', 'fp-git-updater'); ?>
-            <br><?php _e('Se vuoi maggiore controllo e sicurezza per i siti dei tuoi clienti, disabilita questa opzione qui sotto.', 'fp-git-updater'); ?>
+            <br><?php _e('Per maggiore controllo e sicurezza, disabilita «Aggiornamento Automatico» nel tab Impostazioni Generali.', 'fp-git-updater'); ?>
         </p>
     </div>
 <?php endif; ?>

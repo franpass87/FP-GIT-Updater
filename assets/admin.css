@@ -128,6 +128,10 @@
 /* === BUTTONS === */
 .fp-status-box button,
 .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     transition: var(--fp-transition);
     border-radius: var(--fp-radius);
     font-weight: 500;
@@ -157,9 +161,9 @@
     background: var(--fp-primary-dark);
 }
 
-.fp-status-box button .dashicons {
-    line-height: 28px;
-    margin-right: 6px;
+.fp-status-box button .dashicons,
+.button .dashicons {
+    flex-shrink: 0;
 }
 
 /* === BADGES === */
@@ -368,7 +372,6 @@
     font-size: 16px;
     width: 16px;
     height: 16px;
-    margin-right: 4px;
 }
 
 /* === PLUGIN INFO === */
@@ -442,11 +445,6 @@
     color: var(--fp-success);
 }
 
-.fp-plugin-info code.fp-version-na {
-    color: var(--fp-text-muted);
-    font-style: italic;
-}
-
 /* === VERSION BOX === */
 .fp-plugin-info > div[style*="background"] {
     width: 100%;
@@ -502,8 +500,6 @@
     font-size: 16px;
     width: 16px;
     height: 16px;
-    margin-right: 6px;
-    vertical-align: middle;
 }
 
 .fp-plugin-quick-actions .button:hover .dashicons {
@@ -522,6 +518,52 @@
 
 .fp-plugin-quick-actions .button-primary:active {
     background: var(--fp-primary-dark);
+}
+
+.fp-plugin-deploy-inline {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--fp-border);
+}
+
+.fp-plugin-deploy-inline .fp-deploy-label {
+    font-size: 13px;
+    color: var(--fp-text-muted);
+    margin-right: 4px;
+}
+
+.fp-plugin-deploy-inline .fp-deploy-client-check {
+    display: inline;
+    margin: 0 2px;
+    font-size: 12px;
+}
+
+.fp-plugin-deploy-inline .fp-deploy-client-check input {
+    margin-right: 4px;
+    cursor: pointer;
+}
+
+.fp-plugin-deploy-hint.fp-plugin-deploy-no-clients {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--fp-border);
+    font-size: 13px;
+    color: var(--fp-text-muted);
+}
+
+.fp-plugin-deploy-hint .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--fp-info);
+    flex-shrink: 0;
 }
 
 /* === PLUGIN DETAILS (Collapsible) === */
@@ -952,8 +994,7 @@
 }
 
 .fp-load-repos-btn .dashicons {
-    vertical-align: middle;
-    margin-right: 6px;
+    flex-shrink: 0;
 }
 
 /* === RESPONSIVE === */
@@ -1258,12 +1299,15 @@ select:focus:not(:focus-visible) {
 
 .fp-plugin-versions-compact .fp-refresh-github-version,
 .fp-self-update-versions .fp-refresh-github-version {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     vertical-align: middle;
     margin-left: 6px;
-    padding: 2px 6px;
+    padding: 4px 6px;
     height: auto;
-    line-height: 1.2;
-    min-height: 22px;
+    min-height: 24px;
+    gap: 0;
 }
 
 .fp-plugin-versions-compact .fp-refresh-github-version .dashicons,
@@ -1399,13 +1443,10 @@ select:focus:not(:focus-visible) {
 
 /* === FORM ACTIONS === */
 .fp-form-actions {
-    position: sticky;
-    bottom: 0;
     background: var(--fp-bg);
     padding: 20px;
     margin: 20px 0 0 0;
     border-top: 1px solid var(--fp-border);
-    z-index: 100;
 }
 
 .fp-form-actions::before {
@@ -1426,8 +1467,31 @@ select:focus:not(:focus-visible) {
     background: var(--fp-primary-dark);
 }
 
-/* === RESPONSIVE TABS === */
+/* === RESPONSIVE TABS & DEPLOY === */
 @media screen and (max-width: 782px) {
+    .fp-master-deploy-subnav {
+        flex-direction: column;
+    }
+
+    .fp-master-deploy-subtab {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .fp-github-repos-list .wp-list-table,
+    .fp-deploy-update-table {
+        font-size: 13px;
+    }
+
+    .fp-github-repos-list .wp-list-table th:nth-child(2),
+    .fp-github-repos-list .wp-list-table td:nth-child(2) {
+        display: none;
+    }
+
+    .fp-deploy-clients-cell {
+        max-width: 150px;
+    }
+
     .fp-tab-nav {
         border-radius: var(--fp-radius);
         margin: 15px 0;
@@ -1576,6 +1640,16 @@ html {
     margin-bottom: 25px;
 }
 
+/* Separazione visiva tra step 1, 2, 3 */
+.fp-master-config-card {
+    border-left: 4px solid var(--fp-primary);
+}
+
+.fp-plugins-section-header {
+    margin-top: 4px;
+}
+
+
 .fp-settings-card .form-table {
     margin: 0;
 }
@@ -1619,11 +1693,6 @@ html {
     margin-right: auto;
 }
 
-/* Tab con form proprio: nasconde il Salva del form principale */
-.fp-tab-content--own-form .fp-settings-card {
-    margin-bottom: 0;
-}
-
 /* === INPUT GROUP === */
 .fp-input-group {
     display: flex;
@@ -1650,7 +1719,7 @@ html {
 }
 
 .fp-btn-copy .fp-btn-copy-icon {
-    margin-right: 4px;
+    flex-shrink: 0;
 }
 
 .fp-btn-copy.fp-btn-copy--done .fp-btn-copy-icon {
@@ -1665,6 +1734,254 @@ html {
     font-size: 20px;
     width: 20px;
     height: 20px;
+}
+
+/* === STEP BADGES (flusso 1-2-3) === */
+.fp-step-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 6px;
+    background: var(--fp-border);
+    color: var(--fp-text-muted);
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.fp-step-badge--accent {
+    background: var(--fp-primary);
+    color: #fff;
+}
+
+/* === CONFIG MASTER (card compatta) === */
+.fp-master-config-card {
+    margin-bottom: 24px;
+    padding: 20px;
+}
+
+.fp-master-config-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.fp-master-config-header .fp-step-badge {
+    flex-shrink: 0;
+}
+
+.fp-master-config-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fp-master-config-title .dashicons {
+    color: var(--fp-primary);
+}
+
+.fp-master-config-desc {
+    margin: 0 0 16px 0;
+    color: var(--fp-text-muted);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* Lista passi configurazione Master (1-2-3) */
+.fp-master-config-steps {
+    margin: 0 0 20px 0;
+    padding: 16px 20px 16px 44px;
+    background: var(--fp-bg-alt);
+    border: 1px solid var(--fp-border);
+    border-radius: var(--fp-radius);
+    list-style: none;
+    counter-reset: step;
+}
+
+.fp-master-config-steps li {
+    position: relative;
+    padding: 6px 0;
+    font-size: 14px;
+    color: var(--fp-text);
+    line-height: 1.5;
+}
+
+.fp-master-config-steps li::before {
+    content: counter(step);
+    counter-increment: step;
+    position: absolute;
+    left: -32px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    background: var(--fp-primary);
+    color: #fff;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.fp-master-config-steps li + li {
+    border-top: 1px dashed var(--fp-border);
+}
+
+.fp-deploy-hint {
+    width: 100%;
+    margin: 8px 0 0 0;
+    font-size: 13px;
+    color: var(--fp-text-muted);
+}
+
+.fp-plugins-section-header .fp-step-badge {
+    flex-shrink: 0;
+}
+
+.fp-plugins-section-header .fp-section-title {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+}
+
+.fp-master-deploy-title .fp-step-badge {
+    margin-right: 4px;
+}
+
+/* Sub-tab Installa / Aggiorna */
+.fp-master-deploy-subnav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.fp-master-deploy-subtab {
+    padding: 8px 16px;
+    background: var(--fp-bg-alt);
+    border: 1px solid var(--fp-border);
+    border-radius: var(--fp-radius);
+    cursor: pointer;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.fp-master-deploy-subtab:hover {
+    background: var(--fp-primary-light);
+    border-color: var(--fp-primary);
+}
+
+.fp-master-deploy-subtab.active {
+    background: var(--fp-primary);
+    color: #fff;
+    border-color: var(--fp-primary-dark);
+}
+
+.fp-master-deploy-subcontent {
+    display: none;
+}
+
+.fp-master-deploy-subcontent.active {
+    display: block;
+}
+
+.fp-deploy-tab-desc {
+    margin: 0 0 15px 0;
+    color: var(--fp-text-muted);
+    font-size: 14px;
+}
+
+.fp-deploy-load-repos-row {
+    margin-bottom: 15px;
+}
+
+.fp-loading-text {
+    margin-left: 10px;
+    color: var(--fp-text-muted);
+}
+
+.fp-loading-text--hidden {
+    display: none;
+}
+
+.fp-github-repos-list--hidden {
+    display: none;
+}
+
+.fp-master-deploy-status-active {
+    margin: 0 0 15px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--fp-success);
+}
+
+.fp-master-deploy-status-active .dashicons {
+    color: var(--fp-success);
+}
+
+.fp-github-repos-list {
+    margin-top: 15px;
+}
+
+.fp-deploy-clients-cell {
+    max-width: 280px;
+}
+
+.fp-deploy-clients-cell label {
+    display: block;
+    margin: 2px 0;
+    font-size: 12px;
+}
+
+.fp-deploy-clients-cell .fp-deploy-client-check {
+    cursor: pointer;
+}
+
+.fp-client-count {
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+.fp-client-ids {
+    font-size: 12px;
+    color: var(--fp-text-muted);
+}
+
+.fp-deploy-update-table td:nth-child(3) {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fp-no-clients {
+    color: var(--fp-text-muted);
+    font-style: italic;
+}
+
+.fp-deploy-no-clients-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 15px;
+    background: var(--fp-info-light);
+    border-left: 4px solid var(--fp-info);
+    border-radius: 0 var(--fp-radius) var(--fp-radius) 0;
+    margin-bottom: 15px;
+}
+
+.fp-deploy-no-clients-hint .dashicons {
+    flex-shrink: 0;
+    color: var(--fp-info);
 }
 
 /* === MODALITÀ MASTER === */
@@ -1696,6 +2013,118 @@ html {
 
 .fp-master-card {
     margin-bottom: 20px;
+}
+
+.fp-master-deploy-card {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--fp-border);
+    border-left: 4px solid var(--fp-success);
+}
+
+.fp-master-deploy-title {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--fp-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fp-master-deploy-title .dashicons {
+    color: var(--fp-success);
+}
+
+.fp-master-deploy-desc {
+    margin: 0 0 12px 0;
+    color: var(--fp-text-muted);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.fp-master-deploy-status {
+    margin-bottom: 15px;
+}
+
+.fp-master-deploy-status--active {
+    color: var(--fp-success);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.fp-master-deploy-status--active .dashicons {
+    color: var(--fp-success);
+}
+
+.fp-master-deploy-status--inactive {
+    color: var(--fp-warning);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.fp-master-deploy-status--inactive .dashicons {
+    color: var(--fp-warning);
+}
+
+.fp-master-clients-card {
+    margin-top: 20px;
+    border-left: 4px solid var(--fp-info);
+}
+
+.fp-master-clients-title {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--fp-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fp-master-clients-title .dashicons {
+    color: var(--fp-info);
+}
+
+.fp-master-clients-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--fp-info);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--fp-radius);
+    margin-left: 4px;
+}
+
+.fp-master-clients-desc {
+    margin: 0 0 15px 0;
+    color: var(--fp-text-muted);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.fp-master-clients-empty {
+    margin: 0;
+    padding: 15px;
+    background: var(--fp-bg-alt);
+    border-radius: var(--fp-radius);
+    color: var(--fp-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.fp-master-clients-empty .dashicons {
+    color: var(--fp-info);
+}
+
+.fp-master-clients-table {
+    margin-top: 0;
 }
 
 .fp-master-quick-setup {
@@ -1831,9 +2260,6 @@ html {
     padding-top: 20px;
     border-top: 1px solid var(--fp-border);
     background: var(--fp-bg);
-    position: sticky;
-    bottom: 0;
-    z-index: 100;
 }
 
 /* === HEADER SUBTITLE === */

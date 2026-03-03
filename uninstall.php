@@ -40,9 +40,7 @@ if ($timestamp) {
 }
 
 wp_clear_scheduled_hook('fp_git_updater_run_update');
-wp_clear_scheduled_hook('fp_git_updater_cleanup_backup');
 wp_clear_scheduled_hook('fp_git_updater_cleanup_old_logs');
-wp_clear_scheduled_hook('fp_git_updater_cleanup_temp_files');
 wp_clear_scheduled_hook('fp_git_updater_cleanup_old_backups');
 
 // Rimuovi la tabella dei log

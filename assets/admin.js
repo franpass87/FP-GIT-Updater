@@ -34,9 +34,6 @@
                 $targetContent.addClass('active');
                 $targetContent.css('display', 'block');
                 
-                // Nascondi Salva principale se il tab ha form proprio (es. Master)
-                updateFormActionsVisibility();
-                
                 // Aggiorna URL hash senza ricaricare
                 if (history.pushState) {
                     history.pushState(null, null, '#' + tabName);
@@ -60,18 +57,6 @@
             return false;
         });
         
-        // Mostra/nascondi Salva Impostazioni in base al tab (Master ha form proprio)
-        function updateFormActionsVisibility() {
-            var $actions = $('#fp-main-form-actions');
-            var activeTab = $('.fp-tab-link.active').length ? $('.fp-tab-link.active').data('tab') : $('.fp-tab-item.active .fp-tab-link').data('tab');
-            if (!activeTab) activeTab = $('.fp-tab-content.active').attr('id').replace('fp-tab-', '');
-            if ($('.fp-tab-content--own-form.active').length) {
-                $actions.hide();
-            } else {
-                $actions.show();
-            }
-        }
-
         // Inizializzazione al caricamento della pagina
         // Flag per evitare doppia esecuzione
         let tabsInitialized = false;
@@ -96,11 +81,10 @@
             $('.fp-tab-item').removeClass('active');
             $('.fp-tab-content').removeClass('active');
             
-            const hash = window.location.hash.replace('#', '');
+            var hash = window.location.hash.replace('#', '');
             const validTabs = ['plugins', 'settings', 'backup', 'instructions'];
-            
+            if (hash === 'master') { hash = 'plugins'; history.replaceState(null, null, '#plugins'); }
             if (hash && validTabs.includes(hash)) {
-                // Se c'è un hash valido nell'URL, carica quel tab
                 switchTab(hash);
             } else {
                 // Default: mostra SOLO il tab "plugins"
@@ -118,7 +102,6 @@
         
         // Esegui l'inizializzazione immediatamente
         initTabs();
-        updateFormActionsVisibility();
         
         // Fallback: esegui anche dopo un breve delay per assicurarsi che tutto sia caricato
         setTimeout(function() {
@@ -127,14 +110,14 @@
             if (hiddenTabs.length > 0 && hiddenTabs.filter(function() { return $(this).css('display') !== 'none'; }).length > 0) {
                 tabsInitialized = false; // Reset flag se necessario reinizializzare
                 initTabs();
-                updateFormActionsVisibility();
             }
         }, 100);
         
         // Gestisci back/forward del browser (hashchange)
         $(window).on('hashchange', function() {
-            const hash = window.location.hash.replace('#', '');
+            var hash = window.location.hash.replace('#', '');
             const validTabs = ['plugins', 'settings', 'backup', 'instructions'];
+            if (hash === 'master') { hash = 'plugins'; history.replaceState(null, null, '#plugins'); }
             if (hash && validTabs.includes(hash)) {
                 switchTab(hash);
             } else {
@@ -181,12 +164,12 @@
         // Rimuovi plugin
         $(document).on('click', '.fp-remove-plugin', function(e) {
             e.preventDefault();
-            
-            if (!confirm('Sei sicuro di voler rimuovere questo plugin?')) {
+            var $item = $(this).closest('.fp-plugin-item');
+            var name = $item.data('plugin-name') || 'questo plugin';
+            if (!confirm('Rimuovere «' + name + '» dalla configurazione?')) {
                 return;
             }
-            
-            $(this).closest('.fp-plugin-item').fadeOut(function() {
+            $item.fadeOut(function() {
                 $(this).remove();
             });
         });
@@ -679,24 +662,29 @@
         }
 
         // ===== MODALITÀ MASTER: Copia URL con feedback =====
-        $(document).on('click', '.fp-btn-copy-master', function() {
-            var targetId = $(this).data('copy-target');
-            var $input = $('#' + targetId);
+        $(document).on('click', '.fp-btn-copy, .fp-btn-copy-master', function() {
+            var $btn = $(this);
+            var targetId = $btn.data('copy-target');
+            var $input = targetId ? $('#' + targetId) : $btn.closest('.fp-input-group').find('.fp-url-input, input[readonly]');
             if (!$input.length) return;
             var url = $input.val();
             if (typeof navigator.clipboard !== 'undefined' && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(url).then(function() {
-                    var $btn = $('.fp-btn-copy-master');
-                    $btn.find('.fp-btn-copy-text').text($btn.data('copied-text') || 'Copiato!');
+                    var $text = $btn.find('.fp-btn-copy-text');
+                    if ($text.length) {
+                        $text.text($btn.data('copied-text') || 'Copiato!');
+                    }
                     $btn.addClass('fp-btn-copy--done');
                     setTimeout(function() {
-                        $btn.find('.fp-btn-copy-text').text($btn.data('copy-label') || 'Copia');
+                        if ($text.length) $text.text($btn.data('copy-label') || 'Copia');
                         $btn.removeClass('fp-btn-copy--done');
                     }, 2000);
                 });
             } else {
                 $input.select();
                 document.execCommand('copy');
+                $btn.addClass('fp-btn-copy--done');
+                setTimeout(function() { $btn.removeClass('fp-btn-copy--done'); }, 1500);
             }
         });
 
@@ -722,6 +710,179 @@
             $status.removeClass('fp-master-status--active fp-master-status--inactive')
                 .addClass(active ? 'fp-master-status--active' : 'fp-master-status--inactive')
                 .text(text);
+        });
+
+        // ===== DISTRIBUZIONE MASTER: Tab Installa / Aggiorna =====
+        $(document).on('click', '.fp-master-deploy-subtab', function() {
+            var tab = $(this).data('subtab');
+            $('.fp-master-deploy-subtab').removeClass('active').attr('aria-selected', 'false');
+            $(this).addClass('active').attr('aria-selected', 'true');
+            $('.fp-master-deploy-subcontent').removeClass('active');
+            $('#fp-deploy-tab-' + tab).addClass('active');
+        });
+
+        $('#fp-master-load-github-repos').on('click', function() {
+            var $btn = $(this);
+            var $loading = $('#fp-github-repos-loading');
+            var $list = $('#fp-github-repos-list');
+            var $tbody = $('#fp-github-repos-tbody');
+            var configuredRepos = (fpGitUpdater.configured_repos || []).map(function(r) { return (r || '').toLowerCase(); });
+            var existingRepos = [];
+            $tbody.find('tr[data-repo]').each(function() {
+                existingRepos.push(($(this).data('repo') || '').toLowerCase());
+            });
+            $btn.prop('disabled', true);
+            $loading.removeClass('fp-loading-text--hidden');
+            $.post(fpGitUpdater.ajax_url, {
+                action: 'fp_git_updater_load_github_repos',
+                nonce: fpGitUpdater.nonce
+            }).done(function(response) {
+                if (response.success && response.data && response.data.repositories) {
+                    var repos = response.data.repositories;
+                    var clients = (fpGitUpdater.connected_clients || []);
+                    var added = 0;
+                    repos.forEach(function(repo) {
+                        var fullName = (repo.full_name || '').trim();
+                        if (!fullName) return;
+                        var fullLower = fullName.toLowerCase();
+                        if (configuredRepos.indexOf(fullLower) >= 0 || existingRepos.indexOf(fullLower) >= 0) return;
+                        existingRepos.push(fullLower);
+                        added++;
+                        var branch = repo.default_branch || 'main';
+                        var name = repo.name || fullName.split('/').pop();
+                        var allId = 'fp-sel-all-' + (fullName || name).replace(/\W/g, '_');
+                        var clientChecks = clients.length ? '<label class="fp-deploy-client-check fp-select-all"><input type="checkbox" id="' + allId + '"> <strong>Tutti</strong></label>' : '';
+                        clientChecks += clients.map(function(c) {
+                            return '<label class="fp-deploy-client-check"><input type="checkbox" class="fp-client-cb" data-all="' + allId + '" value="' + c.replace(/"/g, '&quot;') + '"> ' + c + '</label>';
+                        }).join('');
+                        var clientCell = clients.length ? clientChecks : '<em>Nessun cliente</em>';
+                        $tbody.append('<tr data-repo="' + fullName.replace(/"/g, '&quot;') + '" data-branch="' + branch + '" data-name="' + name.replace(/"/g, '&quot;') + '"><td><strong>' + name + '</strong></td><td><code>' + fullName + '</code></td><td class="fp-deploy-clients-cell">' + clientCell + '</td><td><button type="button" class="button button-small fp-deploy-install-btn">' +
+                            '<span class="dashicons dashicons-download"></span> Installa</button></td></tr>');
+                    });
+                    $list.removeClass('fp-github-repos-list--hidden');
+                    if (added > 0) {
+                        showNotice('success', added + ' repository aggiunti dalla lista GitHub.');
+                    } else if (repos.length > 0) {
+                        showNotice('success', 'Tutti i repository del profilo GitHub sono già nella lista.');
+                    } else {
+                        showNotice('success', 'Nessun repository trovato nel profilo GitHub.');
+                    }
+                } else {
+                    showNotice('error', response.data && response.data.message ? response.data.message : 'Errore caricamento repository');
+                }
+            }).fail(function() {
+                showNotice('error', 'Errore di connessione.');
+            }).always(function() {
+                $btn.prop('disabled', false);
+                $loading.addClass('fp-loading-text--hidden');
+            });
+        });
+
+        $(document).on('change', '.fp-deploy-clients-cell .fp-select-all input', function() {
+            var $row = $(this).closest('tr');
+            var checked = $(this).is(':checked');
+            $row.find('.fp-client-cb').prop('checked', checked);
+        });
+        $(document).on('change', '.fp-deploy-clients-cell .fp-client-cb', function() {
+            var $row = $(this).closest('tr');
+            var allId = $row.find('.fp-client-cb').first().data('all');
+            var total = $row.find('.fp-client-cb').length;
+            var checked = $row.find('.fp-client-cb:checked').length;
+            $('#' + allId).prop('checked', total > 0 && checked === total);
+        });
+
+        $(document).on('change', '.fp-plugin-deploy-inline .fp-select-all input', function() {
+            var $block = $(this).closest('.fp-plugin-deploy-inline');
+            var checked = $(this).is(':checked');
+            $block.find('.fp-client-cb').prop('checked', checked);
+        });
+        $(document).on('change', '.fp-plugin-deploy-inline .fp-client-cb', function() {
+            var $block = $(this).closest('.fp-plugin-deploy-inline');
+            var allId = $block.find('.fp-client-cb').first().data('all');
+            var total = $block.find('.fp-client-cb').length;
+            var checked = $block.find('.fp-client-cb:checked').length;
+            $('#' + allId).prop('checked', total > 0 && checked === total);
+        });
+
+        function doDeployInstall(repo, branch, name, clientIds, $btn) {
+            if (clientIds.length === 0) {
+                showNotice('error', 'Seleziona almeno un cliente.');
+                return;
+            }
+            var originalHtml = $btn.html();
+            $btn.prop('disabled', true).attr('aria-busy', 'true')
+                .html('<span class="dashicons dashicons-update spin"></span> ' + ($btn.data('loading-text') || 'Installazione...'));
+            $.post(fpGitUpdater.ajax_url, {
+                action: 'fp_git_updater_deploy_install',
+                nonce: fpGitUpdater.nonce,
+                github_repo: repo,
+                branch: branch,
+                name: name,
+                client_ids_json: JSON.stringify(clientIds)
+            }).done(function(response) {
+                if (response.success) {
+                    showNotice('success', response.data.message);
+                    setTimeout(function() { location.reload(); }, 1500);
+                } else {
+                    showNotice('error', response.data && response.data.message ? response.data.message : 'Errore');
+                    $btn.prop('disabled', false).attr('aria-busy', 'false').html(originalHtml);
+                }
+            }).fail(function() {
+                showNotice('error', 'Errore di connessione.');
+                $btn.prop('disabled', false).attr('aria-busy', 'false').html(originalHtml);
+            });
+        }
+
+        $(document).on('click', '.fp-deploy-install-inline', function() {
+            var $block = $(this).closest('.fp-plugin-deploy-inline');
+            var repo = $block.data('repo');
+            var branch = $block.data('branch');
+            var name = $block.data('name');
+            var clientIds = [];
+            $block.find('.fp-client-cb:checked').each(function() {
+                var v = $(this).val();
+                if (v) clientIds.push(v);
+            });
+            doDeployInstall(repo, branch, name, clientIds, $(this));
+        });
+
+        $(document).on('click', '.fp-deploy-install-btn', function() {
+            var $row = $(this).closest('tr');
+            var repo = $row.data('repo');
+            var branch = $row.data('branch');
+            var name = $row.data('name');
+            var clientIds = [];
+            $row.find('.fp-deploy-client-check input:checked').each(function() {
+                var v = $(this).val();
+                if (v) clientIds.push(v);
+            });
+            doDeployInstall(repo, branch, name, clientIds, $(this));
+        });
+
+        $(document).on('click', '.fp-deploy-update-btn', function() {
+            var $btn = $(this);
+            if ($btn.prop('disabled')) return;
+            var pluginId = $btn.data('plugin-id');
+            var $row = $btn.closest('tr');
+            var pluginSlug = $row.data('plugin-slug') || pluginId;
+            $btn.prop('disabled', true);
+            $.post(fpGitUpdater.ajax_url, {
+                action: 'fp_git_updater_deploy_update',
+                nonce: fpGitUpdater.nonce,
+                plugin_id: pluginId,
+                plugin_slug: pluginSlug
+            }).done(function(response) {
+                if (response.success) {
+                    showNotice('success', response.data.message);
+                    setTimeout(function() { location.reload(); }, 1500);
+                } else {
+                    showNotice('error', response.data && response.data.message ? response.data.message : 'Errore');
+                    $btn.prop('disabled', false);
+                }
+            }).fail(function() {
+                showNotice('error', 'Errore di connessione.');
+                $btn.prop('disabled', false);
+            });
         });
         
         // Animazioni disabilitate - nessuna animazione spin

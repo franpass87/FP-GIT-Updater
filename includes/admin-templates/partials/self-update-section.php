@@ -9,6 +9,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+
 // Ottieni informazioni sull'ultimo auto-aggiornamento
 $self_update_info = get_option('fp_git_updater_self_updated');
 $current_version = FP_GIT_UPDATER_VERSION;
@@ -114,7 +115,7 @@ $versions_differ = !empty($current_version) && !empty($github_version) && versio
         
         <?php if ($self_update_info): ?>
             <div class="fp-last-update-info">
-                <strong><?php _e('Ultimo Aggiornamento:', 'fp-git-updater'); ?></strong> 
+                <strong><?php _e('Ultimo auto-aggiornamento:', 'fp-git-updater'); ?></strong> 
                 <span><?php echo esc_html($self_update_info['timestamp']); ?></span>
             </div>
         <?php endif; ?>
@@ -164,52 +165,62 @@ $versions_differ = !empty($current_version) && !empty($github_version) && versio
 
 <script type="text/javascript">
 jQuery(document).ready(function($) {
+    var ajaxUrl = (typeof fpGitUpdater !== 'undefined' && fpGitUpdater.ajax_url) ? fpGitUpdater.ajax_url : (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php');
+    var nonce = (typeof fpGitUpdater !== 'undefined' && fpGitUpdater.nonce) ? fpGitUpdater.nonce : '';
+    
     // Controlla aggiornamenti per il plugin stesso
     $('#fp-check-self-update').on('click', function() {
         var $btn = $(this);
+        if (!nonce) { alert('Errore: configurazione mancante. Ricarica la pagina.'); return; }
         $btn.prop('disabled', true).html('<span class="dashicons dashicons-update"></span> Controllo in corso...');
         
-        $.post(fpGitUpdater.ajax_url || (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php'), {
-            action: 'fp_git_updater_check_self_update',
-            nonce: fpGitUpdater.nonce
-        }, function(response) {
-            if (response.success) {
-                alert(response.data.message);
-                if (response.data.message.includes('disponibile')) {
-                    location.reload(); // Ricarica per mostrare il pulsante di installazione
+        $.ajax({ url: ajaxUrl, type: 'POST', data: { action: 'fp_git_updater_check_self_update', nonce: nonce }, timeout: 30000 })
+            .done(function(response) {
+                if (response && response.success) {
+                    alert(response.data && response.data.message ? response.data.message : 'Operazione completata.');
+                    if (response.data && response.data.message && response.data.message.indexOf('disponibile') !== -1) {
+                        location.reload();
+                        return;
+                    }
+                } else {
+                    alert('Errore: ' + (response && response.data && response.data.message ? response.data.message : 'Errore sconosciuto'));
                 }
-            } else {
-                alert('Errore: ' + (response.data ? response.data.message : 'Errore sconosciuto'));
-            }
-            $btn.prop('disabled', false).html('<span class="dashicons dashicons-cloud"></span> Controlla Aggiornamenti');
-        });
+                $btn.prop('disabled', false).html('<span class="dashicons dashicons-cloud"></span> Controlla Aggiornamenti');
+            })
+            .fail(function(xhr, status, err) {
+                var msg = (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) ? xhr.responseJSON.data.message : (status === 'timeout' ? 'Timeout: riprova.' : (status || err || 'Errore di rete'));
+                alert('Errore durante il controllo: ' + msg);
+                $btn.prop('disabled', false).html('<span class="dashicons dashicons-cloud"></span> Controlla Aggiornamenti');
+            });
     });
     
     // Installa aggiornamento per il plugin stesso
     $('#fp-install-self-update').on('click', function() {
-        if (!confirm('<?php _e('Sei sicuro di voler aggiornare FP Updater? Questa operazione potrebbe richiedere alcuni secondi.', 'fp-git-updater'); ?>')) {
+        if (!confirm('<?php echo esc_js(__('Sei sicuro di voler aggiornare FP Updater? Questa operazione potrebbe richiedere alcuni secondi.', 'fp-git-updater')); ?>')) {
             return;
         }
-        
         var $btn = $(this);
-        $btn.prop('disabled', true).html('<span class="dashicons dashicons-update"></span> <?php _e('Aggiornamento in corso...', 'fp-git-updater'); ?>');
+        if (!nonce) { alert('Errore: configurazione mancante. Ricarica la pagina.'); return; }
+        $btn.prop('disabled', true).html('<span class="dashicons dashicons-update"></span> <?php echo esc_js(__('Aggiornamento in corso...', 'fp-git-updater')); ?>');
         
-        $.post(fpGitUpdater.ajax_url || (typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php'), {
-            action: 'fp_git_updater_install_self_update',
-            nonce: fpGitUpdater.nonce
-        }, function(response) {
-            if (response.success) {
-                alert(response.data.message);
-                if (response.data.reload) {
-                    setTimeout(function() {
-                        location.reload();
-                    }, 2000);
+        $.ajax({ url: ajaxUrl, type: 'POST', data: { action: 'fp_git_updater_install_self_update', nonce: nonce }, timeout: 120000 })
+            .done(function(response) {
+                if (response && response.success) {
+                    alert(response.data && response.data.message ? response.data.message : 'Aggiornamento completato.');
+                    if (response.data && response.data.reload) {
+                        setTimeout(function() { location.reload(); }, 2000);
+                        return;
+                    }
+                } else {
+                    alert('Errore: ' + (response && response.data && response.data.message ? response.data.message : 'Errore sconosciuto'));
+                    $btn.prop('disabled', false).html('<span class="dashicons dashicons-download"></span> <?php echo esc_js(__('Installa Aggiornamento Ora', 'fp-git-updater')); ?>');
                 }
-            } else {
-                alert('Errore: ' + (response.data ? response.data.message : 'Errore sconosciuto'));
-                $btn.prop('disabled', false).html('<span class="dashicons dashicons-download"></span> <?php _e('Installa Aggiornamento Ora', 'fp-git-updater'); ?>');
-            }
-        });
+            })
+            .fail(function(xhr, status, err) {
+                var msg = (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) ? xhr.responseJSON.data.message : (status === 'timeout' ? 'Timeout: riprova.' : (status || err || 'Errore di rete'));
+                alert('Errore durante l\'aggiornamento: ' + msg);
+                $btn.prop('disabled', false).html('<span class="dashicons dashicons-download"></span> <?php echo esc_js(__('Installa Aggiornamento Ora', 'fp-git-updater')); ?>');
+            });
     });
     
     // Vedi log dell'ultimo aggiornamento

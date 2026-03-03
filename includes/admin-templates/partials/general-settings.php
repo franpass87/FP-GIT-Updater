@@ -26,7 +26,7 @@ $notification_email = isset($settings['notification_email']) ? $settings['notifi
         <?php _e('Impostazioni Generali', 'fp-git-updater'); ?>
     </h2>
     <p class="fp-section-description">
-        <?php _e('Configura le impostazioni principali del plugin per gestire gli aggiornamenti.', 'fp-git-updater'); ?>
+        <?php _e('Webhook, token GitHub, notifiche email e intervallo di controllo aggiornamenti.', 'fp-git-updater'); ?>
     </p>
 </div>
 
@@ -90,13 +90,15 @@ $notification_email = isset($settings['notification_email']) ? $settings['notifi
             <tr>
                 <th scope="row"><?php _e('URL Webhook', 'fp-git-updater'); ?></th>
                 <td>
-                    <div class="fp-input-group">
+                    <div class="fp-input-group fp-input-group--url">
                         <input type="text" 
+                               id="fp-webhook-url" 
                                value="<?php echo esc_attr($webhook_url); ?>" 
-                               class="regular-text" 
+                               class="regular-text fp-url-input" 
                                readonly>
-                        <button type="button" class="button fp-btn-copy" onclick="navigator.clipboard.writeText('<?php echo esc_js($webhook_url); ?>')">
-                            <span class="dashicons dashicons-clipboard"></span> <?php _e('Copia', 'fp-git-updater'); ?>
+                        <button type="button" class="button fp-btn-copy" data-copy-target="fp-webhook-url">
+                            <span class="fp-btn-copy-icon dashicons dashicons-clipboard"></span>
+                            <span class="fp-btn-copy-text"><?php _e('Copia', 'fp-git-updater'); ?></span>
                         </button>
                     </div>
                     <p class="description">
@@ -122,7 +124,7 @@ $notification_email = isset($settings['notification_email']) ? $settings['notifi
             
             <tr>
                 <th scope="row">
-                    <label for="update_check_interval"><?php _e('Intervallo Controllo Aggiornamenti', 'fp-git-updater'); ?></label>
+                    <label for="update_check_interval"><?php _e('Frequenza controllo aggiornamenti', 'fp-git-updater'); ?></label>
                 </th>
                 <td>
                     <select id="update_check_interval" name="fp_git_updater_settings[update_check_interval]">
@@ -137,7 +139,7 @@ $notification_email = isset($settings['notification_email']) ? $settings['notifi
                         </option>
                     </select>
                     <p class="description">
-                        <?php _e('Frequenza di controllo per nuovi aggiornamenti (oltre ai webhook)', 'fp-git-updater'); ?>
+                        <?php _e('Con che frequenza controllare nuovi aggiornamenti (in aggiunta ai webhook)', 'fp-git-updater'); ?>
                     </p>
                 </td>
             </tr>
@@ -161,7 +163,7 @@ $notification_email = isset($settings['notification_email']) ? $settings['notifi
             
             <tr>
                 <th scope="row">
-                    <label for="notification_email"><?php _e('Email Notifiche', 'fp-git-updater'); ?></label>
+                    <label for="notification_email"><?php _e('Email per le notifiche', 'fp-git-updater'); ?></label>
                 </th>
                 <td>
                     <input type="email" 
@@ -169,6 +171,7 @@ $notification_email = isset($settings['notification_email']) ? $settings['notifi
                            name="fp_git_updater_settings[notification_email]" 
                            value="<?php echo esc_attr($notification_email); ?>" 
                            class="regular-text">
+                    <p class="description"><?php _e('Indirizzo a cui inviare le notifiche quando sono disponibili aggiornamenti.', 'fp-git-updater'); ?></p>
                 </td>
             </tr>
         </tbody>

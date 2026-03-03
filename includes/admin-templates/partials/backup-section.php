@@ -19,7 +19,7 @@ $max_backup_age_days = isset($settings['max_backup_age_days']) ? intval($setting
         <?php _e('Gestione Backup', 'fp-git-updater'); ?>
     </h2>
     <p class="fp-section-description">
-        <?php _e('Configura i limiti per i backup automatici per evitare di saturare lo spazio disco.', 'fp-git-updater'); ?>
+        <?php _e('Prima di ogni aggiornamento viene creato un backup del plugin. Qui imposti quanti mantenerne e per quanto tempo.', 'fp-git-updater'); ?>
     </p>
 </div>
 
@@ -41,7 +41,7 @@ $max_backup_age_days = isset($settings['max_backup_age_days']) ? intval($setting
                            step="1">
                     <p class="description">
                         <span class="dashicons dashicons-info"></span>
-                        <?php _e('Numero massimo di backup da mantenere. I backup più vecchi verranno eliminati automaticamente. (Consigliato: 5)', 'fp-git-updater'); ?>
+                        <?php _e('Quanti backup tenere. Quelli in eccesso vengono eliminati automaticamente. Consigliato: 5', 'fp-git-updater'); ?>
                     </p>
                 </td>
             </tr>
@@ -61,7 +61,7 @@ $max_backup_age_days = isset($settings['max_backup_age_days']) ? intval($setting
                            step="1">
                     <p class="description">
                         <span class="dashicons dashicons-info"></span>
-                        <?php _e('I backup più vecchi di questo numero di giorni verranno eliminati automaticamente. (Consigliato: 7)', 'fp-git-updater'); ?>
+                        <?php _e('Dopo quanti giorni eliminare i backup vecchi. Consigliato: 7', 'fp-git-updater'); ?>
                     </p>
                 </td>
             </tr>

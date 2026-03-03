@@ -102,32 +102,4 @@ class Migration {
         }
     }
     
-    /**
-     * Forza una migrazione specifica (per uso admin)
-     */
-    public function force_migration($version) {
-        switch ($version) {
-            case '1.2.0':
-                $this->migrate_to_1_2_0();
-                break;
-            default:
-                return false;
-        }
-        
-        return true;
-    }
-    
-    /**
-     * Ottieni la versione corrente del database
-     */
-    public function get_db_version() {
-        return get_option($this->db_version_key, '0.0.0');
-    }
-    
-    /**
-     * Ottieni la versione target
-     */
-    public function get_target_version() {
-        return $this->current_version;
-    }
 }

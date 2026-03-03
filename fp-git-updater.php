@@ -3,7 +3,7 @@
  * Plugin Name: FP Updater
  * Plugin URI: https://www.francescopasseri.com
  * Description: Gestione sicura degli aggiornamenti dei plugin da GitHub. Supporta sia aggiornamenti automatici che manuali tramite webhook, proteggendo i tuoi siti da aggiornamenti problematici.
- * Version: 1.3.3
+ * Version: 1.3.4
  * Author: Francesco Passeri
  * Author URI: https://www.francescopasseri.com
  * License: GPL v2 or later
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Definisci costanti del plugin
-define('FP_GIT_UPDATER_VERSION', '1.3.3');
+define('FP_GIT_UPDATER_VERSION', '1.3.4');
 define('FP_GIT_UPDATER_PLUGIN_DIR', dirname(__FILE__) . '/');
 define('FP_GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FP_GIT_UPDATER_PLUGIN_FILE', __FILE__);
@@ -137,11 +137,6 @@ class FP_Git_Updater {
             wp_unschedule_event($timestamp, 'fp_git_updater_cleanup_old_logs');
         }
         
-        $timestamp = wp_next_scheduled('fp_git_updater_cleanup_temp_files');
-        if ($timestamp) {
-            wp_unschedule_event($timestamp, 'fp_git_updater_cleanup_temp_files');
-        }
-        
         $timestamp = wp_next_scheduled('fp_git_updater_cleanup_old_backups');
         if ($timestamp) {
             wp_unschedule_event($timestamp, 'fp_git_updater_cleanup_old_backups');
@@ -172,15 +167,6 @@ class FP_Git_Updater {
         
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
-    }
-    
-    /**
-     * Aggiungi link alle impostazioni
-     */
-    public function add_action_links($links) {
-        $settings_link = '<a href="' . admin_url('admin.php?page=fp-git-updater') . '">' . __('Impostazioni', 'fp-git-updater') . '</a>';
-        array_unshift($links, $settings_link);
-        return $links;
     }
     
     /**
@@ -221,51 +207,6 @@ class FP_Git_Updater {
         }
     }
     
-    /**
-     * Pulisce file temporanei vecchi (>7 giorni)
-     */
-    public function cleanup_old_temp_files() {
-        $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
-        
-        if (!is_dir($upgrade_dir)) {
-            return;
-        }
-        
-        $cutoff_time = time() - (7 * DAY_IN_SECONDS);
-        $cleaned = 0;
-        
-        // Pulisci file zip temporanei vecchi
-        $temp_files = glob($upgrade_dir . '/fp-git-updater-download-*.zip');
-        if ($temp_files !== false) {
-            foreach ($temp_files as $file) {
-                if (file_exists($file) && filemtime($file) < $cutoff_time) {
-                    if (@unlink($file)) {
-                        $cleaned++;
-                    }
-                }
-            }
-        }
-        
-        // Pulisci directory temp vecchie
-        $temp_dir = $upgrade_dir . '/fp-git-updater-temp';
-        if (is_dir($temp_dir)) {
-            $dir_mtime = filemtime($temp_dir);
-            if ($dir_mtime && $dir_mtime < $cutoff_time) {
-                global $wp_filesystem;
-                if (!$wp_filesystem) {
-                    require_once ABSPATH . 'wp-admin/includes/file.php';
-                    WP_Filesystem();
-                }
-                if ($wp_filesystem->delete($temp_dir, true)) {
-                    $cleaned++;
-                }
-            }
-        }
-        
-        if ($cleaned > 0) {
-            Logger::log('info', 'Pulizia file temporanei completata: ' . $cleaned . ' elementi rimossi');
-        }
-    }
 }
 
 /**

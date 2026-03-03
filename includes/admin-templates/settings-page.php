@@ -13,9 +13,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-use FP\GitUpdater\I18nHelper;
-
-$i18n = I18nHelper::get_instance();
 ?>
 
 <div class="wrap fp-git-updater-wrap">
@@ -35,13 +32,18 @@ $i18n = I18nHelper::get_instance();
     include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/partials/self-update-section.php';
     ?>
     
+    <?php
+    // Form Master separato (prima del form principale per evitare form annidati)
+    include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/partials/master-config-card.php';
+    ?>
+    
     <!-- Tab Navigation -->
     <nav class="fp-tab-nav">
         <ul class="fp-tab-list">
             <li class="fp-tab-item active">
                 <a href="#fp-tab-plugins" class="fp-tab-link" data-tab="plugins">
                     <span class="dashicons dashicons-admin-plugins"></span>
-                    <?php _e('Plugin Gestiti', 'fp-git-updater'); ?>
+                    <?php _e('Plugin e Distribuzione', 'fp-git-updater'); ?>
                     <?php if (!empty($plugins)): ?>
                         <span class="fp-tab-badge"><?php echo count($plugins); ?></span>
                     <?php endif; ?>
@@ -54,12 +56,6 @@ $i18n = I18nHelper::get_instance();
                 <a href="#fp-tab-settings" class="fp-tab-link" data-tab="settings">
                     <span class="dashicons dashicons-admin-settings"></span>
                     <?php _e('Impostazioni Generali', 'fp-git-updater'); ?>
-                </a>
-            </li>
-            <li class="fp-tab-item">
-                <a href="#fp-tab-master" class="fp-tab-link" data-tab="master">
-                    <span class="dashicons dashicons-networking"></span>
-                    <?php _e('Modalità Master', 'fp-git-updater'); ?>
                 </a>
             </li>
             <li class="fp-tab-item">
@@ -80,11 +76,13 @@ $i18n = I18nHelper::get_instance();
     <form method="post" action="options.php" id="fp-git-updater-form">
         <?php settings_fields('fp_git_updater_settings_group'); ?>
         
-        <!-- Tab: Plugin Gestiti (Default attivo) -->
+        <!-- Tab: Plugin e Distribuzione (unificato con Master) -->
         <div id="fp-tab-plugins" class="fp-tab-content active">
-            <div class="fp-section-header">
+            <div class="fp-section-header fp-plugins-section-header">
+                <span class="fp-step-badge" aria-hidden="true">2</span>
+                <h2 class="fp-section-title"><?php _e('Plugin gestiti e distribuzione', 'fp-git-updater'); ?></h2>
                 <p class="fp-section-description">
-                    <?php _e('Aggiungi e gestisci i plugin che vuoi aggiornare automaticamente da GitHub.', 'fp-git-updater'); ?>
+                    <?php _e('Aggiungi i plugin da GitHub. Per ogni plugin puoi controllare aggiornamenti, installare su questo sito e distribuire ai clienti (seleziona i siti e clicca «Installa»).', 'fp-git-updater'); ?>
                 </p>
             </div>
             
@@ -126,6 +124,8 @@ $i18n = I18nHelper::get_instance();
                 <span class="dashicons dashicons-plus-alt"></span>
                 <?php _e('Aggiungi Nuovo Plugin', 'fp-git-updater'); ?>
             </button>
+            
+            <?php include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/partials/master-deploy-clients.php'; ?>
         </div>
         
         <!-- Tab: Impostazioni Generali -->
@@ -134,11 +134,6 @@ $i18n = I18nHelper::get_instance();
             // Includi sezione impostazioni generali
             include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/partials/general-settings.php';
             ?>
-        </div>
-        
-        <!-- Tab: Modalità Master (form proprio, Salva Impostazioni Master) -->
-        <div id="fp-tab-master" class="fp-tab-content fp-tab-content--own-form">
-            <?php include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/partials/master-settings.php'; ?>
         </div>
         
         <!-- Tab: Backup -->
@@ -157,7 +152,7 @@ $i18n = I18nHelper::get_instance();
             ?>
         </div>
         
-        <!-- Bottone Salva (nascosto nella tab Modalità Master che ha form proprio) -->
+        <!-- Bottone Salva Impostazioni -->
         <div class="fp-form-actions" id="fp-main-form-actions">
             <?php submit_button(__('Salva Impostazioni', 'fp-git-updater'), 'primary large', 'submit', false); ?>
         </div>

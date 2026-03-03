@@ -14,7 +14,8 @@ if (!defined('ABSPATH')) {
 ?>
 
 <div class="fp-plugin-item <?php echo $has_pending_update ? 'has-update' : ''; ?>" 
-     data-index="<?php echo $index; ?>">
+     data-index="<?php echo $index; ?>"
+     data-plugin-name="<?php echo esc_attr($plugin['name'] ?? $plugin['id'] ?? ''); ?>">
     
     <div class="fp-plugin-header">
         <h3>
@@ -149,6 +150,31 @@ if (!defined('ABSPATH')) {
                 : __('Installa Aggiornamento', 'fp-git-updater'); 
             ?>
         </button>
+        <?php
+        $connected = isset($connected_clients) ? $connected_clients : [];
+        $client_ids = array_keys($connected);
+        $repo = $plugin['github_repo'] ?? '';
+        if (!empty($repo) && !empty($client_ids)):
+            $all_id = 'fp-sel-' . preg_replace('/\W/', '_', $plugin['id']);
+            $branch = $plugin['branch'] ?? 'main';
+            $name = $plugin['name'] ?? basename(str_replace('/', '-', $repo));
+        ?>
+        <div class="fp-plugin-deploy-inline" data-repo="<?php echo esc_attr($repo); ?>" data-branch="<?php echo esc_attr($branch); ?>" data-name="<?php echo esc_attr($name); ?>">
+            <span class="fp-deploy-label"><?php _e('Installa su clienti:', 'fp-git-updater'); ?></span>
+            <label class="fp-deploy-client-check fp-select-all"><input type="checkbox" id="<?php echo esc_attr($all_id); ?>"> <strong><?php _e('Tutti', 'fp-git-updater'); ?></strong></label>
+            <?php foreach ($client_ids as $c): ?>
+            <label class="fp-deploy-client-check"><input type="checkbox" class="fp-client-cb fp-deploy-cb" data-all="<?php echo esc_attr($all_id); ?>" value="<?php echo esc_attr($c); ?>"> <?php echo esc_html($c); ?></label>
+            <?php endforeach; ?>
+            <button type="button" class="button button-small fp-deploy-install-inline">
+                <span class="dashicons dashicons-download"></span> <?php _e('Installa', 'fp-git-updater'); ?>
+            </button>
+        </div>
+        <?php elseif (!empty($repo)): ?>
+        <div class="fp-plugin-deploy-hint fp-plugin-deploy-no-clients">
+            <span class="dashicons dashicons-info"></span>
+            <?php _e('Nessun cliente collegato. Collega i siti con FP Remote Bridge; appariranno qui dopo la prima connessione.', 'fp-git-updater'); ?>
+        </div>
+        <?php endif; ?>
     </div>
     
     <div id="plugin-details-<?php echo $index; ?>" class="fp-plugin-details">
@@ -185,7 +211,7 @@ if (!defined('ABSPATH')) {
                                 data-index="<?php echo $index; ?>"
                                 title="<?php esc_attr_e('Carica repository da GitHub', 'fp-git-updater'); ?>">
                             <span class="dashicons dashicons-download"></span>
-                            <?php _e('Carica dalla lista', 'fp-git-updater'); ?>
+                            <?php _e('Carica da GitHub', 'fp-git-updater'); ?>
                         </button>
                     </div>
                     <p class="description"><?php echo $repo_description; ?></p>

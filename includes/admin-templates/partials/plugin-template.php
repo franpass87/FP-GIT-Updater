@@ -9,7 +9,7 @@ if (!defined('ABSPATH')) {
 ?>
 
 <script type="text/template" id="fp-plugin-template">
-    <div class="fp-plugin-item new-plugin" data-index="{{INDEX}}">
+    <div class="fp-plugin-item new-plugin" data-index="{{INDEX}}" data-plugin-name="<?php echo esc_attr__('Nuovo Plugin', 'fp-git-updater'); ?>">
         <div class="fp-plugin-header">
             <h3><?php _e('Nuovo Plugin', 'fp-git-updater'); ?></h3>
             <div class="fp-plugin-actions">
@@ -59,7 +59,7 @@ if (!defined('ABSPATH')) {
                                     data-index="{{INDEX}}"
                                     title="<?php esc_attr_e('Carica repository da GitHub', 'fp-git-updater'); ?>">
                                 <span class="dashicons dashicons-download" style="margin-top: 3px;"></span>
-                                <?php _e('Carica dalla lista', 'fp-git-updater'); ?>
+                                <?php _e('Carica da GitHub', 'fp-git-updater'); ?>
                             </button>
                         </div>
                         <p class="description"><?php echo $repo_description_new; ?></p>
@@ -74,7 +74,7 @@ if (!defined('ABSPATH')) {
                                class="regular-text" 
                                placeholder="nome-cartella-plugin">
                         <p class="description">
-                            <?php _e('Nome della cartella del plugin in wp-content/plugins/ (es: mio-plugin). Se vuoto, verrà dedotto dal nome del repository.', 'fp-git-updater'); ?>
+                            <?php _e('Nome della cartella in wp-content/plugins/ (es: mio-plugin). Se lasci vuoto, viene ricavato dal repository.', 'fp-git-updater'); ?>
                         </p>
                     </td>
                 </tr>
@@ -95,7 +95,7 @@ if (!defined('ABSPATH')) {
                                name="fp_git_updater_settings[plugins][{{INDEX}}][zip_url]" 
                                value="" 
                                class="regular-text" placeholder="https://.../package.zip">
-                        <p class="description"><?php _e('Se impostato, l\'aggiornamento userà direttamente questo ZIP senza token.', 'fp-git-updater'); ?></p>
+                        <p class="description"><?php _e('Alternativa al repo: scarica da questo URL ZIP (non serve token).', 'fp-git-updater'); ?></p>
                     </td>
                 </tr>
                 <tr>

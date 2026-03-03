@@ -44,39 +44,6 @@ msgstr ""
 msgid "Salva Impostazioni"
 msgstr ""
 
-#: includes/admin-templates/partials/pending-updates-notice.php:15
-#, php-format
-msgid "Aggiornamento Disponibile (%d)"
-msgid_plural "Aggiornamenti Disponibili (%d)"
-msgstr[0] ""
-msgstr[1] ""
-
-#: includes/admin-templates/partials/pending-updates-notice.php:24
-msgid "I seguenti plugin hanno aggiornamenti pronti per essere installati:"
-msgstr ""
-
-#: includes/admin-templates/partials/pending-updates-notice.php:28
-msgid "Commit:"
-msgstr ""
-
-#: includes/admin-templates/partials/pending-updates-notice.php:32
-#, php-format
-msgid "da %s"
-msgstr ""
-
-#: includes/admin-templates/partials/pending-updates-notice.php:35
-#, php-format
-msgid "Ricevuto: %s"
-msgstr ""
-
-#: includes/admin-templates/partials/pending-updates-notice.php:40
-msgid "Azione richiesta:"
-msgstr ""
-
-#: includes/admin-templates/partials/pending-updates-notice.php:41
-msgid "Scorri in basso e clicca su \"Installa Aggiornamento\" per ogni plugin che vuoi aggiornare."
-msgstr ""
-
 #: includes/admin-templates/partials/update-mode-notice.php:14
 msgid "Modalità Aggiornamento Manuale Attiva"
 msgstr ""

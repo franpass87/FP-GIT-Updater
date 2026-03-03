@@ -8,6 +8,8 @@
 
 namespace FP\GitUpdater;
 
+use WP_Error;
+
 if (!defined('ABSPATH')) {
     exit;
 }
@@ -27,7 +29,6 @@ class Updater {
         // Hook per l'aggiornamento schedulato
         add_action('fp_git_updater_run_update', array($this, 'run_update'), 10, 2);
         add_action('fp_git_updater_check_update', array($this, 'check_for_updates'));
-        add_action('fp_git_updater_cleanup_backup', array($this, 'cleanup_backup'));
         add_action('fp_git_updater_cleanup_old_logs', array('FP\GitUpdater\Logger', 'clear_old_logs'));
         add_action('fp_git_updater_cleanup_old_backups', array($this, 'cleanup_old_backups'));
         
@@ -157,13 +158,6 @@ class Updater {
     }
     
     /**
-     * Rimuove un pending update
-     */
-    public function clear_pending_update($plugin_id) {
-        return delete_option('fp_git_updater_pending_update_' . $plugin_id);
-    }
-    
-    /**
      * Ottiene un plugin dalla configurazione dato il suo ID
      */
     private function get_plugin_by_id($plugin_id) {
@@ -180,7 +174,18 @@ class Updater {
             }
         }
         
-        // Log per debug se il plugin non viene trovato
+        // Fallback per il self-update (escluso dalla lista plugins dal sanitize_settings)
+        if ($plugin_id === 'fp_git_updater_self') {
+            return array(
+                'id' => 'fp_git_updater_self',
+                'name' => 'FP Git Updater',
+                'github_repo' => 'FranPass87/FP-GIT-Updater',
+                'plugin_slug' => 'fp-git-updater',
+                'branch' => 'main',
+                'enabled' => true,
+            );
+        }
+        
         Logger::log('error', 'Plugin non trovato con ID: ' . $plugin_id, array(
             'plugin_id' => $plugin_id,
             'available_plugins' => array_map(function($p) {
@@ -492,13 +497,11 @@ class Updater {
         $repo = $plugin['github_repo'];
         $branch = isset($plugin['branch']) ? $plugin['branch'] : 'main';
         
-        // Se non abbiamo il commit SHA, otteniamo l'ultimo commit
+        // Se non abbiamo il commit SHA, proviamo a ottenerlo; se fallisce usiamo il branch
         if (empty($commit_sha)) {
             $commit_result = $this->get_latest_commit($plugin);
-            if (is_wp_error($commit_result)) {
-                return '';
-            }
-            $commit_sha = $commit_result;
+            $commit_sha = is_wp_error($commit_result) ? null : $commit_result;
+            // Con $commit_sha null useremo ?ref=$branch nell'API (funziona anche senza commit)
         }
         
         // Determina lo slug del plugin per trovare il file principale
@@ -514,17 +517,21 @@ class Updater {
             return '';
         }
         
-        // Prova prima con lo slug come nome file
+        // Prova varie combinazioni comuni per il file principale del plugin
         $possible_files = array(
             $plugin_slug . '.php',
-            basename($repo) . '.php'
+            basename($repo) . '.php',
         );
-        
-        // Aggiungi anche il nome del repository originale
         $repo_parts = explode('/', $repo);
         if (count($repo_parts) === 2) {
             $possible_files[] = $repo_parts[1] . '.php';
+            // Slug compatto senza "and" (es: fp-privacy-and-cookie-policy -> fp-privacy-cookie-policy)
+            $compact_slug = preg_replace('/-and-/', '-', $plugin_slug);
+            if ($compact_slug !== $plugin_slug) {
+                $possible_files[] = $compact_slug . '.php';
+            }
         }
+        $possible_files = array_unique($possible_files);
         
         // Prova a ottenere il contenuto del file principale
         foreach ($possible_files as $file_path) {
@@ -571,6 +578,48 @@ class Updater {
                         // Cerca la versione nell'header
                         if (preg_match('/Version:\s*([^\n\r]+)/i', $header_content, $matches)) {
                             return trim($matches[1]);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Fallback: elenca i file nella root e prova ogni .php che contenga "Plugin Name:"
+        $list_url = "https://api.github.com/repos/{$repo}/contents?ref=" . rawurlencode($branch);
+        $list_args = array(
+            'headers' => array(
+                'Accept' => 'application/vnd.github.v3+json',
+                'User-Agent' => 'FP-Updater/' . FP_GIT_UPDATER_VERSION,
+            ),
+            'timeout' => 30,
+        );
+        $settings = get_option('fp_git_updater_settings', array());
+        if (!empty($settings['global_github_token'])) {
+            $encryption = Encryption::get_instance();
+            $token = $encryption->decrypt($settings['global_github_token']);
+            if ($token !== false && !empty($token)) {
+                $list_args['headers']['Authorization'] = 'token ' . $token;
+            }
+        }
+        $list_response = wp_remote_get($list_url, $list_args);
+        if (!is_wp_error($list_response) && wp_remote_retrieve_response_code($list_response) === 200) {
+            $list_body = wp_remote_retrieve_body($list_response);
+            $list_data = json_decode($list_body, true);
+            if (is_array($list_data)) {
+                foreach ($list_data as $item) {
+                    if (isset($item['type'], $item['name']) && $item['type'] === 'file' && substr($item['name'], -4) === '.php') {
+                        $file_url = "https://api.github.com/repos/{$repo}/contents/" . rawurlencode($item['name']) . "?ref=" . rawurlencode($branch);
+                        $file_response = wp_remote_get($file_url, $list_args);
+                        if (!is_wp_error($file_response) && wp_remote_retrieve_response_code($file_response) === 200) {
+                            $file_body = wp_remote_retrieve_body($file_response);
+                            $file_data = json_decode($file_body, true);
+                            if (isset($file_data['content'], $file_data['encoding'])) {
+                                $content = base64_decode($file_data['content']);
+                                $header_content = substr($content, 0, 8192);
+                                if (preg_match('/Plugin Name:/i', $header_content) && preg_match('/Version:\s*([^\n\r]+)/i', $header_content, $m)) {
+                                    return trim($m[1]);
+                                }
+                            }
                         }
                     }
                 }
@@ -635,7 +684,7 @@ class Updater {
                 'error_data' => $error_data,
                 'repository' => $plugin['github_repo']
             ));
-            return false;
+            return $latest_commit;
         }
         
         $current_commit = get_option('fp_git_updater_current_commit_' . $plugin['id'], '');
@@ -1525,25 +1574,6 @@ class Updater {
             // Backoff semplice
             usleep($delay_ms * 1000);
             $delay_ms *= 2;
-        }
-    }
-    
-    /**
-     * Pulisci un backup specifico
-     */
-    public function cleanup_backup($backup_dir) {
-        if (file_exists($backup_dir) && is_dir($backup_dir)) {
-            global $wp_filesystem;
-            if (!$wp_filesystem) {
-                require_once ABSPATH . 'wp-admin/includes/file.php';
-                WP_Filesystem();
-            }
-            
-            $backup_size = $this->get_directory_size($backup_dir);
-            $wp_filesystem->delete($backup_dir, true);
-            Logger::log('info', 'Backup eliminato: ' . basename($backup_dir), array(
-                'backup_size' => $this->format_bytes($backup_size)
-            ));
         }
     }
     

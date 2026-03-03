@@ -41,6 +41,8 @@ class Admin {
         add_action('wp_ajax_fp_git_updater_cleanup_backups', array($this, 'ajax_cleanup_backups'));
         add_action('wp_ajax_fp_git_updater_get_backup_stats', array($this, 'ajax_get_backup_stats'));
         add_action('wp_ajax_fp_git_updater_refresh_github_version', array($this, 'ajax_refresh_github_version'));
+        add_action('wp_ajax_fp_git_updater_deploy_install', array($this, 'ajax_deploy_install'));
+        add_action('wp_ajax_fp_git_updater_deploy_update', array($this, 'ajax_deploy_update'));
     }
     
     /**
@@ -337,9 +339,21 @@ class Admin {
         if (file_exists($js_file)) {
             wp_enqueue_script('fp-git-updater-admin', FP_GIT_UPDATER_PLUGIN_URL . 'assets/admin.js', array('jquery'), FP_GIT_UPDATER_VERSION, true);
             
+            $connected = MasterEndpoint::get_connected_clients();
+            $client_ids = array_keys($connected);
+            $settings = get_option('fp_git_updater_settings', array());
+            $plugins = isset($settings['plugins']) ? $settings['plugins'] : array();
+            $configured_repos = array();
+            foreach ($plugins as $p) {
+                if (!empty($p['github_repo']) && (empty($p['id']) || $p['id'] !== 'fp_git_updater_self') && (empty($p['plugin_slug']) || $p['plugin_slug'] !== 'fp-git-updater')) {
+                    $configured_repos[] = $p['github_repo'];
+                }
+            }
             wp_localize_script('fp-git-updater-admin', 'fpGitUpdater', array(
                 'ajax_url' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('fp_git_updater_nonce')
+                'nonce' => wp_create_nonce('fp_git_updater_nonce'),
+                'connected_clients' => $client_ids,
+                'configured_repos' => $configured_repos,
             ));
         } else {
             // Log se il file JS non esiste
@@ -418,435 +432,10 @@ class Admin {
         $pending_updates = array_values($pending_updates);
         
         $auto_update_enabled = isset($settings['auto_update']) ? $settings['auto_update'] : false;
+        $connected_clients = MasterEndpoint::get_connected_clients();
         
         // Usa il template separato
         include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/settings-page.php';
-    }
-    
-    /**
-     * Render pagina impostazioni (OLD - Deprecato, mantenuto per riferimento)
-     * Ora usa i template in includes/admin-templates/
-     */
-    private function render_settings_page_old() {
-        ?>
-        <div class="wrap fp-git-updater-wrap">
-            <h1>
-                <span class="dashicons dashicons-update"></span>
-                FP Updater - Impostazioni
-                <?php if (!empty($pending_updates)): ?>
-                    <span class="update-count"><?php echo count($pending_updates); ?></span>
-                <?php endif; ?>
-            </h1>
-            
-            <?php if (!empty($pending_updates)): ?>
-                <div class="fp-notice fp-notice-info" style="border-left-color: #d63638; background: #fcf0f1;">
-                    <h3 style="margin-top: 0;">⚠️ Aggiornamenti Disponibili (<?php echo count($pending_updates); ?>)</h3>
-                    <p><strong>I seguenti plugin hanno aggiornamenti pronti per essere installati:</strong></p>
-                    <ul style="margin-left: 20px;">
-                        <?php foreach ($pending_updates as $pending): ?>
-                            <li>
-                                <strong><?php echo esc_html($pending['plugin_name']); ?></strong> - 
-                                <?php 
-                                $current_version = isset($pending['current_version']) ? $pending['current_version'] : '';
-                                $available_version = isset($pending['available_version']) ? $pending['available_version'] : '';
-                                if (!empty($current_version) && !empty($available_version)): ?>
-                                    Versione: <strong><?php echo esc_html($current_version); ?></strong> → <strong style="color: #d63638;"><?php echo esc_html($available_version); ?></strong> - 
-                                <?php elseif (!empty($available_version)): ?>
-                                    Nuova versione: <strong style="color: #d63638;"><?php echo esc_html($available_version); ?></strong> - 
-                                <?php endif; ?>
-                                Commit: <code><?php echo esc_html($pending['commit_sha_short']); ?></code>
-                                <?php if (!empty($pending['commit_message']) && $pending['commit_message'] !== 'Aggiornamento rilevato dal controllo schedulato'): ?>
-                                    <br><em style="color: #666;"><?php echo esc_html($pending['commit_message']); ?></em>
-                                    <?php if (!empty($pending['commit_author']) && $pending['commit_author'] !== 'Sistema'): ?>
-                                        - da <?php echo esc_html($pending['commit_author']); ?>
-                                    <?php endif; ?>
-                                <?php endif; ?>
-                                <br><small>Ricevuto: <?php echo esc_html($pending['timestamp']); ?></small>
-                            </li>
-                        <?php endforeach; ?>
-                    </ul>
-                    <p style="margin-bottom: 0;">
-                        <strong>Azione richiesta:</strong> Scorri in basso e clicca su "Installa Aggiornamento" per ogni plugin che vuoi aggiornare.
-                    </p>
-                </div>
-            <?php endif; ?>
-            
-            <?php if (!$auto_update_enabled): ?>
-                <div class="fp-notice fp-notice-info">
-                    <p>
-                        <span class="dashicons dashicons-shield-alt" style="color: #2271b1;"></span>
-                        <strong>Modalità Aggiornamento Manuale Attiva</strong> - Gli aggiornamenti non verranno installati automaticamente. 
-                        Riceverai una notifica quando sono disponibili e potrai installarli manualmente quando sei pronto.
-                    </p>
-                </div>
-            <?php else: ?>
-                <div class="fp-notice fp-notice-info" style="border-left-color: #dba617; background: #fcf9e8;">
-                    <p>
-                        <span class="dashicons dashicons-warning" style="color: #dba617;"></span>
-                        <strong>Attenzione:</strong> Aggiornamento Automatico Attivo - I plugin verranno aggiornati automaticamente quando ricevi un push da GitHub.
-                        <br>Se vuoi maggiore controllo e sicurezza per i siti dei tuoi clienti, disabilita questa opzione qui sotto.
-                    </p>
-                </div>
-            <?php endif; ?>
-            
-            <form method="post" action="options.php">
-                <?php settings_fields('fp_git_updater_settings_group'); ?>
-                
-                <h2>Plugin Gestiti</h2>
-                <p>Aggiungi e gestisci i plugin che vuoi aggiornare automaticamente da GitHub.</p>
-                
-                <div id="fp-plugins-list">
-                    <?php if (!empty($plugins)): ?>
-                        <?php foreach ($plugins as $index => $plugin): 
-                            // Controlla se questo plugin ha un aggiornamento pending
-                            $has_pending_update = false;
-                            $pending_info = null;
-                            foreach ($pending_updates as $pending) {
-                                if ($pending['plugin']['id'] === $plugin['id']) {
-                                    $has_pending_update = true;
-                                    $pending_info = $pending;
-                                    break;
-                                }
-                            }
-                        ?>
-                            <div class="fp-plugin-item <?php echo $has_pending_update ? 'has-update' : ''; ?>" data-index="<?php echo $index; ?>" <?php echo $has_pending_update ? 'style="border-left: 4px solid #d63638;"' : ''; ?>>
-                                <div class="fp-plugin-header">
-                                    <h3>
-                                        <?php echo esc_html($plugin['name']); ?>
-                                        <?php if ($has_pending_update): ?>
-                                            <span class="log-badge" style="background: #d63638; margin-left: 10px;">AGGIORNAMENTO DISPONIBILE</span>
-                                        <?php endif; ?>
-                                    </h3>
-                                    <div class="fp-plugin-actions">
-                                        <button type="button" class="button fp-toggle-plugin" data-target="plugin-details-<?php echo $index; ?>">
-                                            <span class="dashicons dashicons-edit"></span> Modifica
-                                        </button>
-                                        <button type="button" class="button fp-remove-plugin" data-index="<?php echo $index; ?>">
-                                            <span class="dashicons dashicons-trash"></span> Rimuovi
-                                        </button>
-                                    </div>
-                                </div>
-                                <?php if ($has_pending_update && $pending_info): ?>
-                                    <div class="fp-notice fp-notice-error" style="margin: 10px 0; padding: 10px; border-left-color: #d63638; background: #fcf0f1;">
-                                        <p style="margin: 0;">
-                                            <strong>🔄 Nuovo aggiornamento pronto!</strong><br>
-                                            <small>
-                                                Commit: <code><?php echo esc_html($pending_info['commit_sha_short']); ?></code>
-                                                <?php if (!empty($pending_info['commit_message']) && $pending_info['commit_message'] !== 'Aggiornamento rilevato dal controllo schedulato'): ?>
-                                                    - <?php echo esc_html($pending_info['commit_message']); ?>
-                                                <?php endif; ?>
-                                                <br>Ricevuto: <?php echo esc_html($pending_info['timestamp']); ?>
-                                            </small>
-                                        </p>
-                                    </div>
-                                <?php endif; ?>
-                                <div class="fp-plugin-info">
-                                    <span><strong>Repository:</strong> <?php echo esc_html($plugin['github_repo']); ?></span>
-                                    <span><strong>Branch:</strong> <?php echo esc_html($plugin['branch']); ?></span>
-                                    <span class="fp-plugin-status <?php echo $plugin['enabled'] ? 'enabled' : 'disabled'; ?>">
-                                        <?php echo $plugin['enabled'] ? '● Abilitato' : '○ Disabilitato'; ?>
-                                    </span>
-                                </div>
-                                <div class="fp-plugin-quick-actions">
-                                    <button type="button" class="button button-small fp-check-updates" data-plugin-id="<?php echo esc_attr($plugin['id']); ?>">
-                                        <span class="dashicons dashicons-cloud"></span> Controlla Aggiornamenti
-                                    </button>
-                                    <button type="button" class="button button-small <?php echo $has_pending_update ? 'button-primary' : ''; ?> fp-install-update" data-plugin-id="<?php echo esc_attr($plugin['id']); ?>" <?php echo $has_pending_update ? 'style="animation: pulse 2s infinite;"' : ''; ?>>
-                                        <span class="dashicons dashicons-<?php echo $has_pending_update ? 'download' : 'update'; ?>"></span> 
-                                        <?php echo $has_pending_update ? 'Installa Aggiornamento Ora' : 'Installa Aggiornamento'; ?>
-                                    </button>
-                                </div>
-                                <div id="plugin-details-<?php echo $index; ?>" class="fp-plugin-details" style="display: none;">
-                                    <input type="hidden" name="fp_git_updater_settings[plugins][<?php echo $index; ?>][id]" value="<?php echo esc_attr($plugin['id']); ?>">
-                                    
-                                    <table class="form-table">
-                                        <tr>
-                                            <th><label>Nome Plugin</label></th>
-                                            <td>
-                                                <input type="text" 
-                                                       name="fp_git_updater_settings[plugins][<?php echo $index; ?>][name]" 
-                                                       value="<?php echo esc_attr($plugin['name']); ?>" 
-                                                       class="regular-text" required>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label>Repository GitHub</label></th>
-                                            <td>
-                                                <input type="text" 
-                                                       name="fp_git_updater_settings[plugins][<?php echo $index; ?>][github_repo]" 
-                                                       value="<?php echo esc_attr($plugin['github_repo']); ?>" 
-                                                       class="regular-text" 
-                                                       placeholder="username/repository" required>
-                                                <p class="description">Es: tuousername/mio-plugin</p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label>Slug Plugin</label></th>
-                                            <td>
-                                                <input type="text" 
-                                                       name="fp_git_updater_settings[plugins][<?php echo $index; ?>][plugin_slug]" 
-                                                       value="<?php echo esc_attr($plugin['plugin_slug'] ?? ''); ?>" 
-                                                       class="regular-text" 
-                                                       placeholder="nome-cartella-plugin">
-                                                <p class="description">Nome della cartella del plugin in wp-content/plugins/ (es: mio-plugin). Se vuoto, verrà dedotto dal nome del repository.</p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label>Branch</label></th>
-                                            <td>
-                                                <input type="text" 
-                                                       name="fp_git_updater_settings[plugins][<?php echo $index; ?>][branch]" 
-                                                       value="<?php echo esc_attr($plugin['branch']); ?>" 
-                                                       class="regular-text">
-                                                <p class="description">Branch da cui scaricare gli aggiornamenti</p>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <th><label>Abilitato</label></th>
-                                            <td>
-                                                <label>
-                                                    <input type="checkbox" 
-                                                           name="fp_git_updater_settings[plugins][<?php echo $index; ?>][enabled]" 
-                                                           value="1" 
-                                                           <?php checked($plugin['enabled'], true); ?>>
-                                                    Abilita aggiornamenti per questo plugin
-                                                </label>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <p class="description">Nessun plugin configurato. Aggiungi il primo plugin qui sotto.</p>
-                    <?php endif; ?>
-                </div>
-                
-                <button type="button" id="fp-add-plugin" class="button button-secondary">
-                    <span class="dashicons dashicons-plus-alt"></span> Aggiungi Plugin
-                </button>
-                
-                <hr style="margin: 30px 0;">
-                
-                <h2>Impostazioni Generali</h2>
-                <table class="form-table">
-                    <tbody>
-                        <tr>
-                            <th scope="row">
-                                <label for="webhook_secret">Webhook Secret</label>
-                            </th>
-                            <td>
-                                <input type="text" 
-                                       id="webhook_secret" 
-                                       name="fp_git_updater_settings[webhook_secret]" 
-                                       value="<?php echo esc_attr($settings['webhook_secret'] ?? ''); ?>" 
-                                       class="regular-text" readonly>
-                                <p class="description">Copia questo secret nelle impostazioni del webhook su GitHub</p>
-                            </td>
-                        </tr>
-                        
-                        <tr>
-                            <th scope="row">URL Webhook</th>
-                            <td>
-                                <input type="text" 
-                                       value="<?php echo esc_attr($webhook_url); ?>" 
-                                       class="regular-text" readonly>
-                                <button type="button" class="button" onclick="navigator.clipboard.writeText('<?php echo esc_js($webhook_url); ?>')">
-                                    <span class="dashicons dashicons-clipboard"></span> Copia
-                                </button>
-                                <p class="description">Usa questo URL quando configuri il webhook su GitHub per tutti i repository</p>
-                            </td>
-                        </tr>
-                        
-                        <tr>
-                            <th scope="row">Aggiornamento Automatico</th>
-                            <td>
-                                <label>
-                                    <input type="checkbox" 
-                                           name="fp_git_updater_settings[auto_update]" 
-                                           value="1" 
-                                           <?php checked($settings['auto_update'] ?? false, true); ?>>
-                                    Aggiorna automaticamente quando ricevi un push su GitHub
-                                </label>
-                            </td>
-                        </tr>
-                        
-                        <tr>
-                            <th scope="row">
-                                <label for="update_check_interval">Intervallo Controllo Aggiornamenti</label>
-                            </th>
-                            <td>
-                                <select id="update_check_interval" name="fp_git_updater_settings[update_check_interval]">
-                                    <option value="hourly" <?php selected($settings['update_check_interval'] ?? 'hourly', 'hourly'); ?>>Ogni ora</option>
-                                    <option value="twicedaily" <?php selected($settings['update_check_interval'] ?? 'hourly', 'twicedaily'); ?>>Due volte al giorno</option>
-                                    <option value="daily" <?php selected($settings['update_check_interval'] ?? 'hourly', 'daily'); ?>>Una volta al giorno</option>
-                                </select>
-                                <p class="description">Frequenza di controllo per nuovi aggiornamenti (oltre ai webhook)</p>
-                            </td>
-                        </tr>
-                        
-                        <tr>
-                            <th scope="row">Notifiche Email</th>
-                            <td>
-                                <label>
-                                    <input type="checkbox" 
-                                           name="fp_git_updater_settings[enable_notifications]" 
-                                           value="1" 
-                                           <?php checked($settings['enable_notifications'] ?? false, true); ?>>
-                                    Abilita notifiche email per gli aggiornamenti
-                                </label>
-                                <p class="description">
-                                    <span class="dashicons dashicons-info" style="color: #2271b1;"></span>
-                                    Le notifiche email sono <strong>disabilitate di default</strong>. Attiva questa opzione solo se desideri ricevere email quando sono disponibili nuovi aggiornamenti.
-                                </p>
-                            </td>
-                        </tr>
-                        
-                        <tr>
-                            <th scope="row">
-                                <label for="notification_email">Email Notifiche</label>
-                            </th>
-                            <td>
-                                <input type="email" 
-                                       id="notification_email" 
-                                       name="fp_git_updater_settings[notification_email]" 
-                                       value="<?php echo esc_attr($settings['notification_email'] ?? get_option('admin_email')); ?>" 
-                                       class="regular-text">
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                
-                <?php submit_button('Salva Impostazioni'); ?>
-            </form>
-            
-            <div class="fp-git-updater-instructions">
-                <h2>📋 Come Funziona</h2>
-                
-                <h3>🔒 Aggiornamento Manuale (Consigliato per Siti di Produzione)</h3>
-                <p>Con l'aggiornamento manuale disabilitato (opzione sopra), il plugin funziona in questo modo:</p>
-                <ol>
-                    <li>Quando fai push/merge su GitHub, il webhook notifica questo sito</li>
-                    <li>Il plugin registra l'aggiornamento come "disponibile" ma <strong>NON lo installa automaticamente</strong></li>
-                    <li>Ricevi una notifica visibile nel menu admin e nella pagina delle impostazioni</li>
-                    <li><strong>Tu decidi quando installare</strong> l'aggiornamento cliccando sul pulsante "Installa Aggiornamento"</li>
-                    <li>Questo ti permette di <strong>testare prima gli aggiornamenti</strong> su un sito di staging</li>
-                </ol>
-                <p><strong style="color: #00a32a;">✓ Vantaggi:</strong> Protezione totale da aggiornamenti problematici, controllo completo, ideale per siti di clienti.</p>
-                
-                <h3 style="margin-top: 20px;">⚡ Aggiornamento Automatico</h3>
-                <p>Se abiliti l'opzione "Aggiornamento Automatico" sopra:</p>
-                <ul style="padding-left: 20px;">
-                    <li>Gli aggiornamenti vengono installati immediatamente quando ricevi un push da GitHub</li>
-                    <li>Utile per ambienti di sviluppo o plugin molto stabili</li>
-                    <li><strong style="color: #d63638;">⚠ Attenzione:</strong> Un aggiornamento con bug andrà automaticamente in produzione</li>
-                </ul>
-                
-                <h3 style="margin-top: 20px;">🔗 Configurazione Webhook su GitHub</h3>
-                <p><strong>Importante:</strong> Devi configurare il webhook per ogni repository che hai aggiunto sopra.</p>
-                <ol>
-                    <li>Vai sul repository GitHub del plugin che vuoi aggiornare</li>
-                    <li>Clicca su <strong>Settings</strong> → <strong>Webhooks</strong> → <strong>Add webhook</strong></li>
-                    <li>Incolla l'URL webhook qui sopra nel campo <strong>Payload URL</strong></li>
-                    <li>Seleziona <strong>Content type: application/json</strong></li>
-                    <li>Incolla il Webhook Secret nel campo <strong>Secret</strong></li>
-                    <li>In <strong>Which events would you like to trigger this webhook?</strong> seleziona <strong>Just the push event</strong></li>
-                    <li>Clicca su <strong>Add webhook</strong></li>
-                    <li>Ripeti per ogni repository che hai configurato</li>
-                </ol>
-            </div>
-        </div>
-        
-        <!-- Template per nuovo plugin (nascosto, usato da JS) -->
-        <script type="text/template" id="fp-plugin-template">
-            <div class="fp-plugin-item new-plugin" data-index="{{INDEX}}">
-                <div class="fp-plugin-header">
-                    <h3>Nuovo Plugin</h3>
-                    <div class="fp-plugin-actions">
-                        <button type="button" class="button fp-toggle-plugin" data-target="plugin-details-{{INDEX}}">
-                            <span class="dashicons dashicons-edit"></span> Modifica
-                        </button>
-                        <button type="button" class="button fp-remove-plugin" data-index="{{INDEX}}">
-                            <span class="dashicons dashicons-trash"></span> Rimuovi
-                        </button>
-                    </div>
-                </div>
-                <div class="fp-plugin-info">
-                    <span class="description">Configura i dettagli del plugin</span>
-                </div>
-                <div id="plugin-details-{{INDEX}}" class="fp-plugin-details" style="display: block;">
-                    <input type="hidden" name="fp_git_updater_settings[plugins][{{INDEX}}][id]" value="{{ID}}">
-                    
-                    <table class="form-table">
-                        <tr>
-                            <th><label>Nome Plugin</label></th>
-                            <td>
-                                <input type="text" 
-                                       name="fp_git_updater_settings[plugins][{{INDEX}}][name]" 
-                                       value="" 
-                                       class="regular-text" 
-                                       placeholder="Es: Il mio plugin" required>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th><label>Repository GitHub</label></th>
-                            <td>
-                                <input type="text" 
-                                       name="fp_git_updater_settings[plugins][{{INDEX}}][github_repo]" 
-                                       value="" 
-                                       class="regular-text" 
-                                       placeholder="username/repository" required>
-                                <p class="description">Es: tuousername/mio-plugin</p>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th><label>Slug Plugin</label></th>
-                            <td>
-                                <input type="text" 
-                                       name="fp_git_updater_settings[plugins][{{INDEX}}][plugin_slug]" 
-                                       value="" 
-                                       class="regular-text" 
-                                       placeholder="nome-cartella-plugin">
-                                <p class="description">Nome della cartella del plugin in wp-content/plugins/ (es: mio-plugin). Se vuoto, verrà dedotto dal nome del repository.</p>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th><label>Branch</label></th>
-                            <td>
-                                <input type="text" 
-                                       name="fp_git_updater_settings[plugins][{{INDEX}}][branch]" 
-                                       value="main" 
-                                       class="regular-text">
-                                <p class="description">Branch da cui scaricare gli aggiornamenti</p>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th><label>GitHub Token</label></th>
-                            <td>
-                                <input type="password" 
-                                       name="fp_git_updater_settings[plugins][{{INDEX}}][github_token]" 
-                                       value="" 
-                                       class="regular-text" 
-                                       placeholder="ghp_...">
-                                <p class="description">Opzionale, per repository privati</p>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th><label>Abilitato</label></th>
-                            <td>
-                                <label>
-                                    <input type="checkbox" 
-                                           name="fp_git_updater_settings[plugins][{{INDEX}}][enabled]" 
-                                           value="1" checked>
-                                    Abilita aggiornamenti per questo plugin
-                                </label>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
-        </script>
-        <?php
     }
     
     /**
@@ -920,19 +509,16 @@ class Admin {
         // Verifica il nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
             wp_send_json_error(array('message' => 'Nonce non valido'), 400);
-            wp_die();
         }
         
         if (!current_user_can('manage_options')) {
             wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
-            wp_die();
         }
         
         $plugin_id = isset($_POST['plugin_id']) ? sanitize_text_field($_POST['plugin_id']) : '';
         
         if (empty($plugin_id)) {
             wp_send_json_error(array('message' => 'ID plugin non fornito'), 400);
-            wp_die();
         }
         
         try {
@@ -949,7 +535,6 @@ class Admin {
         } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
-        wp_die();
     }
     
     /**
@@ -959,19 +544,16 @@ class Admin {
         // Verifica il nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
             wp_send_json_error(array('message' => 'Nonce non valido'), 400);
-            wp_die();
         }
         
         if (!current_user_can('manage_options')) {
             wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
-            wp_die();
         }
         
         $plugin_id = isset($_POST['plugin_id']) ? sanitize_text_field($_POST['plugin_id']) : '';
         
         if (empty($plugin_id)) {
             wp_send_json_error(array('message' => 'ID plugin non fornito'), 400);
-            wp_die();
         }
         
         try {
@@ -988,7 +570,6 @@ class Admin {
         } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
-        wp_die();
     }
     
     /**
@@ -998,12 +579,10 @@ class Admin {
         // Verifica il nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
             wp_send_json_error(array('message' => 'Nonce non valido'), 400);
-            wp_die();
         }
         
         if (!current_user_can('manage_options')) {
             wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
-            wp_die();
         }
         
         try {
@@ -1012,7 +591,6 @@ class Admin {
         } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
-        wp_die();
     }
     
     /**
@@ -1021,12 +599,10 @@ class Admin {
     public function ajax_create_backup() {
         if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
             wp_send_json_error(array('message' => 'Nonce non valido'), 400);
-            wp_die();
         }
         
         if (!current_user_can('manage_options')) {
             wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
-            wp_die();
         }
         
         try {
@@ -1041,7 +617,6 @@ class Admin {
         } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
-        wp_die();
     }
     
     /**
@@ -1050,12 +625,10 @@ class Admin {
     public function ajax_restore_backup() {
         if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
             wp_send_json_error(array('message' => 'Nonce non valido'), 400);
-            wp_die();
         }
         
         if (!current_user_can('manage_options')) {
             wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
-            wp_die();
         }
         
         $backup_index = isset($_POST['backup_index']) ? intval($_POST['backup_index']) : null;
@@ -1072,7 +645,6 @@ class Admin {
         } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
-        wp_die();
     }
     
     /**
@@ -1081,19 +653,16 @@ class Admin {
     public function ajax_delete_backup() {
         if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
             wp_send_json_error(array('message' => 'Nonce non valido'), 400);
-            wp_die();
         }
         
         if (!current_user_can('manage_options')) {
             wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
-            wp_die();
         }
         
         $backup_index = isset($_POST['backup_index']) ? intval($_POST['backup_index']) : null;
         
         if ($backup_index === null) {
             wp_send_json_error(array('message' => 'Indice backup non fornito'), 400);
-            wp_die();
         }
         
         try {
@@ -1108,7 +677,6 @@ class Admin {
         } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
-        wp_die();
     }
     
     /**
@@ -1144,7 +712,7 @@ class Admin {
                 <table class="form-table">
                     <tr>
                         <th style="width: 200px;">Plugin Configurati:</th>
-                        <td><strong><?php echo count($current_settings['plugins'] ?? array()); ?></strong> plugin</td>
+                        <td><strong><?php echo count(is_array($current_settings) ? ($current_settings['plugins'] ?? array()) : array()); ?></strong> plugin</td>
                     </tr>
                     <tr>
                         <th>Ultimo Backup:</th>
@@ -1348,12 +916,10 @@ class Admin {
         // Verifica il nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
             wp_send_json_error(array('message' => 'Nonce non valido'), 400);
-            wp_die();
         }
         
         if (!current_user_can('manage_options')) {
             wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
-            wp_die();
         }
         
         try {
@@ -1371,7 +937,6 @@ class Admin {
         } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
-        wp_die();
     }
     
     /**
@@ -1381,12 +946,10 @@ class Admin {
         // Verifica il nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
             wp_send_json_error(array('message' => 'Nonce non valido'), 400);
-            wp_die();
         }
         
         if (!current_user_can('manage_options')) {
             wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
-            wp_die();
         }
         
         try {
@@ -1409,7 +972,6 @@ class Admin {
         } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
-        wp_die();
     }
     
     /**
@@ -1419,12 +981,10 @@ class Admin {
         // Verifica il nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
             wp_send_json_error(array('message' => 'Nonce non valido'), 400);
-            wp_die();
         }
         
         if (!current_user_can('manage_options')) {
             wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
-            wp_die();
         }
         
         // Username hardcodato a FranPass87
@@ -1442,7 +1002,6 @@ class Admin {
                     'username' => $default_username,
                     'from_cache' => true
                 ));
-                wp_die();
             }
             
             // Chiama API GitHub
@@ -1468,7 +1027,6 @@ class Admin {
             
             if (is_wp_error($response)) {
                 wp_send_json_error(array('message' => 'Errore connessione GitHub: ' . $response->get_error_message()), 500);
-                wp_die();
             }
             
             $status_code = wp_remote_retrieve_response_code($response);
@@ -1482,14 +1040,12 @@ class Admin {
                     $error_message = 'Rate limit GitHub raggiunto. Riprova tra qualche minuto.';
                 }
                 wp_send_json_error(array('message' => $error_message), $status_code);
-                wp_die();
             }
             
             $repos = json_decode($body, true);
             
             if (!is_array($repos)) {
                 wp_send_json_error(array('message' => 'Risposta API GitHub non valida'), 500);
-                wp_die();
             }
             
             // Prepara lista repository (solo nome e descrizione)
@@ -1525,8 +1081,6 @@ class Admin {
         } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
-        
-        wp_die();
     }
     
     /**
@@ -1536,19 +1090,16 @@ class Admin {
         // Verifica il nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
             wp_send_json_error(array('message' => 'Nonce non valido'), 400);
-            wp_die();
         }
         
         if (!current_user_can('manage_options')) {
             wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
-            wp_die();
         }
         
         $plugin_id = isset($_POST['plugin_id']) ? sanitize_text_field($_POST['plugin_id']) : '';
         
         if (empty($plugin_id)) {
             wp_send_json_error(array('message' => 'ID plugin non fornito'), 400);
-            wp_die();
         }
         
         try {
@@ -1576,7 +1127,6 @@ class Admin {
             
             if (!$plugin) {
                 wp_send_json_error(array('message' => 'Plugin non trovato'), 404);
-                wp_die();
             }
             
             // Invalida la cache della versione GitHub
@@ -1614,8 +1164,6 @@ class Admin {
         } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
-        
-        wp_die();
     }
 
     /**
@@ -1624,12 +1172,10 @@ class Admin {
     public function ajax_get_backup_stats() {
         if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
             wp_send_json_error(array('message' => 'Nonce non valido'), 400);
-            wp_die();
         }
 
         if (!current_user_can('manage_options')) {
             wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
-            wp_die();
         }
 
         try {
@@ -1639,7 +1185,6 @@ class Admin {
         } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
-        wp_die();
     }
 
     /**
@@ -1648,12 +1193,10 @@ class Admin {
     public function ajax_cleanup_backups() {
         if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
             wp_send_json_error(array('message' => 'Nonce non valido'), 400);
-            wp_die();
         }
 
         if (!current_user_can('manage_options')) {
             wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
-            wp_die();
         }
 
         try {
@@ -1666,6 +1209,82 @@ class Admin {
         } catch (\Exception $e) {
             wp_send_json_error(array('message' => 'Errore: ' . $e->getMessage()), 500);
         }
-        wp_die();
+    }
+
+    /**
+     * AJAX: Autorizza INSTALLA – invia plugin da repo GitHub a client selezionati.
+     */
+    public function ajax_deploy_install() {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
+            wp_send_json_error(array('message' => 'Nonce non valido'), 400);
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
+        }
+
+        $github_repo = isset($_POST['github_repo']) ? sanitize_text_field(wp_unslash($_POST['github_repo'])) : '';
+        $branch = isset($_POST['branch']) ? sanitize_text_field(wp_unslash($_POST['branch'])) : 'main';
+        $name = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
+        $client_ids = array();
+        if (!empty($_POST['client_ids_json'])) {
+            $decoded = json_decode(wp_unslash($_POST['client_ids_json']), true);
+            if (is_array($decoded)) {
+                $client_ids = array_values(array_filter(array_map('sanitize_text_field', $decoded)));
+            }
+        }
+
+        if (empty($github_repo) || empty($client_ids)) {
+            wp_send_json_error(array('message' => __('Repository e clienti obbligatori.', 'fp-git-updater')), 400);
+        }
+
+        $parts = explode('/', $github_repo);
+        $slug = strtolower(preg_replace('/[^a-z0-9_-]/', '-', trim(end($parts), '-')));
+        $plugin = array(
+            'id' => 'repo_' . $slug,
+            'name' => $name ?: $slug,
+            'slug' => $slug,
+            'github_repo' => $github_repo,
+            'branch' => $branch,
+        );
+
+        MasterEndpoint::authorize_deploy_install($plugin, $client_ids);
+        $until = (int) get_option(MasterEndpoint::OPTION_DEPLOY_AUTHORIZED_UNTIL, 0);
+        wp_send_json_success(array(
+            'message' => sprintf(
+                __('Installazione autorizzata: %s su %d clienti. I siti installeranno nelle prossime 2 ore.', 'fp-git-updater'),
+                esc_html($plugin['name']),
+                count($client_ids)
+            ),
+            'valid_until' => $until,
+        ));
+    }
+
+    /**
+     * AJAX: Autorizza AGGIORNA – invia aggiornamento a tutti i client che hanno il plugin.
+     */
+    public function ajax_deploy_update() {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
+            wp_send_json_error(array('message' => 'Nonce non valido'), 400);
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
+        }
+
+        $plugin_id = isset($_POST['plugin_id']) ? sanitize_text_field(wp_unslash($_POST['plugin_id'])) : '';
+        $plugin_slug = isset($_POST['plugin_slug']) ? sanitize_text_field(wp_unslash($_POST['plugin_slug'])) : $plugin_id;
+        if (empty($plugin_id)) {
+            wp_send_json_error(array('message' => __('ID plugin obbligatorio.', 'fp-git-updater')), 400);
+        }
+
+        MasterEndpoint::authorize_deploy_update(array($plugin_id));
+        $clients = MasterEndpoint::get_clients_with_plugin($plugin_slug);
+        $until = (int) get_option(MasterEndpoint::OPTION_DEPLOY_AUTHORIZED_UNTIL, 0);
+        wp_send_json_success(array(
+            'message' => sprintf(
+                __('Aggiornamento autorizzato. %d clienti aggiorneranno nelle prossime 2 ore.', 'fp-git-updater'),
+                count($clients)
+            ),
+            'valid_until' => $until,
+        ));
     }
 }
