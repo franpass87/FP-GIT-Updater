@@ -44,6 +44,11 @@ class MasterEndpoint
             'methods' => 'GET',
             'callback' => [self::class, 'handle_request'],
             'permission_callback' => [self::class, 'permission_check'],
+            'args' => [
+                'secret' => ['type' => 'string', 'required' => false],
+                'client_id' => ['type' => 'string', 'required' => false],
+                'installed_plugins' => ['type' => 'string', 'required' => false],
+            ],
         ]);
     }
 
@@ -141,12 +146,15 @@ class MasterEndpoint
 
         $updates_for_clients = count($plugins) > 0;
 
-        return new WP_REST_Response([
+        $response = new WP_REST_Response([
             'updates_available' => $updates_for_clients,
             'pending_count' => count($plugins),
             'plugins' => $plugins,
             'deploy_authorized' => $window_active && $updates_for_clients,
         ], 200);
+        $response->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        $response->header('Pragma', 'no-cache');
+        return $response;
     }
 
     private static function normalize_plugin_for_response(array $plugin, ?array $pending): array
@@ -282,6 +290,10 @@ class MasterEndpoint
             $client_id = substr($client_id, 0, 255);
         }
         if (empty($client_id)) {
+            Logger::log('warning', 'Master: register_client_connection saltato (client_id vuoto)', [
+                'has_header' => !empty($request->get_header(self::HEADER_CLIENT_ID)),
+                'has_param' => $request->get_param('client_id') !== null,
+            ]);
             return;
         }
 
@@ -298,6 +310,7 @@ class MasterEndpoint
         ];
 
         update_option(self::OPTION_CONNECTED_CLIENTS, $clients);
+        Logger::log('info', 'Master: client registrato', ['client_id' => $client_id, 'plugins_count' => count($installed_plugins)]);
     }
 
     /**
