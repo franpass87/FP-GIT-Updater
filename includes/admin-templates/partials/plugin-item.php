@@ -162,45 +162,15 @@ if (!defined('ABSPATH')) {
             </span>
 
             <?php if (!empty($client_versions)): ?>
-            <?php
-            // Raggruppa per versione per il badge riassuntivo
-            $versions_grouped = [];
-            foreach ($client_versions as $cid => $cver) {
-                $key = !empty($cver) ? $cver : '?';
-                $versions_grouped[$key][] = $cid;
-            }
-            arsort($versions_grouped);
-            $total_clients = count($client_versions);
-            ?>
-            <span class="fp-version-clients-summary">
-                <button type="button" class="fp-clients-versions-toggle" 
-                        data-target="fp-clients-ver-<?php echo esc_attr($plugin['id']); ?>"
-                        title="<?php esc_attr_e('Mostra/nascondi versioni per cliente', 'fp-git-updater'); ?>">
-                    <span class="dashicons dashicons-networking"></span>
-                    <?php printf(
-                        _n('Su %d cliente', 'Su %d clienti', $total_clients, 'fp-git-updater'),
-                        $total_clients
-                    ); ?>
-                    <?php foreach ($versions_grouped as $ver => $cids): ?>
-                        <?php if ($ver !== '?'): ?>
-                            <code class="fp-ver-badge">v<?php echo esc_html($ver); ?></code>
-                        <?php endif; ?>
-                    <?php endforeach; ?>
-                    <span class="dashicons dashicons-arrow-down-alt2 fp-toggle-icon"></span>
-                </button>
-                <div id="fp-clients-ver-<?php echo esc_attr($plugin['id']); ?>" class="fp-clients-versions-list" style="display:none;">
-                    <?php foreach ($client_versions as $cid => $cver): ?>
-                    <div class="fp-client-ver-row">
-                        <span class="fp-deploy-client-dot"></span>
-                        <span class="fp-client-ver-name"><?php echo esc_html($cid); ?></span>
-                        <?php if (!empty($cver)): ?>
-                            <code class="fp-client-ver-badge">v<?php echo esc_html($cver); ?></code>
-                        <?php else: ?>
-                            <span class="fp-client-ver-unknown"><?php _e('versione sconosciuta', 'fp-git-updater'); ?></span>
-                        <?php endif; ?>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
+            <span class="fp-version-clients-badge">
+                <span class="dashicons dashicons-networking"></span>
+                <?php
+                $total_clients = count($client_versions);
+                printf(
+                    _n('Solo su %d cliente', 'Solo su %d clienti', $total_clients, 'fp-git-updater'),
+                    $total_clients
+                );
+                ?>
             </span>
             <?php endif; ?>
             
@@ -293,13 +263,22 @@ if (!defined('ABSPATH')) {
             <div class="fp-deploy-clients-grid">
                 <?php foreach ($client_ids as $c):
                     $c_ver = $client_versions[$c] ?? '';
+                    // Confronta versione cliente con GitHub per colorare il badge
+                    $ver_class = '';
+                    if (!empty($c_ver) && !empty($github_version)) {
+                        if (version_compare($c_ver, $github_version, '<')) {
+                            $ver_class = 'fp-deploy-client-ver--old';
+                        } elseif (version_compare($c_ver, $github_version, '>=')) {
+                            $ver_class = 'fp-deploy-client-ver--ok';
+                        }
+                    }
                 ?>
                 <label class="fp-deploy-client-check">
                     <input type="checkbox" class="fp-client-cb fp-deploy-cb" data-all="<?php echo esc_attr($all_id); ?>" value="<?php echo esc_attr($c); ?>">
                     <span class="fp-deploy-client-dot"></span>
                     <span class="fp-deploy-client-name"><?php echo esc_html($c); ?></span>
                     <?php if (!empty($c_ver)): ?>
-                        <span class="fp-deploy-client-ver">v<?php echo esc_html($c_ver); ?></span>
+                        <span class="fp-deploy-client-ver <?php echo esc_attr($ver_class); ?>">v<?php echo esc_html($c_ver); ?></span>
                     <?php endif; ?>
                 </label>
                 <?php endforeach; ?>

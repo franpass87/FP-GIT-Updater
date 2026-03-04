@@ -138,16 +138,6 @@
             }, 500);
         });
         
-        // Toggle lista versioni clienti
-        $(document).on('click', '.fp-clients-versions-toggle', function(e) {
-            e.preventDefault();
-            const targetId = $(this).data('target');
-            const $list = $('#' + targetId);
-            const isOpen = $list.is(':visible');
-            $list.slideToggle(150);
-            $(this).toggleClass('open', !isOpen);
-        });
-
         // Toggle dettagli plugin
         $(document).on('click', '.fp-toggle-plugin', function(e) {
             e.preventDefault();
