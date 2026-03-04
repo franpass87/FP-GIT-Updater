@@ -27,6 +27,7 @@ class Admin {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
+        add_action('admin_head', array($this, 'add_custom_favicon'));
         
         // AJAX handlers
         add_action('wp_ajax_fp_git_updater_check_updates', array($this, 'ajax_check_updates'));
@@ -100,6 +101,40 @@ class Admin {
         );
     }
     
+    /**
+     * Aggiungi favicon personalizzata nelle pagine del plugin
+     */
+    public function add_custom_favicon(): void {
+        $screen = get_current_screen();
+        if ( $screen === null ) {
+            return;
+        }
+
+        $screen_id = (string) $screen->id;
+        if ( strpos( $screen_id, 'fp-git-updater' ) === false && $screen_id !== 'toplevel_page_fp-git-updater' ) {
+            return;
+        }
+
+        // SVG favicon inline - Frecce di sync/update con branch node, gradiente blu-viola
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
+            . '<defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">'
+            . '<stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#7c3aed"/>'
+            . '</linearGradient></defs>'
+            . '<rect width="32" height="32" rx="6" fill="url(#g)"/>'
+            // Freccia superiore (senso orario, arco in alto)
+            . '<path d="M16 7 A9 9 0 0 1 25 16" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/>'
+            . '<polygon points="25,12 25,19 20,15" fill="#fff"/>'
+            // Freccia inferiore (senso orario, arco in basso)
+            . '<path d="M16 25 A9 9 0 0 1 7 16" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/>'
+            . '<polygon points="7,20 7,13 12,17" fill="#fff"/>'
+            // Nodo centrale (dot branch)
+            . '<circle cx="16" cy="16" r="2.5" fill="#fff"/>'
+            . '</svg>';
+
+        $favicon_data = 'data:image/svg+xml;base64,' . base64_encode( $svg );
+        echo '<link rel="icon" type="image/svg+xml" href="' . esc_attr( $favicon_data ) . '" />' . "\n";
+    }
+
     /**
      * Registra le impostazioni
      */
