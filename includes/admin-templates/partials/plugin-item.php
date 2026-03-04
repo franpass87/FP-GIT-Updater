@@ -58,6 +58,17 @@ if (!defined('ABSPATH')) {
         $github_commit_msg   = '';
         $github_commit_date_fmt = '';
 
+        // Versioni sui clienti (per plugin non installati localmente)
+        $client_versions = [];
+        $plugin_slug_for_clients = !empty($plugin['plugin_slug']) ? $plugin['plugin_slug'] : '';
+        if (empty($plugin_slug_for_clients) && !empty($plugin['github_repo'])) {
+            $repo_parts = explode('/', $plugin['github_repo']);
+            $plugin_slug_for_clients = strtolower(end($repo_parts));
+        }
+        if (!empty($plugin_slug_for_clients)) {
+            $client_versions = \FP\GitUpdater\MasterEndpoint::get_clients_plugin_versions($plugin_slug_for_clients);
+        }
+
         try {
             $updater = \FP\GitUpdater\Updater::get_instance();
             
@@ -129,7 +140,36 @@ if (!defined('ABSPATH')) {
             
             <span class="fp-version-installed">
                 <strong><?php _e('Installata:', 'fp-git-updater'); ?></strong>
-                <code><?php echo !empty($current_version) ? esc_html($current_version) : '—'; ?></code>
+                <?php if (!empty($current_version)): ?>
+                    <code><?php echo esc_html($current_version); ?></code>
+                <?php elseif (!empty($client_versions)): ?>
+                    <?php
+                    // Raggruppa clienti per versione
+                    $versions_grouped = [];
+                    foreach ($client_versions as $cid => $cver) {
+                        $key = !empty($cver) ? $cver : '?';
+                        $versions_grouped[$key][] = $cid;
+                    }
+                    arsort($versions_grouped); // versione più alta prima
+                    $parts = [];
+                    foreach ($versions_grouped as $ver => $cids) {
+                        $count = count($cids);
+                        if ($ver !== '?') {
+                            $parts[] = '<code class="fp-version-client">v' . esc_html($ver) . '</code>'
+                                . ' <span class="fp-version-client-count" title="' . esc_attr(implode(', ', $cids)) . '">'
+                                . sprintf(_n('su %d cliente', 'su %d clienti', $count, 'fp-git-updater'), $count)
+                                . '</span>';
+                        } else {
+                            $parts[] = '<span class="fp-version-client-count" title="' . esc_attr(implode(', ', $cids)) . '">'
+                                . sprintf(_n('%d cliente (versione sconosciuta)', '%d clienti (versione sconosciuta)', $count, 'fp-git-updater'), $count)
+                                . '</span>';
+                        }
+                    }
+                    echo '<span class="fp-version-on-clients">' . implode(', ', $parts) . '</span>';
+                    ?>
+                <?php else: ?>
+                    <code>—</code>
+                <?php endif; ?>
             </span>
             
             <span class="fp-version-github">
@@ -167,6 +207,16 @@ if (!defined('ABSPATH')) {
                 <span class="fp-version-status fp-version-status-ok">
                     <span class="dashicons dashicons-yes-alt"></span>
                     <?php _e('Aggiornato', 'fp-git-updater'); ?>
+                </span>
+            <?php elseif (empty($current_version) && !empty($client_versions)): ?>
+                <span class="fp-version-status fp-version-status-clients">
+                    <span class="dashicons dashicons-networking"></span>
+                    <?php printf(_n('Solo su %d cliente', 'Solo su %d clienti', count($client_versions), 'fp-git-updater'), count($client_versions)); ?>
+                </span>
+            <?php elseif (empty($current_version)): ?>
+                <span class="fp-version-status fp-version-status-not-installed">
+                    <span class="dashicons dashicons-minus"></span>
+                    <?php _e('Non installato', 'fp-git-updater'); ?>
                 </span>
             <?php endif; ?>
         </div>

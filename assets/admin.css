@@ -1387,8 +1387,39 @@ select:focus:not(:focus-visible) {
     color: var(--fp-success);
 }
 
+.fp-plugin-versions-compact .fp-version-status-clients {
+    color: var(--fp-info);
+}
+
+.fp-plugin-versions-compact .fp-version-status-not-installed {
+    color: var(--fp-text-muted);
+}
+
 .fp-plugin-versions-compact .fp-version-status .dashicons {
     font-size: 14px;
+}
+
+/* Versioni sui clienti (plugin non installato localmente) */
+.fp-version-on-clients {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.fp-version-on-clients code.fp-version-client {
+    background: var(--fp-primary-light);
+    color: var(--fp-primary);
+    border: 1px solid #c3d9f0;
+    font-size: 11px;
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+
+.fp-version-on-clients .fp-version-client-count {
+    font-size: 11px;
+    color: var(--fp-text-muted);
+    cursor: default;
 }
 
 .fp-plugin-versions-compact .fp-refresh-github-version,

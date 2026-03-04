@@ -150,6 +150,17 @@ class Updater {
         foreach ($plugins as $plugin) {
             $pending = get_option('fp_git_updater_pending_update_' . $plugin['id']);
             if ($pending) {
+                // Non segnalare aggiornamento se il plugin non è installato localmente
+                $installed_version = $this->get_installed_plugin_version($plugin);
+                if (empty($installed_version)) {
+                    // Pulisci il pending spurio e aggiorna il commit di riferimento
+                    $latest_commit_ref = get_option('fp_git_updater_current_commit_' . $plugin['id'], '');
+                    if (!empty($pending['commit_sha'])) {
+                        update_option('fp_git_updater_current_commit_' . $plugin['id'], $pending['commit_sha']);
+                    }
+                    delete_option('fp_git_updater_pending_update_' . $plugin['id']);
+                    continue;
+                }
                 $pending['plugin'] = $plugin;
                 $pending_updates[] = $pending;
             }
@@ -710,7 +721,19 @@ class Updater {
                 set_transient('fp_git_updater_github_version_' . $plugin['id'], $available_version, 300);
             }
 
-            // Plugin appena installato: se versione installata = GitHub, considera già aggiornato
+            // Plugin non installato localmente: non segnalare aggiornamento,
+            // aggiorna solo il commit di riferimento così non continua a segnalarlo
+            if (empty($current_version)) {
+                update_option('fp_git_updater_current_commit_' . $plugin['id'], $latest_commit);
+                delete_option('fp_git_updater_pending_update_' . $plugin['id']);
+                Logger::log('info', 'Plugin ' . $plugin['name'] . ' non installato localmente, nessun aggiornamento segnalato', array(
+                    'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
+                    'commit' => $latest_commit_short,
+                ));
+                return false;
+            }
+
+            // Plugin appena installato: se versione installata >= GitHub, considera già aggiornato
             if (empty($current_commit) && !empty($current_version) && !empty($available_version)
                 && version_compare($current_version, $available_version, '>=')) {
                 update_option('fp_git_updater_current_commit_' . $plugin['id'], $latest_commit);

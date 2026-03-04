@@ -264,6 +264,44 @@ class MasterEndpoint
         return $result;
     }
 
+    /**
+     * Restituisce la versione installata di un plugin su un cliente specifico.
+     *
+     * @param string $client_id   ID del cliente
+     * @param string $plugin_slug Slug del plugin
+     * @return string Versione o stringa vuota se non disponibile
+     */
+    public static function get_client_plugin_version(string $client_id, string $plugin_slug): string
+    {
+        $clients = self::get_connected_clients();
+        if (!isset($clients[$client_id])) {
+            return '';
+        }
+        $versions = $clients[$client_id]['plugin_versions'] ?? [];
+        return $versions[$plugin_slug] ?? '';
+    }
+
+    /**
+     * Restituisce un array client_id => version per i clienti che hanno un plugin installato.
+     * Solo i clienti che hanno inviato la versione (formato slug:version).
+     *
+     * @param string $plugin_slug Slug del plugin
+     * @return array<string, string> client_id => version
+     */
+    public static function get_clients_plugin_versions(string $plugin_slug): array
+    {
+        $clients = self::get_connected_clients();
+        $result = [];
+        foreach ($clients as $id => $data) {
+            $installed = $data['installed_plugins'] ?? [];
+            if (in_array($plugin_slug, $installed, true)) {
+                $version = $data['plugin_versions'][$plugin_slug] ?? '';
+                $result[$id] = $version;
+            }
+        }
+        return $result;
+    }
+
     public static function get_endpoint_url(): string
     {
         return rest_url('fp-git-updater/v1/master-updates-status');
@@ -303,10 +341,31 @@ class MasterEndpoint
             $clients = [];
         }
 
+        // Parsare il formato "slug:version" — compatibile con il vecchio formato "slug"
+        $slugs = [];
+        $plugin_versions = [];
+        foreach ($installed_plugins as $entry) {
+            if (strpos($entry, ':') !== false) {
+                list($slug, $version) = explode(':', $entry, 2);
+                $slug = sanitize_text_field(trim($slug));
+                $version = sanitize_text_field(trim($version));
+                if (!empty($slug)) {
+                    $slugs[] = $slug;
+                    $plugin_versions[$slug] = $version;
+                }
+            } else {
+                $slug = sanitize_text_field(trim($entry));
+                if (!empty($slug)) {
+                    $slugs[] = $slug;
+                }
+            }
+        }
+
         $clients[$client_id] = [
-            'last_seen' => $now,
-            'first_seen' => $clients[$client_id]['first_seen'] ?? $now,
-            'installed_plugins' => array_values(array_unique($installed_plugins)),
+            'last_seen'         => $now,
+            'first_seen'        => $clients[$client_id]['first_seen'] ?? $now,
+            'installed_plugins' => array_values(array_unique($slugs)),
+            'plugin_versions'   => $plugin_versions,
         ];
 
         update_option(self::OPTION_CONNECTED_CLIENTS, $clients);
