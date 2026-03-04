@@ -577,7 +577,7 @@
 /* Griglia siti clienti */
 .fp-plugin-deploy-inline .fp-deploy-clients-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 6px 12px;
 }
 
@@ -592,9 +592,7 @@
     background: #fff;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
-    white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .fp-plugin-deploy-inline .fp-deploy-client-check:hover {
@@ -616,6 +614,24 @@
     border-radius: 50%;
     background: var(--fp-success, #10b981);
     flex-shrink: 0;
+}
+
+.fp-deploy-client-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.fp-deploy-client-ver {
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--fp-primary, #3b82f6);
+    border-radius: 3px;
+    padding: 1px 5px;
+    flex-shrink: 0;
+    letter-spacing: 0.02em;
 }
 
 /* Footer con pulsante installa */

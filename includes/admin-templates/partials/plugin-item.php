@@ -259,11 +259,16 @@ if (!defined('ABSPATH')) {
                 </label>
             </div>
             <div class="fp-deploy-clients-grid">
-                <?php foreach ($client_ids as $c): ?>
+                <?php foreach ($client_ids as $c):
+                    $c_ver = $client_versions[$c] ?? '';
+                ?>
                 <label class="fp-deploy-client-check">
                     <input type="checkbox" class="fp-client-cb fp-deploy-cb" data-all="<?php echo esc_attr($all_id); ?>" value="<?php echo esc_attr($c); ?>">
                     <span class="fp-deploy-client-dot"></span>
-                    <?php echo esc_html($c); ?>
+                    <span class="fp-deploy-client-name"><?php echo esc_html($c); ?></span>
+                    <?php if (!empty($c_ver)): ?>
+                        <span class="fp-deploy-client-ver">v<?php echo esc_html($c_ver); ?></span>
+                    <?php endif; ?>
                 </label>
                 <?php endforeach; ?>
             </div>
