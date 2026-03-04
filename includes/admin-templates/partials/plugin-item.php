@@ -89,8 +89,16 @@ if (!defined('ABSPATH')) {
                 $commit_date_raw     = $pending_info['commit_date'] ?? '';
             } else {
                 $cached_github_version = get_transient('fp_git_updater_github_version_' . $plugin['id']);
+                $cached_commit_info    = get_transient('fp_git_updater_commit_info_' . $plugin['id']);
+
                 if ($cached_github_version !== false) {
                     $github_version = $cached_github_version;
+                    // Usa il commit dalla cache se disponibile
+                    if (is_array($cached_commit_info)) {
+                        $github_commit_short = $cached_commit_info['short'] ?? '';
+                        $github_commit_msg   = $cached_commit_info['message'] ?? '';
+                        $commit_date_raw     = $cached_commit_info['date'] ?? '';
+                    }
                 } elseif (!empty($plugin['github_repo'])) {
                     $commit_info = $updater->get_latest_commit_info($plugin);
                     if (!is_wp_error($commit_info)) {
@@ -98,6 +106,12 @@ if (!defined('ABSPATH')) {
                         $github_commit_msg   = $commit_info['message'];
                         $commit_date_raw     = $commit_info['date'];
                         $github_version = $updater->get_github_plugin_version($plugin, $commit_info['sha']);
+                        // Salva cache commit separata (5 minuti)
+                        set_transient('fp_git_updater_commit_info_' . $plugin['id'], [
+                            'short'   => $commit_info['short'],
+                            'message' => $commit_info['message'],
+                            'date'    => $commit_info['date'],
+                        ], 300);
                     } else {
                         $github_version = $updater->get_github_plugin_version($plugin);
                     }
@@ -142,35 +156,53 @@ if (!defined('ABSPATH')) {
                 <strong><?php _e('Installata:', 'fp-git-updater'); ?></strong>
                 <?php if (!empty($current_version)): ?>
                     <code><?php echo esc_html($current_version); ?></code>
-                <?php elseif (!empty($client_versions)): ?>
-                    <?php
-                    // Raggruppa clienti per versione
-                    $versions_grouped = [];
-                    foreach ($client_versions as $cid => $cver) {
-                        $key = !empty($cver) ? $cver : '?';
-                        $versions_grouped[$key][] = $cid;
-                    }
-                    arsort($versions_grouped); // versione più alta prima
-                    $parts = [];
-                    foreach ($versions_grouped as $ver => $cids) {
-                        $count = count($cids);
-                        if ($ver !== '?') {
-                            $parts[] = '<code class="fp-version-client">v' . esc_html($ver) . '</code>'
-                                . ' <span class="fp-version-client-count" title="' . esc_attr(implode(', ', $cids)) . '">'
-                                . sprintf(_n('su %d cliente', 'su %d clienti', $count, 'fp-git-updater'), $count)
-                                . '</span>';
-                        } else {
-                            $parts[] = '<span class="fp-version-client-count" title="' . esc_attr(implode(', ', $cids)) . '">'
-                                . sprintf(_n('%d cliente (versione sconosciuta)', '%d clienti (versione sconosciuta)', $count, 'fp-git-updater'), $count)
-                                . '</span>';
-                        }
-                    }
-                    echo '<span class="fp-version-on-clients">' . implode(', ', $parts) . '</span>';
-                    ?>
                 <?php else: ?>
                     <code>—</code>
                 <?php endif; ?>
             </span>
+
+            <?php if (!empty($client_versions)): ?>
+            <?php
+            // Raggruppa per versione per il badge riassuntivo
+            $versions_grouped = [];
+            foreach ($client_versions as $cid => $cver) {
+                $key = !empty($cver) ? $cver : '?';
+                $versions_grouped[$key][] = $cid;
+            }
+            arsort($versions_grouped);
+            $total_clients = count($client_versions);
+            ?>
+            <span class="fp-version-clients-summary">
+                <button type="button" class="fp-clients-versions-toggle" 
+                        data-target="fp-clients-ver-<?php echo esc_attr($plugin['id']); ?>"
+                        title="<?php esc_attr_e('Mostra/nascondi versioni per cliente', 'fp-git-updater'); ?>">
+                    <span class="dashicons dashicons-networking"></span>
+                    <?php printf(
+                        _n('Su %d cliente', 'Su %d clienti', $total_clients, 'fp-git-updater'),
+                        $total_clients
+                    ); ?>
+                    <?php foreach ($versions_grouped as $ver => $cids): ?>
+                        <?php if ($ver !== '?'): ?>
+                            <code class="fp-ver-badge">v<?php echo esc_html($ver); ?></code>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                    <span class="dashicons dashicons-arrow-down-alt2 fp-toggle-icon"></span>
+                </button>
+                <div id="fp-clients-ver-<?php echo esc_attr($plugin['id']); ?>" class="fp-clients-versions-list" style="display:none;">
+                    <?php foreach ($client_versions as $cid => $cver): ?>
+                    <div class="fp-client-ver-row">
+                        <span class="fp-deploy-client-dot"></span>
+                        <span class="fp-client-ver-name"><?php echo esc_html($cid); ?></span>
+                        <?php if (!empty($cver)): ?>
+                            <code class="fp-client-ver-badge">v<?php echo esc_html($cver); ?></code>
+                        <?php else: ?>
+                            <span class="fp-client-ver-unknown"><?php _e('versione sconosciuta', 'fp-git-updater'); ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </span>
+            <?php endif; ?>
             
             <span class="fp-version-github">
                 <strong><?php _e('GitHub:', 'fp-git-updater'); ?></strong>

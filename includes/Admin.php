@@ -1190,6 +1190,13 @@ class Admin {
             if (!empty($github_version)) {
                 // Salva in cache per 5 minuti
                 set_transient('fp_git_updater_github_version_' . $plugin_id, $github_version, 300);
+                if (!empty($commit_short)) {
+                    set_transient('fp_git_updater_commit_info_' . $plugin_id, [
+                        'short'   => $commit_short,
+                        'message' => $commit_msg,
+                        'date'    => $commit_date,
+                    ], 300);
+                }
                 
                 // Recupera anche la versione installata per confronto
                 if ($plugin_id === 'fp_git_updater_self') {
