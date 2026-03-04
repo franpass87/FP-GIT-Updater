@@ -687,7 +687,12 @@ class Updater {
         ));
         
         // Ottieni versione installata corrente
-        $current_version = $this->get_installed_plugin_version($plugin);
+        // Per il self-update usa direttamente la costante della versione
+        if (isset($plugin['id']) && $plugin['id'] === 'fp_git_updater_self') {
+            $current_version = defined('FP_GIT_UPDATER_VERSION') ? FP_GIT_UPDATER_VERSION : '';
+        } else {
+            $current_version = $this->get_installed_plugin_version($plugin);
+        }
         
         $latest_commit_info = $this->get_latest_commit($plugin);
         

@@ -153,12 +153,17 @@ $versions_differ = !empty($current_version) && !empty($github_version) && versio
         <?php endif; ?>
     </div>
     
-    <?php if ($self_pending): ?>
+    <?php
+    // Mostra il pulsante anche se il pending non è settato ma le versioni differiscono
+    $show_install_btn = $self_pending || (!empty($github_version) && !empty($current_version) && version_compare($github_version, $current_version, '>'));
+    ?>
+    <?php if ($show_install_btn): ?>
         <div class="fp-notice fp-notice-warning">
             <h3>
                 <span class="dashicons dashicons-warning"></span>
                 <?php _e('Aggiornamento Disponibile!', 'fp-git-updater'); ?>
             </h3>
+            <?php if ($self_pending && !empty($self_pending['commit_sha_short'])): ?>
             <p>
                 <strong><?php _e('Commit:', 'fp-git-updater'); ?></strong> 
                 <code><?php echo esc_html($self_pending['commit_sha_short']); ?></code>
@@ -166,6 +171,7 @@ $versions_differ = !empty($current_version) && !empty($github_version) && versio
                     <br><em><?php echo esc_html($self_pending['commit_message']); ?></em>
                 <?php endif; ?>
             </p>
+            <?php endif; ?>
             <button type="button" id="fp-install-self-update" class="button button-primary">
                 <span class="dashicons dashicons-download"></span>
                 <?php _e('Installa Aggiornamento Ora', 'fp-git-updater'); ?>
