@@ -198,16 +198,30 @@ if (!defined('ABSPATH')) {
             $name = $plugin['name'] ?? basename(str_replace('/', '-', $repo));
         ?>
         <div class="fp-plugin-deploy-inline" data-repo="<?php echo esc_attr($repo); ?>" data-branch="<?php echo esc_attr($branch); ?>" data-name="<?php echo esc_attr($name); ?>">
-            <span class="fp-deploy-label"><?php _e('Installa su clienti:', 'fp-git-updater'); ?></span>
-            <div class="fp-deploy-clients-wrap">
-                <label class="fp-deploy-client-check fp-select-all"><input type="checkbox" id="<?php echo esc_attr($all_id); ?>"> <strong><?php _e('Tutti', 'fp-git-updater'); ?></strong></label>
+            <div class="fp-deploy-header">
+                <span class="fp-deploy-label">
+                    <span class="dashicons dashicons-upload"></span>
+                    <?php _e('Installa su clienti', 'fp-git-updater'); ?>
+                </span>
+                <label class="fp-deploy-client-check fp-select-all">
+                    <input type="checkbox" id="<?php echo esc_attr($all_id); ?>">
+                    <strong><?php _e('Seleziona tutti', 'fp-git-updater'); ?></strong>
+                </label>
+            </div>
+            <div class="fp-deploy-clients-grid">
                 <?php foreach ($client_ids as $c): ?>
-                <label class="fp-deploy-client-check"><input type="checkbox" class="fp-client-cb fp-deploy-cb" data-all="<?php echo esc_attr($all_id); ?>" value="<?php echo esc_attr($c); ?>"> <?php echo esc_html($c); ?></label>
+                <label class="fp-deploy-client-check">
+                    <input type="checkbox" class="fp-client-cb fp-deploy-cb" data-all="<?php echo esc_attr($all_id); ?>" value="<?php echo esc_attr($c); ?>">
+                    <span class="fp-deploy-client-dot"></span>
+                    <?php echo esc_html($c); ?>
+                </label>
                 <?php endforeach; ?>
             </div>
-            <button type="button" class="button button-small fp-deploy-install-inline">
-                <span class="dashicons dashicons-download"></span> <?php _e('Installa', 'fp-git-updater'); ?>
-            </button>
+            <div class="fp-deploy-footer">
+                <button type="button" class="button button-primary button-small fp-deploy-install-inline">
+                    <span class="dashicons dashicons-download"></span> <?php _e('Installa sui selezionati', 'fp-git-updater'); ?>
+                </button>
+            </div>
         </div>
         <?php else: ?>
         <div class="fp-plugin-deploy-hint fp-plugin-deploy-no-clients">

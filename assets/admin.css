@@ -522,45 +522,113 @@
 
 /* Riga dedicata "Installa su clienti" */
 .fp-plugin-deploy-row {
-    padding: 12px 20px;
+    padding: 14px 20px;
     background: var(--fp-bg);
     border-top: 1px solid var(--fp-border);
 }
 
 .fp-plugin-deploy-inline {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Header: etichetta + "seleziona tutti" */
+.fp-plugin-deploy-inline .fp-deploy-header {
+    display: flex;
     align-items: center;
-    gap: 10px 16px;
+    justify-content: space-between;
+    gap: 12px;
 }
 
 .fp-plugin-deploy-inline .fp-deploy-label {
-    font-size: 13px;
-    color: var(--fp-text-muted);
-    flex-shrink: 0;
-}
-
-.fp-plugin-deploy-inline .fp-deploy-clients-wrap {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 14px;
-}
-
-.fp-plugin-deploy-inline .fp-deploy-client-check {
     display: inline-flex;
     align-items: center;
+    gap: 6px;
     font-size: 12px;
+    font-weight: 600;
+    color: var(--fp-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.fp-plugin-deploy-inline .fp-deploy-label .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+/* "Seleziona tutti" nell'header */
+.fp-plugin-deploy-inline .fp-select-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--fp-primary, #3b82f6);
+    cursor: pointer;
     white-space: nowrap;
 }
 
-.fp-plugin-deploy-inline .fp-deploy-client-check input {
-    margin: 0 6px 0 0;
+.fp-plugin-deploy-inline .fp-select-all input {
+    margin: 0;
     cursor: pointer;
 }
 
+/* Griglia siti clienti */
+.fp-plugin-deploy-inline .fp-deploy-clients-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 6px 12px;
+}
+
+.fp-plugin-deploy-inline .fp-deploy-client-check {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    padding: 5px 8px;
+    border-radius: 5px;
+    border: 1px solid var(--fp-border);
+    background: #fff;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fp-plugin-deploy-inline .fp-deploy-client-check:hover {
+    background: var(--fp-bg-hover, #f0f4ff);
+    border-color: var(--fp-primary, #3b82f6);
+}
+
+.fp-plugin-deploy-inline .fp-deploy-client-check input[type="checkbox"] {
+    margin: 0;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+/* Pallino di stato online */
+.fp-deploy-client-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--fp-success, #10b981);
+    flex-shrink: 0;
+}
+
+/* Footer con pulsante installa */
+.fp-plugin-deploy-inline .fp-deploy-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 4px;
+}
+
 .fp-plugin-deploy-inline .fp-deploy-install-inline {
-    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .fp-plugin-deploy-hint.fp-plugin-deploy-no-clients {
@@ -1046,13 +1114,17 @@
         width: 100%;
     }
     
-    .fp-plugin-deploy-inline {
-        flex-direction: column;
-        align-items: stretch;
+    .fp-plugin-deploy-inline .fp-deploy-clients-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     }
-    
+
+    .fp-plugin-deploy-inline .fp-deploy-footer {
+        justify-content: stretch;
+    }
+
     .fp-plugin-deploy-inline .fp-deploy-install-inline {
-        margin-left: 0;
+        width: 100%;
+        justify-content: center;
     }
     
     .fp-repo-modal-content {
