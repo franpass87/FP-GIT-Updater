@@ -30,9 +30,11 @@
                 $targetItem.addClass('active');
                 $targetContent.addClass('active');
                 $targetContent.css('display', 'block');
-                
-                if (history.pushState) {
-                    history.pushState(null, null, '#tab-' + tabName);
+
+                // Aggiorna l'URL senza hash visibile e senza aggiungere voci alla cronologia
+                if (history.replaceState) {
+                    var cleanUrl = window.location.pathname + window.location.search;
+                    history.replaceState(null, null, cleanUrl);
                 }
             }
         }
@@ -74,16 +76,18 @@
             
             var hash = window.location.hash.replace(/^#tab-?/, '');
             const validTabs = ['plugins', 'settings', 'backup', 'instructions'];
-            if (hash === 'master') { hash = 'plugins'; history.replaceState(null, null, '#tab-plugins'); }
+            if (hash === 'master') { hash = 'plugins'; }
             if (hash && validTabs.includes(hash)) {
                 switchTab(hash);
             } else {
                 // Default: mostra SOLO il tab "plugins"
                 $('.fp-tab-link[data-tab="plugins"]').closest('.fp-tab-item').addClass('active');
                 $('#fp-tab-plugins').addClass('active').css('display', 'block');
-                if (history.pushState) {
-                    history.pushState(null, null, '#tab-plugins');
-                }
+            }
+
+            // Pulisci l'hash dall'URL senza aggiungere voci alla cronologia
+            if (window.location.hash && history.replaceState) {
+                history.replaceState(null, null, window.location.pathname + window.location.search);
             }
             
             tabsInitialized = true;
@@ -102,15 +106,13 @@
             }
         }, 100);
         
-        // Gestisci back/forward del browser (hashchange)
+        // Gestisci back/forward del browser (hashchange) — solo per link esterni con #tab-X
         $(window).on('hashchange', function() {
             var hash = window.location.hash.replace(/^#tab-?/, '');
             const validTabs = ['plugins', 'settings', 'backup', 'instructions'];
-            if (hash === 'master') { hash = 'plugins'; history.replaceState(null, null, '#tab-plugins'); }
+            if (hash === 'master') { hash = 'plugins'; }
             if (hash && validTabs.includes(hash)) {
                 switchTab(hash);
-            } else {
-                switchTab('plugins');
             }
         });
         
