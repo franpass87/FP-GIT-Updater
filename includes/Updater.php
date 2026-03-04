@@ -298,17 +298,23 @@ class Updater {
         }
         
         $all_plugins = get_plugins();
-        $plugin_name_lower = strtolower($plugin['name']);
-        
-        // Cerca il plugin per nome
+        $plugin_name_lower = strtolower($plugin['name'] ?? '');
+        $plugin_name_norm = preg_replace('/[\s\-_]+/', '', $plugin_name_lower);
+
+        // Cerca il plugin per nome (anche FP-Remote-Bridge vs FP Remote Bridge)
         foreach ($all_plugins as $plugin_path => $plugin_data) {
-            $plugin_file_name = strtolower($plugin_data['Name']);
-            if ($plugin_file_name === $plugin_name_lower || 
-                stripos($plugin_file_name, $plugin_name_lower) !== false ||
-                stripos($plugin_name_lower, $plugin_file_name) !== false) {
-                if (!empty($plugin_data['Version'])) {
-                    return $plugin_data['Version'];
-                }
+            $plugin_file_name = strtolower($plugin_data['Name'] ?? '');
+            $file_name_norm = preg_replace('/[\s\-_]+/', '', $plugin_file_name);
+            $path_dir = strtolower(dirname($plugin_path));
+            $repo_parts = explode('/', $plugin['github_repo'] ?? 'x/x');
+            $repo_slug = strtolower($repo_parts[1] ?? '');
+            $match = ($plugin_file_name === $plugin_name_lower
+                || stripos($plugin_file_name, $plugin_name_lower) !== false
+                || stripos($plugin_name_lower, $plugin_file_name) !== false
+                || ($plugin_name_norm && $file_name_norm && $plugin_name_norm === $file_name_norm)
+                || ($repo_slug && ($path_dir === $repo_slug || $path_dir === str_replace('-', '', $repo_slug))));
+            if ($match && !empty($plugin_data['Version'])) {
+                return $plugin_data['Version'];
             }
         }
         // Determina lo slug del plugin
@@ -501,7 +507,7 @@ class Updater {
         // Se non abbiamo il commit SHA, proviamo a ottenerlo; se fallisce usiamo il branch
         if (empty($commit_sha)) {
             $commit_result = $this->get_latest_commit($plugin);
-            $commit_sha = is_wp_error($commit_result) ? null : $commit_result;
+            $commit_sha = is_wp_error($commit_result) ? null : $commit_result['sha'];
             // Con $commit_sha null useremo ?ref=$branch nell'API (funziona anche senza commit)
         }
         
@@ -672,12 +678,12 @@ class Updater {
         // Ottieni versione installata corrente
         $current_version = $this->get_installed_plugin_version($plugin);
         
-        $latest_commit = $this->get_latest_commit($plugin);
+        $latest_commit_info = $this->get_latest_commit($plugin);
         
-        if (is_wp_error($latest_commit)) {
-            $error_code = $latest_commit->get_error_code();
-            $error_message = $latest_commit->get_error_message();
-            $error_data = $latest_commit->get_error_data();
+        if (is_wp_error($latest_commit_info)) {
+            $error_code    = $latest_commit_info->get_error_code();
+            $error_message = $latest_commit_info->get_error_message();
+            $error_data    = $latest_commit_info->get_error_data();
             
             Logger::log('error', 'Errore nel controllo aggiornamenti per ' . $plugin['name'] . ': ' . $error_message, array(
                 'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
@@ -685,8 +691,13 @@ class Updater {
                 'error_data' => $error_data,
                 'repository' => $plugin['github_repo']
             ));
-            return $latest_commit;
+            return $latest_commit_info;
         }
+
+        $latest_commit        = $latest_commit_info['sha'];
+        $latest_commit_short  = $latest_commit_info['short'];
+        $latest_commit_msg    = $latest_commit_info['message'];
+        $latest_commit_date   = $latest_commit_info['date'];
         
         $current_commit = get_option('fp_git_updater_current_commit_' . $plugin['id'], '');
         
@@ -698,11 +709,24 @@ class Updater {
             if (!empty($available_version)) {
                 set_transient('fp_git_updater_github_version_' . $plugin['id'], $available_version, 300);
             }
+
+            // Plugin appena installato: se versione installata = GitHub, considera già aggiornato
+            if (empty($current_commit) && !empty($current_version) && !empty($available_version)
+                && version_compare($current_version, $available_version, '>=')) {
+                update_option('fp_git_updater_current_commit_' . $plugin['id'], $latest_commit);
+                update_option('fp_git_updater_current_version_' . $plugin['id'], $current_version);
+                delete_option('fp_git_updater_pending_update_' . $plugin['id']);
+                Logger::log('info', 'Plugin ' . $plugin['name'] . ' già all\'ultima versione (installato di recente)', array(
+                    'version' => $current_version,
+                    'commit' => $latest_commit_short,
+                ));
+                return false;
+            }
             
             Logger::log('info', 'Nuovo aggiornamento disponibile per ' . $plugin['name'], array(
                 'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
                 'current_commit' => $current_commit ? substr($current_commit, 0, 7) : 'none',
-                'latest_commit' => substr($latest_commit, 0, 7),
+                'latest_commit' => $latest_commit_short,
                 'current_version' => $current_version,
                 'available_version' => $available_version,
                 'repository' => $plugin['github_repo']
@@ -714,16 +738,16 @@ class Updater {
             }
             
             // Registra l'aggiornamento come pending
-            $commit_short = substr($latest_commit, 0, 7);
             update_option('fp_git_updater_pending_update_' . $plugin['id'], array(
-                'commit_sha' => $latest_commit,
-                'commit_sha_short' => $commit_short,
-                'commit_message' => 'Aggiornamento rilevato dal controllo schedulato',
-                'commit_author' => 'Sistema',
-                'branch' => isset($plugin['branch']) ? $plugin['branch'] : 'main',
-                'timestamp' => current_time('mysql'),
-                'plugin_name' => $plugin['name'],
-                'current_version' => $current_version,
+                'commit_sha'       => $latest_commit,
+                'commit_sha_short' => $latest_commit_short,
+                'commit_message'   => $latest_commit_msg ?: 'Aggiornamento rilevato dal controllo schedulato',
+                'commit_author'    => 'Sistema',
+                'commit_date'      => $latest_commit_date,
+                'branch'           => isset($plugin['branch']) ? $plugin['branch'] : 'main',
+                'timestamp'        => current_time('mysql'),
+                'plugin_name'      => $plugin['name'],
+                'current_version'  => $current_version,
                 'available_version' => $available_version,
             ));
             
@@ -885,7 +909,23 @@ class Updater {
         }
         
         if (isset($data['sha'])) {
-            return $data['sha'];
+            // Estrai anche messaggio e data se disponibili
+            $commit_message = '';
+            $commit_date    = '';
+            if (isset($data['commit']['message'])) {
+                // Solo la prima riga del messaggio
+                $commit_message = explode("\n", $data['commit']['message'])[0];
+            }
+            if (isset($data['commit']['author']['date'])) {
+                $commit_date = $data['commit']['author']['date'];
+            }
+
+            return array(
+                'sha'     => $data['sha'],
+                'short'   => substr($data['sha'], 0, 7),
+                'message' => $commit_message,
+                'date'    => $commit_date,
+            );
         }
         
         // Log della risposta per debug
@@ -894,6 +934,17 @@ class Updater {
         ));
         
         return new WP_Error('invalid_response', 'SHA commit non trovato nella risposta API');
+    }
+
+    /**
+     * Restituisce le info dell'ultimo commit GitHub per un plugin (pubblico).
+     * Usa la stessa cache di get_latest_commit().
+     *
+     * @param array $plugin
+     * @return array|WP_Error  array con chiavi sha, short, message, date
+     */
+    public function get_latest_commit_info( $plugin ) {
+        return $this->get_latest_commit( $plugin );
     }
     
     /**
@@ -1525,9 +1576,9 @@ class Updater {
             }
         } else if (!empty($plugin['github_repo'])) {
             // Solo se abbiamo un repo configurato
-            $latest_commit = $this->get_latest_commit($plugin);
-            if (!is_wp_error($latest_commit)) {
-                update_option('fp_git_updater_current_commit_' . $plugin['id'], $latest_commit);
+            $latest_commit_info = $this->get_latest_commit($plugin);
+            if (!is_wp_error($latest_commit_info)) {
+                update_option('fp_git_updater_current_commit_' . $plugin['id'], $latest_commit_info['sha']);
                 
                 // Salva anche la nuova versione installata
                 $new_version = $this->get_installed_plugin_version($plugin);

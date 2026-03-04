@@ -54,6 +54,10 @@ if (!defined('ABSPATH')) {
         $github_version = '';
         $versions_differ = false;
         
+        $github_commit_short = '';
+        $github_commit_msg   = '';
+        $github_commit_date_fmt = '';
+
         try {
             $updater = \FP\GitUpdater\Updater::get_instance();
             
@@ -68,16 +72,34 @@ if (!defined('ABSPATH')) {
             }
             
             if ($has_pending_update && !empty($pending_info['available_version'])) {
-                $github_version = $pending_info['available_version'];
+                $github_version      = $pending_info['available_version'];
+                $github_commit_short = $pending_info['commit_sha_short'] ?? '';
+                $github_commit_msg   = $pending_info['commit_message'] ?? '';
+                $commit_date_raw     = $pending_info['commit_date'] ?? '';
             } else {
                 $cached_github_version = get_transient('fp_git_updater_github_version_' . $plugin['id']);
                 if ($cached_github_version !== false) {
                     $github_version = $cached_github_version;
                 } elseif (!empty($plugin['github_repo'])) {
-                    $github_version = $updater->get_github_plugin_version($plugin);
+                    $commit_info = $updater->get_latest_commit_info($plugin);
+                    if (!is_wp_error($commit_info)) {
+                        $github_commit_short = $commit_info['short'];
+                        $github_commit_msg   = $commit_info['message'];
+                        $commit_date_raw     = $commit_info['date'];
+                        $github_version = $updater->get_github_plugin_version($plugin, $commit_info['sha']);
+                    } else {
+                        $github_version = $updater->get_github_plugin_version($plugin);
+                    }
                     if (!empty($github_version)) {
                         set_transient('fp_git_updater_github_version_' . $plugin['id'], $github_version, 300);
                     }
+                }
+            }
+
+            if (!empty($commit_date_raw)) {
+                $ts = strtotime($commit_date_raw);
+                if ($ts) {
+                    $github_commit_date_fmt = date_i18n('j M Y H:i', $ts);
                 }
             }
             
@@ -122,6 +144,19 @@ if (!defined('ABSPATH')) {
                     <span class="dashicons dashicons-update"></span>
                 </button>
             </span>
+
+            <?php if (!empty($github_commit_short)): ?>
+            <span class="fp-version-item fp-commit-info" data-plugin-id="<?php echo esc_attr($plugin['id']); ?>">
+                <strong><?php _e('Commit:', 'fp-git-updater'); ?></strong>
+                <code class="fp-commit-sha"><?php echo esc_html($github_commit_short); ?></code>
+                <?php if (!empty($github_commit_msg)): ?>
+                    <span class="fp-commit-message"><?php echo esc_html($github_commit_msg); ?></span>
+                <?php endif; ?>
+                <?php if (!empty($github_commit_date_fmt)): ?>
+                    <span class="fp-commit-date"><?php echo esc_html($github_commit_date_fmt); ?></span>
+                <?php endif; ?>
+            </span>
+            <?php endif; ?>
             
             <?php if ($versions_differ): ?>
                 <span class="fp-version-status fp-version-status-update">
@@ -150,32 +185,38 @@ if (!defined('ABSPATH')) {
                 : __('Installa Aggiornamento', 'fp-git-updater'); 
             ?>
         </button>
-        <?php
-        $connected = isset($connected_clients) ? $connected_clients : [];
-        $client_ids = array_keys($connected);
-        $repo = $plugin['github_repo'] ?? '';
-        if (!empty($repo) && !empty($client_ids)):
+    </div>
+    <?php
+    $connected = isset($connected_clients) ? $connected_clients : [];
+    $client_ids = array_keys($connected);
+    $repo = $plugin['github_repo'] ?? '';
+    if (!empty($repo)): ?>
+    <div class="fp-plugin-deploy-row">
+        <?php if (!empty($client_ids)):
             $all_id = 'fp-sel-' . preg_replace('/\W/', '_', $plugin['id']);
             $branch = $plugin['branch'] ?? 'main';
             $name = $plugin['name'] ?? basename(str_replace('/', '-', $repo));
         ?>
         <div class="fp-plugin-deploy-inline" data-repo="<?php echo esc_attr($repo); ?>" data-branch="<?php echo esc_attr($branch); ?>" data-name="<?php echo esc_attr($name); ?>">
             <span class="fp-deploy-label"><?php _e('Installa su clienti:', 'fp-git-updater'); ?></span>
-            <label class="fp-deploy-client-check fp-select-all"><input type="checkbox" id="<?php echo esc_attr($all_id); ?>"> <strong><?php _e('Tutti', 'fp-git-updater'); ?></strong></label>
-            <?php foreach ($client_ids as $c): ?>
-            <label class="fp-deploy-client-check"><input type="checkbox" class="fp-client-cb fp-deploy-cb" data-all="<?php echo esc_attr($all_id); ?>" value="<?php echo esc_attr($c); ?>"> <?php echo esc_html($c); ?></label>
-            <?php endforeach; ?>
+            <div class="fp-deploy-clients-wrap">
+                <label class="fp-deploy-client-check fp-select-all"><input type="checkbox" id="<?php echo esc_attr($all_id); ?>"> <strong><?php _e('Tutti', 'fp-git-updater'); ?></strong></label>
+                <?php foreach ($client_ids as $c): ?>
+                <label class="fp-deploy-client-check"><input type="checkbox" class="fp-client-cb fp-deploy-cb" data-all="<?php echo esc_attr($all_id); ?>" value="<?php echo esc_attr($c); ?>"> <?php echo esc_html($c); ?></label>
+                <?php endforeach; ?>
+            </div>
             <button type="button" class="button button-small fp-deploy-install-inline">
                 <span class="dashicons dashicons-download"></span> <?php _e('Installa', 'fp-git-updater'); ?>
             </button>
         </div>
-        <?php elseif (!empty($repo)): ?>
+        <?php else: ?>
         <div class="fp-plugin-deploy-hint fp-plugin-deploy-no-clients">
             <span class="dashicons dashicons-info"></span>
             <?php _e('Nessun cliente collegato. Collega i siti con FP Remote Bridge; appariranno qui dopo la prima connessione.', 'fp-git-updater'); ?>
         </div>
         <?php endif; ?>
     </div>
+    <?php endif; ?>
     
     <div id="plugin-details-<?php echo $index; ?>" class="fp-plugin-details">
         <input type="hidden" name="fp_git_updater_settings[plugins][<?php echo $index; ?>][id]" value="<?php echo esc_attr($plugin['id']); ?>">

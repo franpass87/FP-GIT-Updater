@@ -1166,12 +1166,26 @@ class Admin {
                 wp_send_json_error(array('message' => 'Plugin non trovato'), 404);
             }
             
-            // Invalida la cache della versione GitHub
+            // Invalida la cache della versione GitHub e del commit
             delete_transient('fp_git_updater_github_version_' . $plugin_id);
             
-            // Recupera la nuova versione GitHub
             $updater = Updater::get_instance();
-            $github_version = $updater->get_github_plugin_version($plugin);
+
+            // Recupera info commit più recente
+            $commit_info = $updater->get_latest_commit_info($plugin);
+            $commit_sha   = '';
+            $commit_short = '';
+            $commit_msg   = '';
+            $commit_date  = '';
+            if (!is_wp_error($commit_info)) {
+                $commit_sha   = $commit_info['sha'];
+                $commit_short = $commit_info['short'];
+                $commit_msg   = $commit_info['message'];
+                $commit_date  = $commit_info['date'];
+            }
+
+            // Recupera la nuova versione GitHub
+            $github_version = $updater->get_github_plugin_version($plugin, $commit_sha ?: null);
             
             if (!empty($github_version)) {
                 // Salva in cache per 5 minuti
@@ -1179,7 +1193,6 @@ class Admin {
                 
                 // Recupera anche la versione installata per confronto
                 if ($plugin_id === 'fp_git_updater_self') {
-                    // Per il self-update, usa la costante del plugin
                     $current_version = defined('FP_GIT_UPDATER_VERSION') ? FP_GIT_UPDATER_VERSION : '';
                 } else {
                     $current_version = $updater->get_installed_plugin_version($plugin);
@@ -1190,9 +1203,13 @@ class Admin {
                 }
                 
                 wp_send_json_success(array(
-                    'github_version' => $github_version,
+                    'github_version'  => $github_version,
                     'current_version' => $current_version,
-                    'message' => 'Versione GitHub aggiornata con successo'
+                    'commit_sha'      => $commit_sha,
+                    'commit_short'    => $commit_short,
+                    'commit_message'  => $commit_msg,
+                    'commit_date'     => $commit_date,
+                    'message'         => 'Versione GitHub aggiornata con successo',
                 ));
             } else {
                 wp_send_json_error(array('message' => 'Impossibile recuperare la versione GitHub. Verifica il repository e il branch.'), 500);

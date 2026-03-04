@@ -51,23 +51,43 @@ if (!$self_plugin) {
     );
 }
 
-// Ottieni versione GitHub
-$github_version = '';
+// Ottieni versione GitHub e info commit
+$github_version       = '';
+$github_commit_short  = '';
+$github_commit_msg    = '';
+$github_commit_date   = '';
+
 if ($self_pending && !empty($self_pending['available_version'])) {
-    // Usa la versione già recuperata nell'aggiornamento pending
-    $github_version = $self_pending['available_version'];
+    $github_version      = $self_pending['available_version'];
+    $github_commit_short = $self_pending['commit_sha_short'] ?? '';
+    $github_commit_msg   = $self_pending['commit_message'] ?? '';
+    $github_commit_date  = $self_pending['commit_date'] ?? '';
 } else {
-    // Controlla se abbiamo una versione GitHub salvata in cache (validità 5 minuti)
     $cached_github_version = get_transient('fp_git_updater_github_version_' . $self_plugin['id']);
     if ($cached_github_version !== false) {
         $github_version = $cached_github_version;
     } elseif (!empty($self_plugin['github_repo'])) {
-        // Recupera la versione GitHub solo se non in cache
-        $github_version = $updater->get_github_plugin_version($self_plugin);
-        // Salva in cache per 5 minuti (300 secondi)
+        $commit_info = $updater->get_latest_commit_info($self_plugin);
+        if (!is_wp_error($commit_info)) {
+            $github_commit_short = $commit_info['short'];
+            $github_commit_msg   = $commit_info['message'];
+            $github_commit_date  = $commit_info['date'];
+            $github_version = $updater->get_github_plugin_version($self_plugin, $commit_info['sha']);
+        } else {
+            $github_version = $updater->get_github_plugin_version($self_plugin);
+        }
         if (!empty($github_version)) {
             set_transient('fp_git_updater_github_version_' . $self_plugin['id'], $github_version, 300);
         }
+    }
+}
+
+// Formatta la data del commit se disponibile
+$github_commit_date_fmt = '';
+if (!empty($github_commit_date)) {
+    $ts = strtotime($github_commit_date);
+    if ($ts) {
+        $github_commit_date_fmt = date_i18n('j M Y H:i', $ts);
     }
 }
 
@@ -100,6 +120,18 @@ $versions_differ = !empty($current_version) && !empty($github_version) && versio
                     <span class="dashicons dashicons-update"></span>
                 </button>
             </span>
+            <?php if (!empty($github_commit_short)): ?>
+            <span class="fp-version-item fp-commit-info" data-plugin-id="fp_git_updater_self">
+                <strong><?php _e('Commit:', 'fp-git-updater'); ?></strong>
+                <code class="fp-commit-sha"><?php echo esc_html($github_commit_short); ?></code>
+                <?php if (!empty($github_commit_msg)): ?>
+                    <span class="fp-commit-message"><?php echo esc_html($github_commit_msg); ?></span>
+                <?php endif; ?>
+                <?php if (!empty($github_commit_date_fmt)): ?>
+                    <span class="fp-commit-date"><?php echo esc_html($github_commit_date_fmt); ?></span>
+                <?php endif; ?>
+            </span>
+            <?php endif; ?>
             <?php if ($versions_differ): ?>
                 <span class="fp-version-status fp-version-status-update">
                     <span class="dashicons dashicons-warning"></span>

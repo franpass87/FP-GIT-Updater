@@ -520,40 +520,53 @@
     background: var(--fp-primary-dark);
 }
 
+/* Riga dedicata "Installa su clienti" */
+.fp-plugin-deploy-row {
+    padding: 12px 20px;
+    background: var(--fp-bg);
+    border-top: 1px solid var(--fp-border);
+}
+
 .fp-plugin-deploy-inline {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 10px 14px;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px dashed var(--fp-border);
+    gap: 10px 16px;
 }
 
 .fp-plugin-deploy-inline .fp-deploy-label {
     font-size: 13px;
     color: var(--fp-text-muted);
-    margin-right: 4px;
+    flex-shrink: 0;
+}
+
+.fp-plugin-deploy-inline .fp-deploy-clients-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
 }
 
 .fp-plugin-deploy-inline .fp-deploy-client-check {
-    display: inline;
-    margin: 0 2px;
+    display: inline-flex;
+    align-items: center;
     font-size: 12px;
+    white-space: nowrap;
 }
 
 .fp-plugin-deploy-inline .fp-deploy-client-check input {
-    margin-right: 4px;
+    margin: 0 6px 0 0;
     cursor: pointer;
+}
+
+.fp-plugin-deploy-inline .fp-deploy-install-inline {
+    margin-left: auto;
 }
 
 .fp-plugin-deploy-hint.fp-plugin-deploy-no-clients {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px dashed var(--fp-border);
     font-size: 13px;
     color: var(--fp-text-muted);
 }
@@ -1033,6 +1046,15 @@
         width: 100%;
     }
     
+    .fp-plugin-deploy-inline {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .fp-plugin-deploy-inline .fp-deploy-install-inline {
+        margin-left: 0;
+    }
+    
     .fp-repo-modal-content {
         width: 95%;
         max-height: 90vh;
@@ -1426,6 +1448,43 @@ select:focus:not(:focus-visible) {
 
 .fp-self-update-versions .fp-version-status-ok {
     color: var(--fp-success);
+}
+
+/* Riga commit (SHA + messaggio + data) */
+.fp-commit-info {
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: var(--fp-text-muted, #6b7280);
+    font-size: 12px;
+}
+
+.fp-commit-sha {
+    font-family: monospace;
+    font-size: 11px;
+    background: var(--fp-bg);
+    border: 1px solid var(--fp-border);
+    border-radius: 3px;
+    padding: 2px 6px;
+    letter-spacing: 0.03em;
+}
+
+.fp-commit-message {
+    color: var(--fp-text-muted, #6b7280);
+    font-style: italic;
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.fp-commit-date {
+    color: var(--fp-text-muted, #9ca3af);
+    font-size: 11px;
 }
 
 .fp-self-update-versions .fp-last-update-info {
@@ -2297,6 +2356,7 @@ html {
 @media print {
     .fp-plugin-actions,
     .fp-plugin-quick-actions,
+    .fp-plugin-deploy-row,
     .fp-status-box button,
     #fp-add-plugin,
     .fp-tab-nav,

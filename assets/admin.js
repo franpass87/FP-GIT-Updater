@@ -27,22 +27,13 @@
             const $targetContent = $('#fp-tab-' + tabName);
             
             if ($targetItem.length && $targetContent.length) {
-                // Attiva il tab item nella navigation
                 $targetItem.addClass('active');
-                
-                // Mostra SOLO il tab selezionato usando sia CSS che JavaScript
                 $targetContent.addClass('active');
                 $targetContent.css('display', 'block');
                 
-                // Aggiorna URL hash senza ricaricare
                 if (history.pushState) {
-                    history.pushState(null, null, '#' + tabName);
+                    history.pushState(null, null, '#tab-' + tabName);
                 }
-                
-                // Scroll smooth al top della navigation
-                $('html, body').animate({
-                    scrollTop: $('.fp-tab-nav').offset().top - 100
-                }, 300);
             }
         }
         
@@ -81,19 +72,17 @@
             $('.fp-tab-item').removeClass('active');
             $('.fp-tab-content').removeClass('active');
             
-            var hash = window.location.hash.replace('#', '');
+            var hash = window.location.hash.replace(/^#tab-?/, '');
             const validTabs = ['plugins', 'settings', 'backup', 'instructions'];
-            if (hash === 'master') { hash = 'plugins'; history.replaceState(null, null, '#plugins'); }
+            if (hash === 'master') { hash = 'plugins'; history.replaceState(null, null, '#tab-plugins'); }
             if (hash && validTabs.includes(hash)) {
                 switchTab(hash);
             } else {
                 // Default: mostra SOLO il tab "plugins"
                 $('.fp-tab-link[data-tab="plugins"]').closest('.fp-tab-item').addClass('active');
                 $('#fp-tab-plugins').addClass('active').css('display', 'block');
-                
-                // Aggiorna URL con hash plugins se non c'è hash
                 if (history.pushState) {
-                    history.pushState(null, null, '#plugins');
+                    history.pushState(null, null, '#tab-plugins');
                 }
             }
             
@@ -115,9 +104,9 @@
         
         // Gestisci back/forward del browser (hashchange)
         $(window).on('hashchange', function() {
-            var hash = window.location.hash.replace('#', '');
+            var hash = window.location.hash.replace(/^#tab-?/, '');
             const validTabs = ['plugins', 'settings', 'backup', 'instructions'];
-            if (hash === 'master') { hash = 'plugins'; history.replaceState(null, null, '#plugins'); }
+            if (hash === 'master') { hash = 'plugins'; history.replaceState(null, null, '#tab-plugins'); }
             if (hash && validTabs.includes(hash)) {
                 switchTab(hash);
             } else {
@@ -387,7 +376,34 @@
                                 }
                             }
                         }
-                        
+
+                        // Aggiorna o crea la riga commit
+                        const commitShort = response.data.commit_short || '';
+                        const commitMsg   = response.data.commit_message || '';
+                        const commitDate  = response.data.commit_date || '';
+                        if (commitShort) {
+                            const $container = isSelfUpdate ? $versionBox : $versionsCompact;
+                            let $commitRow = $container.find('.fp-commit-info[data-plugin-id="' + pluginId + '"]');
+                            if ($commitRow.length === 0) {
+                                $commitRow = $('<span class="fp-version-item fp-commit-info" data-plugin-id="' + pluginId + '"></span>');
+                                // Inserisci prima del badge di stato
+                                const $statusEl = $container.find('.fp-version-status');
+                                if ($statusEl.length) {
+                                    $statusEl.before($commitRow);
+                                } else {
+                                    $container.append($commitRow);
+                                }
+                            }
+                            let html = '<strong>Commit:</strong> <code class="fp-commit-sha">' + commitShort + '</code>';
+                            if (commitMsg) {
+                                html += ' <span class="fp-commit-message">' + $('<span>').text(commitMsg).html() + '</span>';
+                            }
+                            if (commitDate) {
+                                html += ' <span class="fp-commit-date">' + $('<span>').text(commitDate).html() + '</span>';
+                            }
+                            $commitRow.html(html);
+                        }
+
                         showNotice('success', response.data.message || 'Versione GitHub aggiornata con successo');
                     } else {
                         const errorMessage = response.data.message || 'Errore durante l\'aggiornamento della versione GitHub';
@@ -641,24 +657,18 @@
             });
         }
         
-        // Funzione helper per mostrare notifiche
+        // Funzione helper per mostrare notifiche (senza scroll per non disturbare)
         function showNotice(type, message) {
             const noticeClass = type === 'success' ? 'notice-success' : 'notice-error';
             const notice = $('<div class="notice ' + noticeClass + ' is-dismissible"><p>' + message + '</p></div>');
             
             $('.fp-git-updater-wrap h1').after(notice);
             
-            // Auto-dismiss dopo 5 secondi
             setTimeout(function() {
                 notice.fadeOut(function() {
                     $(this).remove();
                 });
             }, 5000);
-            
-            // Scroll to top
-            $('html, body').animate({
-                scrollTop: $('.fp-git-updater-wrap').offset().top - 50
-            }, 500);
         }
 
         // ===== MODALITÀ MASTER: Copia URL con feedback =====
