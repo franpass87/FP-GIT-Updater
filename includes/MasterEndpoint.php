@@ -253,6 +253,7 @@ class MasterEndpoint
      */
     public static function get_clients_with_plugin(string $plugin_slug): array
     {
+        $plugin_slug = strtolower($plugin_slug);
         $clients = self::get_connected_clients();
         $result = [];
         foreach ($clients as $id => $data) {
@@ -290,6 +291,7 @@ class MasterEndpoint
      */
     public static function get_clients_plugin_versions(string $plugin_slug): array
     {
+        $plugin_slug = strtolower($plugin_slug);
         $clients = self::get_connected_clients();
         $result = [];
         foreach ($clients as $id => $data) {
@@ -342,19 +344,20 @@ class MasterEndpoint
         }
 
         // Parsare il formato "slug:version" — compatibile con il vecchio formato "slug"
+        // Gli slug vengono normalizzati in lowercase per confronti case-insensitive
         $slugs = [];
         $plugin_versions = [];
         foreach ($installed_plugins as $entry) {
             if (strpos($entry, ':') !== false) {
                 list($slug, $version) = explode(':', $entry, 2);
-                $slug = sanitize_text_field(trim($slug));
+                $slug = strtolower(sanitize_text_field(trim($slug)));
                 $version = sanitize_text_field(trim($version));
                 if (!empty($slug)) {
                     $slugs[] = $slug;
                     $plugin_versions[$slug] = $version;
                 }
             } else {
-                $slug = sanitize_text_field(trim($entry));
+                $slug = strtolower(sanitize_text_field(trim($entry)));
                 if (!empty($slug)) {
                     $slugs[] = $slug;
                 }
