@@ -44,6 +44,7 @@ class Admin {
         add_action('wp_ajax_fp_git_updater_refresh_github_version', array($this, 'ajax_refresh_github_version'));
         add_action('wp_ajax_fp_git_updater_deploy_install', array($this, 'ajax_deploy_install'));
         add_action('wp_ajax_fp_git_updater_deploy_update', array($this, 'ajax_deploy_update'));
+        add_action('rest_api_init', array($this, 'register_rest_deploy_routes'));
         add_action('wp_ajax_fp_git_updater_refresh_clients', array($this, 'ajax_refresh_clients'));
         add_action('wp_ajax_fp_git_updater_clear_update_lock', array($this, 'ajax_clear_update_lock'));
     }
@@ -1318,6 +1319,62 @@ class Admin {
             ),
             'valid_until' => $until,
         ));
+    }
+
+    /**
+     * Registra endpoint REST per deploy (usabile con Application Password)
+     */
+    public function register_rest_deploy_routes(): void {
+        register_rest_route('fp-git-updater/v1', '/deploy-install', array(
+            'methods'             => 'POST',
+            'callback'            => array($this, 'rest_deploy_install'),
+            'permission_callback' => function() {
+                return current_user_can('manage_options');
+            },
+        ));
+    }
+
+    /**
+     * REST endpoint: autorizza installazione plugin su clienti selezionati (con Application Password)
+     */
+    public function rest_deploy_install(\WP_REST_Request $request): \WP_REST_Response {
+        $github_repo = sanitize_text_field($request->get_param('github_repo') ?? '');
+        $branch      = sanitize_text_field($request->get_param('branch') ?? 'main');
+        $name        = sanitize_text_field($request->get_param('name') ?? '');
+        $client_ids_raw = $request->get_param('client_ids');
+        $client_ids = array();
+        if (is_array($client_ids_raw)) {
+            $client_ids = array_values(array_filter(array_map('sanitize_text_field', $client_ids_raw)));
+        } elseif (is_string($client_ids_raw) && !empty($client_ids_raw)) {
+            $decoded = json_decode($client_ids_raw, true);
+            if (is_array($decoded)) {
+                $client_ids = array_values(array_filter(array_map('sanitize_text_field', $decoded)));
+            }
+        }
+
+        if (empty($github_repo) || empty($client_ids)) {
+            return new \WP_REST_Response(array('success' => false, 'message' => 'Repository e clienti obbligatori.'), 400);
+        }
+
+        $parts = explode('/', $github_repo);
+        $slug = strtolower(preg_replace('/[^a-z0-9_-]/', '-', trim(end($parts), '-')));
+        $plugin = array(
+            'id'          => 'repo_' . $slug,
+            'name'        => $name ?: $slug,
+            'slug'        => $slug,
+            'github_repo' => $github_repo,
+            'branch'      => $branch,
+        );
+
+        MasterEndpoint::authorize_deploy_install($plugin, $client_ids);
+        return new \WP_REST_Response(array(
+            'success' => true,
+            'message' => sprintf(
+                'Installazione autorizzata: %s su %d clienti. I siti installeranno al prossimo ciclo cron.',
+                esc_html($plugin['name']),
+                count($client_ids)
+            ),
+        ), 200);
     }
 
     /**
