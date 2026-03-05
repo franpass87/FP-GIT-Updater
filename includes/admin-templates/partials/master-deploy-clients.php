@@ -191,9 +191,10 @@ $backup_dir_writable = $backup_dir_exists && is_writable($backup_dir);
         <table class="wp-list-table widefat fixed striped fp-master-clients-table">
             <thead>
                 <tr>
-                    <th scope="col" style="width: 35%;"><?php _e('Sito cliente', 'fp-git-updater'); ?></th>
-                    <th scope="col" style="width: 35%;"><?php _e('Plugin installati', 'fp-git-updater'); ?></th>
+                    <th scope="col" style="width: 32%;"><?php _e('Sito cliente', 'fp-git-updater'); ?></th>
+                    <th scope="col" style="width: 33%;"><?php _e('Plugin installati', 'fp-git-updater'); ?></th>
                     <th scope="col"><?php _e('Ultima connessione', 'fp-git-updater'); ?></th>
+                    <th scope="col" style="width: 80px;"></th>
                 </tr>
             </thead>
             <tbody>
@@ -201,10 +202,19 @@ $backup_dir_writable = $backup_dir_exists && is_writable($backup_dir);
                     $installed = $data['installed_plugins'] ?? [];
                     $installed_str = !empty($installed) ? implode(', ', array_slice($installed, 0, 8)) . (count($installed) > 8 ? '…' : '') : '—';
                     ?>
-                    <tr>
+                    <tr id="fp-client-row-<?php echo esc_attr(sanitize_html_class($client_id)); ?>">
                         <td><strong><?php echo esc_html($client_id); ?></strong></td>
                         <td><small><?php echo esc_html($installed_str); ?></small></td>
                         <td><?php echo esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), $data['last_seen'] ?? 0)); ?></td>
+                        <td>
+                            <button type="button"
+                                    class="button button-small fp-remove-client-btn"
+                                    data-client-id="<?php echo esc_attr($client_id); ?>"
+                                    title="<?php esc_attr_e('Rimuovi cliente', 'fp-git-updater'); ?>"
+                                    style="color:#b32d2e; border-color:#b32d2e;">
+                                <span class="dashicons dashicons-trash" style="margin-top:3px;"></span>
+                            </button>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>

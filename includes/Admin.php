@@ -46,6 +46,7 @@ class Admin {
         add_action('wp_ajax_fp_git_updater_deploy_update', array($this, 'ajax_deploy_update'));
         add_action('wp_ajax_fp_git_updater_refresh_clients', array($this, 'ajax_refresh_clients'));
         add_action('wp_ajax_fp_git_updater_clear_update_lock', array($this, 'ajax_clear_update_lock'));
+        add_action('wp_ajax_fp_git_updater_remove_client', array($this, 'ajax_remove_client'));
     }
     
     /**
@@ -1367,20 +1368,44 @@ class Admin {
             echo '</p>';
         } else {
             echo '<table class="wp-list-table widefat fixed striped fp-master-clients-table"><thead><tr>';
-            echo '<th scope="col" style="width:35%;">' . esc_html__('Sito cliente', 'fp-git-updater') . '</th>';
-            echo '<th scope="col" style="width:35%;">' . esc_html__('Plugin installati', 'fp-git-updater') . '</th>';
-            echo '<th scope="col">' . esc_html__('Ultima connessione', 'fp-git-updater') . '</th></tr></thead><tbody>';
+            echo '<th scope="col" style="width:32%;">' . esc_html__('Sito cliente', 'fp-git-updater') . '</th>';
+            echo '<th scope="col" style="width:33%;">' . esc_html__('Plugin installati', 'fp-git-updater') . '</th>';
+            echo '<th scope="col">' . esc_html__('Ultima connessione', 'fp-git-updater') . '</th>';
+            echo '<th scope="col" style="width:80px;"></th></tr></thead><tbody>';
             foreach ($clients as $client_id => $data) {
                 $installed = $data['installed_plugins'] ?? [];
                 $installed_str = !empty($installed) ? implode(', ', array_slice($installed, 0, 8)) . (count($installed) > 8 ? '…' : '') : '—';
-                echo '<tr><td><strong>' . esc_html($client_id) . '</strong></td>';
+                $row_id = 'fp-client-row-' . sanitize_html_class($client_id);
+                echo '<tr id="' . esc_attr($row_id) . '"><td><strong>' . esc_html($client_id) . '</strong></td>';
                 echo '<td><small>' . esc_html($installed_str) . '</small></td>';
-                echo '<td>' . esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), $data['last_seen'] ?? 0)) . '</td></tr>';
+                echo '<td>' . esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), $data['last_seen'] ?? 0)) . '</td>';
+                echo '<td><button type="button" class="button button-small fp-remove-client-btn" data-client-id="' . esc_attr($client_id) . '" title="' . esc_attr__('Rimuovi cliente', 'fp-git-updater') . '" style="color:#b32d2e;border-color:#b32d2e;"><span class="dashicons dashicons-trash" style="margin-top:3px;"></span></button></td></tr>';
             }
             echo '</tbody></table>';
         }
         $html = ob_get_clean();
         wp_send_json_success(array('html' => $html, 'count' => $count));
+    }
+
+    /**
+     * AJAX: Rimuove un cliente dalla lista clienti collegati
+     */
+    public function ajax_remove_client() {
+        check_ajax_referer('fp_git_updater_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Accesso negato.', 'fp-git-updater')), 403);
+        }
+        $client_id = sanitize_text_field($_POST['client_id'] ?? '');
+        if (empty($client_id)) {
+            wp_send_json_error(array('message' => __('ID cliente mancante.', 'fp-git-updater')));
+        }
+        $clients = MasterEndpoint::get_connected_clients();
+        if (!isset($clients[$client_id])) {
+            wp_send_json_error(array('message' => __('Cliente non trovato.', 'fp-git-updater')));
+        }
+        unset($clients[$client_id]);
+        update_option(MasterEndpoint::OPTION_CONNECTED_CLIENTS, $clients);
+        wp_send_json_success(array('message' => sprintf(__('Cliente "%s" rimosso.', 'fp-git-updater'), $client_id)));
     }
 
     /**

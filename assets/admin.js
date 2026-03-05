@@ -929,6 +929,38 @@
             });
         });
         
+        // Rimuovi cliente
+        $(document).on('click', '.fp-remove-client-btn', function() {
+            var $btn = $(this);
+            var clientId = $btn.data('client-id');
+            if (!clientId) return;
+            if (!confirm('Rimuovere il cliente "' + clientId + '" dalla lista?')) return;
+            $btn.prop('disabled', true);
+            $.post(fpGitUpdater.ajax_url, {
+                action: 'fp_git_updater_remove_client',
+                nonce: fpGitUpdater.nonce,
+                client_id: clientId
+            }).done(function(response) {
+                if (response.success) {
+                    var $row = $('#fp-client-row-' + clientId.replace(/[^a-zA-Z0-9_-]/g, '-'));
+                    if (!$row.length) { $row = $btn.closest('tr'); }
+                    $row.fadeOut(300, function() {
+                        $row.remove();
+                        var $badge = $('.fp-master-clients-badge');
+                        var count = parseInt($badge.text(), 10) - 1;
+                        if (count > 0) { $badge.text(count); } else { $badge.remove(); }
+                    });
+                    showNotice('success', response.data.message || 'Cliente rimosso.');
+                } else {
+                    showNotice('error', response.data && response.data.message ? response.data.message : 'Errore.');
+                    $btn.prop('disabled', false);
+                }
+            }).fail(function() {
+                showNotice('error', 'Errore di connessione.');
+                $btn.prop('disabled', false);
+            });
+        });
+
         // Animazioni disabilitate - nessuna animazione spin
     });
     
