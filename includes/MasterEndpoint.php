@@ -123,23 +123,32 @@ class MasterEndpoint
         // Funziona sia per nuove installazioni che per aggiornamenti di plugin già presenti.
         $deploy_install = get_option(self::OPTION_DEPLOY_INSTALL, []);
         if (is_array($deploy_install) && $window_active && !empty($client_id)) {
-            $seen_slugs = [];
+            // Deduplicazione basata su github_repo (univoco) o zip_url
+            // Evita che lo stesso plugin venga inviato due volte per items accumulati
+            $seen_sources = [];
             foreach ($deploy_install as $item) {
                 $client_ids = $item['client_ids'] ?? [];
                 if (!in_array($client_id, $client_ids, true)) {
                     continue;
                 }
                 $plugin_data = $item['plugin'] ?? [];
-                if (empty($plugin_data['github_repo']) && empty($plugin_data['zip_url'] ?? '')) {
+                $github_repo = strtolower(trim($plugin_data['github_repo'] ?? ''));
+                $zip_url     = trim($plugin_data['zip_url'] ?? '');
+                // Almeno una sorgente è richiesta
+                if (empty($github_repo) && empty($zip_url)) {
                     continue;
                 }
-                $slug = $plugin_data['slug'] ?? $plugin_data['id'] ?? '';
-                // Deduplicazione: stesso plugin non viene inviato due volte
-                if (!empty($slug) && in_array($slug, $seen_slugs, true)) {
-                    continue;
+                // Chiave di deduplicazione: repo normalizzato (solo nome, senza owner)
+                // es. "franpass87/fp-remote-bridge" e "francescopasseri/fp-remote-bridge"
+                // sono lo stesso plugin → usa solo la parte dopo "/"
+                $repo_name = !empty($github_repo)
+                    ? strtolower(trim(strstr($github_repo, '/') ?: $github_repo, '/'))
+                    : $zip_url;
+                if (!empty($repo_name) && in_array($repo_name, $seen_sources, true)) {
+                    continue; // stesso plugin, salta duplicato
                 }
-                if (!empty($slug)) {
-                    $seen_slugs[] = $slug;
+                if (!empty($repo_name)) {
+                    $seen_sources[] = $repo_name;
                 }
                 $plugins[] = self::normalize_plugin_for_response($plugin_data, null);
             }
@@ -183,7 +192,8 @@ class MasterEndpoint
 
     private static function normalize_plugin_for_response(array $plugin, ?array $pending): array
     {
-        $slug = $plugin['plugin_slug'] ?? '';
+        // Priorità: slug > plugin_slug > derivato da github_repo
+        $slug = $plugin['slug'] ?? $plugin['plugin_slug'] ?? '';
         if (empty($slug) && !empty($plugin['github_repo'])) {
             $parts = explode('/', $plugin['github_repo']);
             $slug = strtolower(end($parts));
