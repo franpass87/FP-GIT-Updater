@@ -3,7 +3,7 @@
  * Plugin Name: FP Updater
  * Plugin URI: https://www.francescopasseri.com
  * Description: Gestione sicura degli aggiornamenti dei plugin da GitHub. Supporta sia aggiornamenti automatici che manuali tramite webhook, proteggendo i tuoi siti da aggiornamenti problematici.
- * Version: 1.4.7
+ * Version: 1.4.8
  * Author: Francesco Passeri
  * Author URI: https://www.francescopasseri.com
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if (substr_count($self_basename, '/') > 1) {
 }
 
 // Definisci costanti del plugin
-define('FP_GIT_UPDATER_VERSION', '1.4.7');
+define('FP_GIT_UPDATER_VERSION', '1.4.8');
 define('FP_GIT_UPDATER_PLUGIN_DIR', dirname(__FILE__) . '/');
 define('FP_GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FP_GIT_UPDATER_PLUGIN_FILE', __FILE__);
@@ -128,7 +128,7 @@ class FP_Git_Updater {
             return new \WP_REST_Response(array('success' => false, 'message' => 'Repository e clienti obbligatori.'), 400);
         }
         $parts = explode('/', $github_repo);
-        $slug = strtolower(preg_replace('/[^a-z0-9_-]/', '-', trim(end($parts), '-')));
+        $slug = preg_replace('/[^a-z0-9_-]/', '-', strtolower(trim(end($parts), '-')));
         $plugin = array(
             'id'          => 'repo_' . $slug,
             'name'        => $name ?: $slug,

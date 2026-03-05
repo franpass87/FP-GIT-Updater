@@ -277,6 +277,9 @@ class MasterEndpoint
         }
 
         update_option(self::OPTION_DEPLOY_INSTALL, $items);
+
+        // Chiama subito trigger-sync sui client target: non aspetta il cron WordPress del client
+        self::push_sync_to_clients($new_client_ids);
     }
 
     /**
@@ -288,6 +291,69 @@ class MasterEndpoint
     {
         update_option(self::OPTION_DEPLOY_AUTHORIZED_UNTIL, time() + self::DEPLOY_WINDOW_SECONDS);
         update_option(self::OPTION_DEPLOY_UPDATE, array_values(array_map('strval', $plugin_ids)));
+
+        // Chiama subito trigger-sync sui client che hanno i plugin da aggiornare
+        $clients = self::get_connected_clients();
+        $target_ids = [];
+        foreach ($plugin_ids as $slug) {
+            foreach (self::get_clients_with_plugin($slug) as $cid) {
+                $target_ids[] = $cid;
+            }
+        }
+        if (!empty($target_ids)) {
+            self::push_sync_to_clients(array_values(array_unique($target_ids)));
+        }
+    }
+
+    /**
+     * Chiama POST /wp-json/fp-remote-bridge/v1/trigger-sync su ogni client target.
+     * Eseguito in modo non-bloccante (timeout breve): il client esegue il sync
+     * in background, il Master non aspetta la risposta.
+     *
+     * @param array<string> $client_ids Lista di client ID da triggerare
+     */
+    public static function push_sync_to_clients(array $client_ids): void
+    {
+        if (empty($client_ids)) {
+            return;
+        }
+
+        $secret = get_option(self::OPTION_MASTER_CLIENT_SECRET, '');
+        if (empty($secret)) {
+            return;
+        }
+
+        $clients = self::get_connected_clients();
+
+        foreach ($client_ids as $client_id) {
+            if (!isset($clients[$client_id])) {
+                continue;
+            }
+
+            // Ricava l'URL del sito dal client_id (che è il dominio o l'URL)
+            $site_url = $clients[$client_id]['url'] ?? '';
+            if (empty($site_url)) {
+                // Prova a costruire l'URL dal client_id (che di solito è il dominio)
+                $host = $client_id;
+                if (!preg_match('#^https?://#', $host)) {
+                    $host = 'https://' . $host;
+                }
+                $site_url = $host;
+            }
+
+            $endpoint = rtrim($site_url, '/') . '/wp-json/fp-remote-bridge/v1/trigger-sync';
+
+            // Chiamata non-bloccante: timeout 3s, non aspettiamo la risposta
+            wp_remote_post($endpoint, [
+                'timeout'   => 3,
+                'blocking'  => false,
+                'headers'   => [
+                    'X-FP-Client-Secret' => $secret,
+                    'Content-Type'       => 'application/json',
+                ],
+                'body'      => wp_json_encode(['client_id' => $client_id]),
+            ]);
+        }
     }
 
     /**
@@ -409,11 +475,23 @@ class MasterEndpoint
             }
         }
 
+        // Salva l'URL del sito client per poter chiamare trigger-sync in push
+        // Priorità: header X-FP-Site-URL > client_id se sembra un dominio
+        $site_url = $request->get_header('X-FP-Site-URL') ?? '';
+        if (empty($site_url)) {
+            // Se il client_id sembra un dominio, costruisci l'URL
+            if (preg_match('#^[a-z0-9]([a-z0-9\-\.]+)?[a-z0-9]\.[a-z]{2,}$#i', $client_id)) {
+                $site_url = 'https://' . $client_id;
+            }
+        }
+        $site_url = esc_url_raw($site_url);
+
         $clients[$client_id] = [
             'last_seen'         => $now,
             'first_seen'        => $clients[$client_id]['first_seen'] ?? $now,
             'installed_plugins' => array_values(array_unique($slugs)),
             'plugin_versions'   => $plugin_versions,
+            'url'               => $site_url ?: ($clients[$client_id]['url'] ?? ''),
         ];
 
         update_option(self::OPTION_CONNECTED_CLIENTS, $clients);

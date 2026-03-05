@@ -1299,7 +1299,7 @@ class Admin {
         }
 
         $parts = explode('/', $github_repo);
-        $slug = strtolower(preg_replace('/[^a-z0-9_-]/', '-', trim(end($parts), '-')));
+        $slug = preg_replace('/[^a-z0-9_-]/', '-', strtolower(trim(end($parts), '-')));
         $plugin = array(
             'id' => 'repo_' . $slug,
             'name' => $name ?: $slug,
