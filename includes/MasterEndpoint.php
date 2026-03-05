@@ -107,17 +107,41 @@ class MasterEndpoint
         $window_active = $deploy_until > time();
         $plugins = [];
 
-        // 1. Deploy INSTALLA: plugin da installare su client specifici (client non ce l'ha)
+        // Se la finestra è scaduta, pulisci le liste deploy per evitare accumulo infinito
+        if (!$window_active) {
+            $has_install = get_option(self::OPTION_DEPLOY_INSTALL, []);
+            $has_update  = get_option(self::OPTION_DEPLOY_UPDATE, []);
+            if (!empty($has_install)) {
+                update_option(self::OPTION_DEPLOY_INSTALL, []);
+            }
+            if (!empty($has_update)) {
+                update_option(self::OPTION_DEPLOY_UPDATE, []);
+            }
+        }
+
+        // 1. Deploy INSTALLA/AGGIORNA: plugin inviati a client specifici tramite "Installa sui selezionati"
+        // Funziona sia per nuove installazioni che per aggiornamenti di plugin già presenti.
         $deploy_install = get_option(self::OPTION_DEPLOY_INSTALL, []);
-        if (is_array($deploy_install) && $window_active) {
+        if (is_array($deploy_install) && $window_active && !empty($client_id)) {
+            $seen_slugs = [];
             foreach ($deploy_install as $item) {
                 $client_ids = $item['client_ids'] ?? [];
-                if (!empty($client_id) && in_array($client_id, $client_ids, true)) {
-                    $plugin_data = $item['plugin'] ?? [];
-                    if (!empty($plugin_data['github_repo']) || !empty($plugin_data['zip_url'] ?? '')) {
-                        $plugins[] = self::normalize_plugin_for_response($plugin_data, null);
-                    }
+                if (!in_array($client_id, $client_ids, true)) {
+                    continue;
                 }
+                $plugin_data = $item['plugin'] ?? [];
+                if (empty($plugin_data['github_repo']) && empty($plugin_data['zip_url'] ?? '')) {
+                    continue;
+                }
+                $slug = $plugin_data['slug'] ?? $plugin_data['id'] ?? '';
+                // Deduplicazione: stesso plugin non viene inviato due volte
+                if (!empty($slug) && in_array($slug, $seen_slugs, true)) {
+                    continue;
+                }
+                if (!empty($slug)) {
+                    $seen_slugs[] = $slug;
+                }
+                $plugins[] = self::normalize_plugin_for_response($plugin_data, null);
             }
         }
 
@@ -230,7 +254,28 @@ class MasterEndpoint
         if (!is_array($items)) {
             $items = [];
         }
-        $items[] = ['plugin' => $plugin, 'client_ids' => array_values(array_map('strval', $client_ids))];
+        $slug = $plugin['slug'] ?? $plugin['id'] ?? '';
+        $new_client_ids = array_values(array_map('strval', $client_ids));
+
+        // Se esiste già un item per lo stesso plugin (stesso slug), aggiorna i client_ids
+        // invece di aggiungere un duplicato. Questo evita accumulo infinito.
+        $found = false;
+        foreach ($items as &$item) {
+            $item_slug = $item['plugin']['slug'] ?? $item['plugin']['id'] ?? '';
+            if (!empty($slug) && $item_slug === $slug) {
+                // Unisce i client_ids (nuovi + esistenti) per non perdere client già autorizzati
+                $merged = array_values(array_unique(array_merge($item['client_ids'] ?? [], $new_client_ids)));
+                $item = ['plugin' => $plugin, 'client_ids' => $merged];
+                $found = true;
+                break;
+            }
+        }
+        unset($item);
+
+        if (!$found) {
+            $items[] = ['plugin' => $plugin, 'client_ids' => $new_client_ids];
+        }
+
         update_option(self::OPTION_DEPLOY_INSTALL, $items);
     }
 
