@@ -105,6 +105,22 @@ class FP_Git_Updater {
                 return current_user_can('manage_options');
             },
         ));
+        // Endpoint manutenzione: pulisce la lista deploy accumulata
+        register_rest_route('fp-git-updater/v1', '/deploy-reset', array(
+            'methods'             => 'POST',
+            'callback'            => function() {
+                update_option(\FP\GitUpdater\MasterEndpoint::OPTION_DEPLOY_INSTALL, []);
+                update_option(\FP\GitUpdater\MasterEndpoint::OPTION_DEPLOY_UPDATE, []);
+                update_option(\FP\GitUpdater\MasterEndpoint::OPTION_DEPLOY_AUTHORIZED_UNTIL, 0);
+                wp_cache_delete(\FP\GitUpdater\MasterEndpoint::OPTION_DEPLOY_INSTALL, 'options');
+                wp_cache_delete(\FP\GitUpdater\MasterEndpoint::OPTION_DEPLOY_UPDATE, 'options');
+                wp_cache_delete(\FP\GitUpdater\MasterEndpoint::OPTION_DEPLOY_AUTHORIZED_UNTIL, 'options');
+                return new \WP_REST_Response(['success' => true, 'message' => 'Lista deploy resettata.'], 200);
+            },
+            'permission_callback' => function() {
+                return current_user_can('manage_options');
+            },
+        ));
     }
 
     /**
