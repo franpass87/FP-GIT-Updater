@@ -3,7 +3,7 @@
  * Plugin Name: FP Updater
  * Plugin URI: https://www.francescopasseri.com
  * Description: Gestione sicura degli aggiornamenti dei plugin da GitHub. Supporta sia aggiornamenti automatici che manuali tramite webhook, proteggendo i tuoi siti da aggiornamenti problematici.
- * Version: 1.5.0
+ * Version: 1.5.1
  * Author: Francesco Passeri
  * Author URI: https://www.francescopasseri.com
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if (substr_count($self_basename, '/') > 1) {
 }
 
 // Definisci costanti del plugin
-define('FP_GIT_UPDATER_VERSION', '1.5.0');
+define('FP_GIT_UPDATER_VERSION', '1.5.1');
 define('FP_GIT_UPDATER_PLUGIN_DIR', dirname(__FILE__) . '/');
 define('FP_GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FP_GIT_UPDATER_PLUGIN_FILE', __FILE__);
@@ -105,6 +105,15 @@ class FP_Git_Updater {
                 return current_user_can('manage_options');
             },
         ));
+        // Endpoint deploy-and-reload: autorizza deploy, chiama trigger-sync bloccante, poi /reload
+        // Usato per aggiornare il Bridge stesso bypassando opcache
+        register_rest_route('fp-git-updater/v1', '/deploy-and-reload', array(
+            'methods'             => 'POST',
+            'callback'            => array($this, 'rest_deploy_and_reload_callback'),
+            'permission_callback' => function() {
+                return current_user_can('manage_options');
+            },
+        ));
         // Endpoint manutenzione: pulisce la lista deploy accumulata
         register_rest_route('fp-git-updater/v1', '/deploy-reset', array(
             'methods'             => 'POST',
@@ -162,6 +171,92 @@ class FP_Git_Updater {
                 esc_html($plugin['name']),
                 count($client_ids)
             ),
+        ), 200);
+    }
+
+    /**
+     * REST callback: deploy bloccante + reload Bridge per bypassare opcache
+     * Chiama trigger-sync in modo bloccante, poi /reload se il Bridge è stato installato
+     */
+    public function rest_deploy_and_reload_callback(\WP_REST_Request $request): \WP_REST_Response {
+        $github_repo = sanitize_text_field($request->get_param('github_repo') ?? '');
+        $branch      = sanitize_text_field($request->get_param('branch') ?? 'main');
+        $name        = sanitize_text_field($request->get_param('name') ?? '');
+        $client_ids_raw = $request->get_param('client_ids');
+        $client_ids = array();
+        if (is_array($client_ids_raw)) {
+            $client_ids = array_values(array_filter(array_map('sanitize_text_field', $client_ids_raw)));
+        }
+        if (empty($github_repo) || empty($client_ids)) {
+            return new \WP_REST_Response(array('success' => false, 'message' => 'Repository e clienti obbligatori.'), 400);
+        }
+
+        $parts = explode('/', $github_repo);
+        $slug = preg_replace('/[^a-z0-9_-]/', '-', strtolower(trim(end($parts), '-')));
+        $plugin = array(
+            'id'          => 'repo_' . $slug,
+            'name'        => $name ?: $slug,
+            'slug'        => $slug,
+            'github_repo' => $github_repo,
+            'branch'      => $branch,
+        );
+
+        if (class_exists('\FP\GitUpdater\MasterEndpoint')) {
+            \FP\GitUpdater\MasterEndpoint::authorize_deploy_install($plugin, $client_ids);
+        }
+
+        $secret = get_option(\FP\GitUpdater\MasterEndpoint::OPTION_MASTER_CLIENT_SECRET, '');
+        $clients = class_exists('\FP\GitUpdater\MasterEndpoint') ? \FP\GitUpdater\MasterEndpoint::get_connected_clients() : array();
+        $results = array();
+        $is_bridge = ($slug === 'fp-remote-bridge');
+
+        foreach ($client_ids as $client_id) {
+            $site_url = $clients[$client_id]['url'] ?? ('https://' . $client_id);
+            $trigger_url = rtrim($site_url, '/') . '/wp-json/fp-remote-bridge/v1/trigger-sync';
+
+            // Trigger-sync bloccante
+            $r = wp_remote_post($trigger_url, array(
+                'timeout' => 60,
+                'blocking' => true,
+                'headers' => array(
+                    'X-FP-Client-Secret' => $secret,
+                    'Content-Type' => 'application/json',
+                ),
+                'body' => wp_json_encode(array('client_id' => $client_id)),
+            ));
+
+            $installed = array();
+            if (!is_wp_error($r)) {
+                $body = json_decode(wp_remote_retrieve_body($r), true);
+                $installed = $body['installed'] ?? array();
+            }
+
+            // Se il Bridge è stato installato, chiama /reload per forzare ricaricamento
+            if ($is_bridge && isset($installed['fp-remote-bridge']) && $installed['fp-remote-bridge'] === 'ok') {
+                $reload_url = rtrim($site_url, '/') . '/wp-json/fp-remote-bridge/v1/reload';
+                $reload_r = wp_remote_post($reload_url, array(
+                    'timeout' => 15,
+                    'blocking' => true,
+                    'headers' => array(
+                        'X-FP-Client-Secret' => $secret,
+                        'Content-Type' => 'application/json',
+                    ),
+                    'body' => '{}',
+                ));
+                $reload_result = is_wp_error($reload_r) ? $reload_r->get_error_message() : wp_remote_retrieve_response_code($reload_r);
+                $installed['_reload'] = $reload_result;
+            }
+
+            $results[$client_id] = $installed;
+        }
+
+        // Reset deploy
+        update_option(\FP\GitUpdater\MasterEndpoint::OPTION_DEPLOY_INSTALL, array());
+        update_option(\FP\GitUpdater\MasterEndpoint::OPTION_DEPLOY_AUTHORIZED_UNTIL, 0);
+
+        return new \WP_REST_Response(array(
+            'success' => true,
+            'results' => $results,
         ), 200);
     }
 
