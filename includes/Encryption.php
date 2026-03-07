@@ -61,9 +61,9 @@ class Encryption {
         }
         
         try {
-            // Genera un IV (Initialization Vector) casuale
+            // Genera un IV (Initialization Vector) crittograficamente sicuro
             $iv_length = openssl_cipher_iv_length($this->cipher_method);
-            $iv = openssl_random_pseudo_bytes($iv_length);
+            $iv = random_bytes($iv_length);
             
             // Cripta il valore
             $encrypted = openssl_encrypt(
@@ -129,9 +129,11 @@ class Encryption {
             );
             
             if ($decrypted === false) {
-                // Se la decriptazione fallisce, potrebbe essere un token plain text (retrocompatibilità)
-                Logger::log('warning', 'Decriptazione fallita, potrebbe essere un token non criptato');
-                return $encrypted_value;
+                // Se la decriptazione fallisce (chiave cambiata, dati corrotti)
+                // restituiamo false — NON il ciphertext grezzo che sarebbe usato come token.
+                // Il chiamante deve gestire false come "token non disponibile".
+                Logger::log('warning', 'Decriptazione fallita: chiave cambiata o dati corrotti');
+                return false;
             }
             
             return $decrypted;

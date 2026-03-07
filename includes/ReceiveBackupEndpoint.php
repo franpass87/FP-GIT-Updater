@@ -84,9 +84,6 @@ class ReceiveBackupEndpoint
         }
 
         $client_id = $request->get_param('client_id');
-        if ((empty($client_id) || !is_string($client_id)) && !empty($_POST['client_id'])) {
-            $client_id = sanitize_text_field($_POST['client_id']);
-        }
         if (empty($client_id) || !is_string($client_id)) {
             $client_id = 'client-' . gmdate('Y-m-d');
         }
@@ -103,8 +100,10 @@ class ReceiveBackupEndpoint
                     'message' => __('Impossibile creare la cartella backup.', 'fp-git-updater'),
                 ], 500);
             }
-            self::add_htaccess_protection(dirname($base_dir));
         }
+        // Garantisce protezione .htaccess sia sulla directory padre che su quella del client.
+        self::add_htaccess_protection(dirname($base_dir));
+        self::add_htaccess_protection($base_dir);
 
         $filename = gmdate('Y-m-d-His') . '.zip';
         $dest_path = $base_dir . '/' . $filename;

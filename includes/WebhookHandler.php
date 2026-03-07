@@ -8,6 +8,9 @@
 
 namespace FP\GitUpdater;
 
+use WP_REST_Request;
+use WP_REST_Response;
+
 if (!defined('ABSPATH')) {
     exit;
 }

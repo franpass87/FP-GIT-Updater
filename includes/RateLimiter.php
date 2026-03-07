@@ -164,30 +164,17 @@ class RateLimiter {
      * @return string IP address o identificatore alternativo
      */
     public function get_request_identifier() {
-        // Prova a ottenere l'IP reale anche dietro proxy/CDN
-        $ip = '';
-        
-        if (!empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
-            // Cloudflare
-            $ip = $_SERVER['HTTP_CF_CONNECTING_IP'];
-        } elseif (!empty($_SERVER['HTTP_X_REAL_IP'])) {
-            $ip = $_SERVER['HTTP_X_REAL_IP'];
-        } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            // Potrebbe essere una lista, prendi il primo
-            $ip_list = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-            $ip = trim($ip_list[0]);
-        } elseif (!empty($_SERVER['REMOTE_ADDR'])) {
-            $ip = $_SERVER['REMOTE_ADDR'];
-        }
-        
-        // Sanitizza l'IP
+        // Usa solo REMOTE_ADDR (IP TCP reale, non falsificabile via header HTTP).
+        // Gli header X-Forwarded-For / CF-Connecting-IP possono essere iniettati da
+        // qualsiasi client e non devono essere usati per decisioni di sicurezza.
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
         $ip = filter_var($ip, FILTER_VALIDATE_IP);
         
         if (!$ip) {
-            // Fallback: usa un hash della user agent + altri header
+            // Fallback: hash di user-agent + accept-language (parentesi corrette)
             $ip = md5(
-                $_SERVER['HTTP_USER_AGENT'] ?? '' .
-                $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? ''
+                ($_SERVER['HTTP_USER_AGENT'] ?? '') .
+                ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '')
             );
         }
         

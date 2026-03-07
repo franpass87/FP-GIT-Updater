@@ -44,12 +44,20 @@ class Migration {
         $installed_version = get_option($this->db_version_key, '0.0.0');
         
         if (version_compare($installed_version, $this->current_version, '<')) {
+            // Lock per prevenire double-migration in caso di richieste admin concorrenti.
+            $lock_key = 'fp_git_updater_migration_lock';
+            if (get_transient($lock_key)) {
+                return;
+            }
+            set_transient($lock_key, 1, 60);
+
             Logger::log('info', 'Inizio migrazione da versione ' . $installed_version . ' a ' . $this->current_version);
             
             $this->run_migrations($installed_version);
             
             // Aggiorna la versione installata
             update_option($this->db_version_key, $this->current_version);
+            delete_transient($lock_key);
             
             Logger::log('success', 'Migrazione completata a versione ' . $this->current_version);
         }
