@@ -154,10 +154,17 @@ class Updater {
                 $installed_version = $this->get_installed_plugin_version($plugin);
                 if (empty($installed_version)) {
                     // Pulisci il pending spurio e aggiorna il commit di riferimento
-                    $latest_commit_ref = get_option('fp_git_updater_current_commit_' . $plugin['id'], '');
                     if (!empty($pending['commit_sha'])) {
                         update_option('fp_git_updater_current_commit_' . $plugin['id'], $pending['commit_sha']);
                     }
+                    delete_option('fp_git_updater_pending_update_' . $plugin['id']);
+                    continue;
+                }
+                // Cancella il pending se la versione installata è già >= a quella disponibile
+                // (es. aggiornamento manuale via FTP o WP admin)
+                if (!empty($pending['available_version'])
+                    && version_compare($installed_version, $pending['available_version'], '>=')
+                ) {
                     delete_option('fp_git_updater_pending_update_' . $plugin['id']);
                     continue;
                 }
@@ -335,7 +342,7 @@ class Updater {
         
         if (empty($plugin_slug)) {
             // Prova a dedurre lo slug dal repository
-            $repo_parts = explode('/', $plugin['github_repo']);
+            $repo_parts = explode('/', $plugin['github_repo'] ?? '');
             if (count($repo_parts) === 2) {
                 $repo_name = $repo_parts[1];
                 $plugin_slug = strtolower($repo_name);
@@ -356,7 +363,7 @@ class Updater {
                         $test_main_file = $this->find_plugin_main_file($test_dir);
                         if ($test_main_file) {
                             $file_data = @file_get_contents($test_main_file, false, null, 0, 8192);
-                            if ($file_data && (stripos($file_data, $plugin['name']) !== false || 
+                            if ($file_data && (stripos($file_data, $plugin['name'] ?? '') !== false || 
                                 preg_match('/Plugin Name:/i', $file_data))) {
                                 $plugin_slug = $pattern;
                                 break;
@@ -784,13 +791,13 @@ class Updater {
             if (isset($settings['auto_update']) && $settings['auto_update']) {
                 Logger::log('info', 'Aggiornamento automatico in corso per ' . $plugin['name'], array(
                     'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
-                    'commit' => $commit_short
+                    'commit' => $latest_commit_short
                 ));
                 $this->run_update($latest_commit, $plugin);
             } else {
                 Logger::log('info', 'Aggiornamento disponibile per ' . $plugin['name'] . ' ma installazione manuale richiesta (auto_update disabilitato)', array(
                     'plugin_id' => isset($plugin['id']) ? $plugin['id'] : 'unknown',
-                    'commit' => $commit_short
+                    'commit' => $latest_commit_short
                 ));
             }
             
@@ -1010,7 +1017,7 @@ class Updater {
      */
     private function run_plugin_update($plugin, $commit_sha = null, $is_self_update = false) {
         // Verifica se c'è già un aggiornamento in corso per questo plugin (lock)
-        $lock_key = 'fp_git_updater_lock_' . $plugin['id'];
+        $lock_key = 'fp_git_updater_lock_' . ($plugin['id'] ?? 'unknown');
         $lock_value = get_transient($lock_key);
         $lock_max_age = 900; // 15 minuti: lock più vecchio = orfano (update crashato), sblocca
 
@@ -1303,7 +1310,11 @@ class Updater {
         global $wp_filesystem;
         if (!$wp_filesystem) {
             require_once ABSPATH . 'wp-admin/includes/file.php';
-            WP_Filesystem();
+            if (!WP_Filesystem()) {
+                @unlink($temp_file);
+                delete_transient($lock_key);
+                return array('success' => false, 'message' => 'Impossibile inizializzare il filesystem WordPress.');
+            }
         }
         
         $temp_extract_dir = $upgrade_dir . '/fp-git-updater-temp';
