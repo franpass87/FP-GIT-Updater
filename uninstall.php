@@ -33,6 +33,14 @@ delete_option('fp_git_updater_settings_backup');
 delete_option('fp_git_updater_settings_backup_history');
 delete_option('fp_git_updater_db_version');
 
+// Rimuovi le opzioni della modalità Master
+delete_option('fp_git_updater_master_mode');
+delete_option('fp_git_updater_master_client_secret');
+delete_option('fp_git_updater_connected_clients');
+delete_option('fp_git_updater_deploy_authorized_until');
+delete_option('fp_git_updater_deploy_install');
+delete_option('fp_git_updater_deploy_update');
+
 // Rimuovi i cron job schedulati
 $timestamp = wp_next_scheduled('fp_git_updater_check_update');
 if ($timestamp) {

@@ -89,14 +89,17 @@ class Logger {
             ));
             
             // Mantieni solo gli ultimi 1000 log comunque
-            $count = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+            $count = (int) $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
             
             if ($count > 1000) {
-                $wpdb->query("DELETE FROM $table_name ORDER BY log_date ASC LIMIT " . ($count - 1000));
+                $wpdb->query($wpdb->prepare(
+                    "DELETE FROM $table_name ORDER BY log_date ASC LIMIT %d",
+                    $count - 1000
+                ));
             }
             
-            // Ottimizza la tabella dopo la pulizia
-            $wpdb->query("OPTIMIZE TABLE $table_name");
+            // Ottimizza la tabella dopo la pulizia (OPTIMIZE TABLE non supporta placeholder)
+            $wpdb->query("OPTIMIZE TABLE $table_name"); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
             
             self::log('info', 'Pulizia log automatica completata', array(
                 'logs_eliminati' => $deleted,

@@ -92,9 +92,20 @@ class SettingsBackup {
             Logger::log('error', 'Nessun backup disponibile da ripristinare');
             return false;
         }
+
+        // Valida la struttura minima prima di ripristinare
+        $settings = $backup_data['settings'];
+        if (!is_array($settings)) {
+            Logger::log('error', 'Backup corrotto: settings non è un array');
+            return false;
+        }
+        if (isset($settings['plugins']) && !is_array($settings['plugins'])) {
+            Logger::log('error', 'Backup corrotto: plugins non è un array');
+            return false;
+        }
         
         // Ripristina le impostazioni
-        update_option('fp_git_updater_settings', $backup_data['settings']);
+        update_option('fp_git_updater_settings', $settings);
         
         Logger::log('success', 'Impostazioni ripristinate con successo dal backup', array(
             'backup_date' => $backup_data['timestamp'],
@@ -209,7 +220,7 @@ class SettingsBackup {
     public function show_restore_failed_notice() {
         ?>
         <div class="notice notice-error">
-            <p><strong>FP Updater:</strong> Non è stato possibile ripristinare le impostazioni automaticamente. Vai su <a href="<?php echo admin_url('admin.php?page=fp-git-updater-backup'); ?>">Backup e Ripristino</a> per un ripristino manuale.</p>
+            <p><strong>FP Updater:</strong> Non è stato possibile ripristinare le impostazioni automaticamente. Vai su <a href="<?php echo esc_url(admin_url('admin.php?page=fp-git-updater-backup')); ?>">Backup e Ripristino</a> per un ripristino manuale.</p>
         </div>
         <?php
     }

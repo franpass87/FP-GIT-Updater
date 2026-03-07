@@ -45,7 +45,6 @@ if (!defined('ABSPATH')) {
                         // Username hardcodato a FranPass87
                         $default_username = 'FranPass87';
                         $repo_placeholder_new = sprintf(__('FP-Forms oppure %s/FP-Forms', 'fp-git-updater'), $default_username);
-                        $repo_description_new = sprintf(__('Inserisci solo il nome (es: FP-Forms) o il formato completo. Username predefinito: <strong>%s</strong>', 'fp-git-updater'), $default_username);
                         ?>
                         <div style="display: flex; gap: 10px; align-items: flex-start;">
                             <input type="text" 
@@ -62,7 +61,13 @@ if (!defined('ABSPATH')) {
                                 <?php _e('Carica da GitHub', 'fp-git-updater'); ?>
                             </button>
                         </div>
-                        <p class="description"><?php echo $repo_description_new; ?></p>
+                        <p class="description"><?php
+                            printf(
+                                /* translators: %s: GitHub username */
+                                esc_html__('Inserisci solo il nome (es: FP-Forms) o il formato completo. Username predefinito: %s', 'fp-git-updater'),
+                                '<strong>' . esc_html($default_username) . '</strong>'
+                            );
+                        ?></p>
                     </td>
                 </tr>
                 <tr>
