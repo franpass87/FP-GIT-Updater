@@ -105,6 +105,22 @@ class ApiCache {
      * @param int|null $cache_duration Durata cache personalizzata
      * @return array|WP_Error Risposta API o errore
      */
+    /**
+     * Elimina una voce dalla cache
+     */
+    public function delete($key) {
+        $cache_key = $this->cache_prefix . md5($key);
+        delete_transient($cache_key);
+    }
+
+    /**
+     * Elimina la cache per una chiamata API specifica (stesso URL+args usati in cached_api_call)
+     */
+    public function delete_api_call($url, $args = array()) {
+        $cache_key = $this->generate_api_key($url, $args);
+        $this->delete($cache_key);
+    }
+
     public function cached_api_call($url, $args = array(), $cache_duration = null) {
         // Genera chiave di cache
         $cache_key = $this->generate_api_key($url, $args);

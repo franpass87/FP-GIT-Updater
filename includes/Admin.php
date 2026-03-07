@@ -1167,9 +1167,22 @@ class Admin {
                 wp_send_json_error(array('message' => 'Plugin non trovato'), 404);
             }
             
-            // Invalida la cache della versione GitHub e del commit
+            // Invalida la cache della versione GitHub, del commit e della chiamata API GitHub
             delete_transient('fp_git_updater_github_version_' . $plugin_id);
-            
+            delete_transient('fp_git_updater_commit_info_' . $plugin_id);
+            $repo   = $plugin['github_repo'] ?? '';
+            $branch = $plugin['branch'] ?? 'main';
+            if (!empty($repo)) {
+                $api_url = "https://api.github.com/repos/{$repo}/commits/{$branch}";
+                ApiCache::get_instance()->delete_api_call($api_url, [
+                    'headers' => [
+                        'Accept'     => 'application/vnd.github.v3+json',
+                        'User-Agent' => 'FP-Updater/' . FP_GIT_UPDATER_VERSION,
+                    ],
+                    'timeout' => 30,
+                ]);
+            }
+
             $updater = Updater::get_instance();
 
             // Recupera info commit più recente
