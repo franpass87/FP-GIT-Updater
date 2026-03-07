@@ -40,15 +40,23 @@ class MasterEndpoint
      */
     public static function register(): void
     {
+        $args = [
+            'secret'            => ['type' => 'string', 'required' => false],
+            'client_id'         => ['type' => 'string', 'required' => false],
+            'installed_plugins' => ['type' => 'string', 'required' => false],
+        ];
         register_rest_route('fp-git-updater/v1', '/master-updates-status', [
-            'methods' => 'GET',
-            'callback' => [self::class, 'handle_request'],
+            'methods'             => 'GET',
+            'callback'            => [self::class, 'handle_request'],
             'permission_callback' => [self::class, 'permission_check'],
-            'args' => [
-                'secret' => ['type' => 'string', 'required' => false],
-                'client_id' => ['type' => 'string', 'required' => false],
-                'installed_plugins' => ['type' => 'string', 'required' => false],
-            ],
+            'args'                => $args,
+        ]);
+        // POST: accetta installed_plugins nel body (nessun limite di lunghezza URL)
+        register_rest_route('fp-git-updater/v1', '/master-updates-status', [
+            'methods'             => 'POST',
+            'callback'            => [self::class, 'handle_request'],
+            'permission_callback' => [self::class, 'permission_check'],
+            'args'                => $args,
         ]);
     }
 
