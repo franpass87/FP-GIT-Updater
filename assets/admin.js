@@ -406,7 +406,11 @@
                             $commitRow.html(html);
                         }
 
-                        showNotice('success', response.data.message || 'Versione GitHub aggiornata con successo');
+                        var msg = response.data.message || 'Versione GitHub aggiornata con successo';
+                        showNotice(response.data.update_available ? 'error' : 'success', msg);
+                        if (response.data.update_available) {
+                            setTimeout(function() { location.reload(); }, 2000);
+                        }
                     } else {
                         const errorMessage = response.data.message || 'Errore durante l\'aggiornamento della versione GitHub';
                         showNotice('error', errorMessage);

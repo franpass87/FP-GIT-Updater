@@ -41,7 +41,7 @@ if (!defined('ABSPATH')) {
     <nav class="fp-tab-nav">
         <ul class="fp-tab-list">
             <li class="fp-tab-item active">
-                <a href="#fp-tab-plugins" class="fp-tab-link" data-tab="plugins">
+                <a href="javascript:void(0)" class="fp-tab-link" data-tab="plugins">
                     <span class="dashicons dashicons-admin-plugins"></span>
                     <?php _e('Plugin e Distribuzione', 'fp-git-updater'); ?>
                     <?php if (!empty($plugins)): ?>
@@ -53,19 +53,19 @@ if (!defined('ABSPATH')) {
                 </a>
             </li>
             <li class="fp-tab-item">
-                <a href="#fp-tab-settings" class="fp-tab-link" data-tab="settings">
+                <a href="javascript:void(0)" class="fp-tab-link" data-tab="settings">
                     <span class="dashicons dashicons-admin-settings"></span>
                     <?php _e('Impostazioni Generali', 'fp-git-updater'); ?>
                 </a>
             </li>
             <li class="fp-tab-item">
-                <a href="#fp-tab-backup" class="fp-tab-link" data-tab="backup">
+                <a href="javascript:void(0)" class="fp-tab-link" data-tab="backup">
                     <span class="dashicons dashicons-backup"></span>
                     <?php _e('Gestione Backup', 'fp-git-updater'); ?>
                 </a>
             </li>
             <li class="fp-tab-item">
-                <a href="#fp-tab-instructions" class="fp-tab-link" data-tab="instructions">
+                <a href="javascript:void(0)" class="fp-tab-link" data-tab="instructions">
                     <span class="dashicons dashicons-book-alt"></span>
                     <?php _e('Istruzioni', 'fp-git-updater'); ?>
                 </a>

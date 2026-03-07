@@ -182,7 +182,7 @@ if (!defined('ABSPATH')) {
                 <button type="button" 
                         class="button button-small fp-refresh-github-version" 
                         data-plugin-id="<?php echo esc_attr($plugin['id']); ?>"
-                        title="<?php esc_attr_e('Aggiorna versione GitHub', 'fp-git-updater'); ?>">
+                        title="<?php esc_attr_e('Controlla aggiornamenti da GitHub', 'fp-git-updater'); ?>">
                     <span class="dashicons dashicons-update"></span>
                 </button>
             </span>
@@ -225,9 +225,6 @@ if (!defined('ABSPATH')) {
     </div>
     
     <div class="fp-plugin-quick-actions">
-        <button type="button" class="button button-small fp-check-updates" data-plugin-id="<?php echo esc_attr($plugin['id']); ?>">
-            <span class="dashicons dashicons-cloud"></span> <?php _e('Controlla Aggiornamenti', 'fp-git-updater'); ?>
-        </button>
         <button type="button" 
                 class="button button-small <?php echo $has_pending_update ? 'button-primary' : ''; ?> fp-install-update" 
                 data-plugin-id="<?php echo esc_attr($plugin['id']); ?>">

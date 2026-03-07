@@ -116,7 +116,7 @@ $versions_differ = !empty($current_version) && !empty($github_version) && versio
                 <button type="button" 
                         class="button button-small fp-refresh-github-version" 
                         data-plugin-id="fp_git_updater_self"
-                        title="<?php esc_attr_e('Aggiorna versione GitHub', 'fp-git-updater'); ?>">
+                        title="<?php esc_attr_e('Controlla aggiornamenti da GitHub', 'fp-git-updater'); ?>">
                     <span class="dashicons dashicons-update"></span>
                 </button>
             </span>
@@ -187,10 +187,6 @@ $versions_differ = !empty($current_version) && !empty($github_version) && versio
     <?php endif; ?>
     
     <div class="fp-self-update-actions">
-        <button type="button" id="fp-check-self-update" class="button">
-            <span class="dashicons dashicons-cloud"></span>
-            <?php _e('Controlla Aggiornamenti', 'fp-git-updater'); ?>
-        </button>
         <button type="button" id="fp-clear-update-lock" class="button button-link-delete" title="<?php esc_attr_e('Usa se l\'aggiornamento risulta bloccato da troppo tempo', 'fp-git-updater'); ?>">
             <span class="dashicons dashicons-unlock"></span>
             <?php _e('Sblocca e riprova', 'fp-git-updater'); ?>
@@ -215,32 +211,6 @@ $versions_differ = !empty($current_version) && !empty($github_version) && versio
         ajaxUrl = ajaxurl;
     }
 jQuery(document).ready(function($) {
-    
-    // Controlla aggiornamenti per il plugin stesso
-    $('#fp-check-self-update').on('click', function() {
-        var $btn = $(this);
-        if (!nonce) { alert('Errore: configurazione mancante. Ricarica la pagina.'); return; }
-        $btn.prop('disabled', true).html('<span class="dashicons dashicons-update"></span> Controllo in corso...');
-        
-        $.ajax({ url: ajaxUrl, type: 'POST', data: { action: 'fp_git_updater_check_self_update', nonce: nonce }, timeout: 30000 })
-            .done(function(response) {
-                if (response && response.success) {
-                    alert(response.data && response.data.message ? response.data.message : 'Operazione completata.');
-                    if (response.data && response.data.message && response.data.message.indexOf('disponibile') !== -1) {
-                        location.reload();
-                        return;
-                    }
-                } else {
-                    alert('Errore: ' + (response && response.data && response.data.message ? response.data.message : 'Errore sconosciuto'));
-                }
-                $btn.prop('disabled', false).html('<span class="dashicons dashicons-cloud"></span> Controlla Aggiornamenti');
-            })
-            .fail(function(xhr, status, err) {
-                var msg = (xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) ? xhr.responseJSON.data.message : (status === 'timeout' ? 'Timeout: riprova.' : (status || err || 'Errore di rete'));
-                alert('Errore durante il controllo: ' + msg);
-                $btn.prop('disabled', false).html('<span class="dashicons dashicons-cloud"></span> Controlla Aggiornamenti');
-            });
-    });
     
     // Installa aggiornamento per il plugin stesso
     $('#fp-install-self-update').on('click', function() {

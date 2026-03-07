@@ -1209,15 +1209,33 @@ class Admin {
                 if (!empty($current_version)) {
                     update_option('fp_git_updater_current_version_' . $plugin_id, $current_version);
                 }
+
+                // Se le versioni differiscono, salva il pending update (come fa check_updates)
+                $update_available = !empty($current_version) && !empty($github_version) && $current_version !== $github_version;
+                if ($update_available) {
+                    $pending_key = 'fp_git_updater_pending_update_' . $plugin_id;
+                    update_option($pending_key, array(
+                        'plugin'            => $plugin,
+                        'available_version' => $github_version,
+                        'commit_sha'        => $commit_sha,
+                        'commit_sha_short'  => $commit_short,
+                        'commit_message'    => $commit_msg,
+                        'commit_date'       => $commit_date,
+                        'checked_at'        => current_time('mysql'),
+                    ));
+                }
                 
                 wp_send_json_success(array(
-                    'github_version'  => $github_version,
-                    'current_version' => $current_version,
-                    'commit_sha'      => $commit_sha,
-                    'commit_short'    => $commit_short,
-                    'commit_message'  => $commit_msg,
-                    'commit_date'     => $commit_date,
-                    'message'         => 'Versione GitHub aggiornata con successo',
+                    'github_version'   => $github_version,
+                    'current_version'  => $current_version,
+                    'commit_sha'       => $commit_sha,
+                    'commit_short'     => $commit_short,
+                    'commit_message'   => $commit_msg,
+                    'commit_date'      => $commit_date,
+                    'update_available' => $update_available,
+                    'message'          => $update_available
+                        ? 'Aggiornamento disponibile: ' . $current_version . ' → ' . $github_version
+                        : 'Versione GitHub aggiornata con successo',
                 ));
             } else {
                 wp_send_json_error(array('message' => 'Impossibile recuperare la versione GitHub. Verifica il repository e il branch.'), 500);
