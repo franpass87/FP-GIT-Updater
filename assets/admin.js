@@ -165,50 +165,6 @@
             });
         });
         
-        // Controlla aggiornamenti per plugin specifico
-        $(document).on('click', '.fp-check-updates', function(e) {
-            e.preventDefault();
-            
-            const $button = $(this);
-            const pluginId = $button.data('plugin-id');
-            const originalText = $button.html();
-            
-            $button.prop('disabled', true);
-            $button.html('<span class="dashicons dashicons-update spin"></span> Controllo...');
-            
-            $.ajax({
-                url: fpGitUpdater.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'fp_git_updater_check_updates',
-                    plugin_id: pluginId,
-                    nonce: fpGitUpdater.nonce
-                },
-                success: function(response) {
-                    if (response.success) {
-                        showNotice('success', response.data.message || response.data);
-                    } else {
-                        showNotice('error', response.data.message || response.data || 'Errore durante il controllo aggiornamenti.');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    let errorMessage = 'Errore durante il controllo aggiornamenti.';
-                    if (xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
-                        errorMessage = xhr.responseJSON.data.message;
-                    } else if (xhr.status === 400) {
-                        errorMessage = 'Richiesta non valida. Prova a ricaricare la pagina.';
-                    } else if (xhr.status === 403) {
-                        errorMessage = 'Permessi insufficienti.';
-                    }
-                    showNotice('error', errorMessage);
-                },
-                complete: function() {
-                    $button.prop('disabled', false);
-                    $button.html(originalText);
-                }
-            });
-        });
-        
         // Installa aggiornamento per plugin specifico
         $(document).on('click', '.fp-install-update', function(e) {
             e.preventDefault();

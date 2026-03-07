@@ -1041,6 +1041,7 @@ class Admin {
                     'username' => $default_username,
                     'from_cache' => true
                 ));
+                return;
             }
             
             // Chiama API GitHub
@@ -1445,7 +1446,7 @@ class Admin {
         if (!current_user_can('manage_options')) {
             wp_send_json_error(array('message' => __('Accesso negato.', 'fp-git-updater')), 403);
         }
-        $client_id = sanitize_text_field($_POST['client_id'] ?? '');
+        $client_id = sanitize_text_field(wp_unslash($_POST['client_id'] ?? ''));
         if (empty($client_id)) {
             wp_send_json_error(array('message' => __('ID cliente mancante.', 'fp-git-updater')));
         }
@@ -1467,7 +1468,7 @@ class Admin {
             wp_send_json_error(array('message' => __('Accesso negato.', 'fp-git-updater')), 403);
         }
 
-        $client_id = sanitize_text_field($_POST['client_id'] ?? '');
+        $client_id = sanitize_text_field(wp_unslash($_POST['client_id'] ?? ''));
         if (empty($client_id)) {
             wp_send_json_error(array('message' => __('ID cliente mancante.', 'fp-git-updater')));
         }
