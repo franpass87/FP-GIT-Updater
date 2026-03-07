@@ -82,6 +82,8 @@ if (!defined('ABSPATH')) {
                 }
             }
             
+            $commit_date_raw = '';
+
             if ($has_pending_update && !empty($pending_info['available_version'])) {
                 $github_version      = $pending_info['available_version'];
                 $github_commit_short = $pending_info['commit_sha_short'] ?? '';

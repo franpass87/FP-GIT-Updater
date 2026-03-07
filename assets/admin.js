@@ -953,7 +953,12 @@
                     var str = slugs.length ? slugs.slice(0, 8).join(', ') + (slugs.length > 8 ? ' +' + (slugs.length - 8) + '…' : '') : '—';
                     var $row = $btn.closest('tr');
                     $row.find('.fp-client-plugins-list').text(str);
-                    $row.find('.fp-client-plugins-list').next('small').text('(' + slugs.length + ')');
+                    var $counter = $row.find('.fp-client-plugins-list').next('small');
+                    if ($counter.length) {
+                        $counter.text('(' + slugs.length + ')');
+                    } else if (slugs.length > 0) {
+                        $row.find('.fp-client-plugins-list').after('<small style="color:var(--fp-text-muted);">(' + slugs.length + ')</small>');
+                    }
                 } else {
                     showNotice('error', response.data && response.data.message ? response.data.message : 'Errore durante l\'aggiornamento.');
                 }

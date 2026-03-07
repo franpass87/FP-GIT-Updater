@@ -1174,14 +1174,23 @@ class Admin {
             $repo   = $plugin['github_repo'] ?? '';
             $branch = $plugin['branch'] ?? 'main';
             if (!empty($repo)) {
-                $api_url = "https://api.github.com/repos/{$repo}/commits/{$branch}";
-                ApiCache::get_instance()->delete_api_call($api_url, [
+                $api_url    = "https://api.github.com/repos/{$repo}/commits/{$branch}";
+                $cache_args = [
                     'headers' => [
                         'Accept'     => 'application/vnd.github.v3+json',
                         'User-Agent' => 'FP-Updater/' . FP_GIT_UPDATER_VERSION,
                     ],
                     'timeout' => 30,
-                ]);
+                ];
+                $settings = get_option('fp_git_updater_settings', []);
+                if (!empty($settings['global_github_token'])) {
+                    $encryption = Encryption::get_instance();
+                    $token      = $encryption->decrypt($settings['global_github_token']);
+                    if ($token !== false && !empty($token)) {
+                        $cache_args['headers']['Authorization'] = 'token ' . $token;
+                    }
+                }
+                ApiCache::get_instance()->delete_api_call($api_url, $cache_args);
             }
 
             $updater = Updater::get_instance();
