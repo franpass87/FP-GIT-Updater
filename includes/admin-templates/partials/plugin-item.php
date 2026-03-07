@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
     
     <div class="fp-plugin-header">
         <h3>
-            <?php echo esc_html($plugin['name']); ?>
+            <?php echo esc_html($plugin['name'] ?? $plugin['id'] ?? ''); ?>
             <?php if ($has_pending_update): ?>
                 <span class="log-badge log-badge-error">
                     <?php _e('AGGIORNAMENTO DISPONIBILE', 'fp-git-updater'); ?>
@@ -139,8 +139,8 @@ if (!defined('ABSPATH')) {
         ?>
         
         <div class="fp-plugin-meta-row">
-            <span><strong><?php _e('Repository:', 'fp-git-updater'); ?></strong> <code><?php echo esc_html($plugin['github_repo']); ?></code></span>
-            <span><strong><?php _e('Branch:', 'fp-git-updater'); ?></strong> <code><?php echo esc_html($plugin['branch']); ?></code></span>
+            <span><strong><?php _e('Repository:', 'fp-git-updater'); ?></strong> <code><?php echo esc_html($plugin['github_repo'] ?? ''); ?></code></span>
+            <span><strong><?php _e('Branch:', 'fp-git-updater'); ?></strong> <code><?php echo esc_html($plugin['branch'] ?? 'main'); ?></code></span>
             <span class="fp-plugin-status <?php echo $plugin['enabled'] ? 'enabled' : 'disabled'; ?>">
                 <?php 
                 echo $plugin['enabled'] 

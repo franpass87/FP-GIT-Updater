@@ -1067,6 +1067,7 @@ class Admin {
             
             if (is_wp_error($response)) {
                 wp_send_json_error(array('message' => 'Errore connessione GitHub: ' . $response->get_error_message()), 500);
+                return;
             }
             
             $status_code = wp_remote_retrieve_response_code($response);
@@ -1080,12 +1081,14 @@ class Admin {
                     $error_message = 'Rate limit GitHub raggiunto. Riprova tra qualche minuto.';
                 }
                 wp_send_json_error(array('message' => $error_message), $status_code);
+                return;
             }
             
             $repos = json_decode($body, true);
             
             if (!is_array($repos)) {
                 wp_send_json_error(array('message' => 'Risposta API GitHub non valida'), 500);
+                return;
             }
             
             // Prepara lista repository (solo nome e descrizione)
@@ -1198,16 +1201,14 @@ class Admin {
 
             // Recupera info commit più recente
             $commit_info = $updater->get_latest_commit_info($plugin);
-            $commit_sha   = '';
-            $commit_short = '';
-            $commit_msg   = '';
-            $commit_date  = '';
-            if (!is_wp_error($commit_info)) {
-                $commit_sha   = $commit_info['sha'];
-                $commit_short = $commit_info['short'];
-                $commit_msg   = $commit_info['message'];
-                $commit_date  = $commit_info['date'];
+            if (is_wp_error($commit_info)) {
+                wp_send_json_error(array('message' => 'Impossibile contattare GitHub: ' . $commit_info->get_error_message()), 500);
+                return;
             }
+            $commit_sha   = $commit_info['sha'];
+            $commit_short = $commit_info['short'];
+            $commit_msg   = $commit_info['message'];
+            $commit_date  = $commit_info['date'];
 
             // Recupera la nuova versione GitHub
             $github_version = $updater->get_github_plugin_version($plugin, $commit_sha ?: null);
@@ -1449,10 +1450,12 @@ class Admin {
         $client_id = sanitize_text_field(wp_unslash($_POST['client_id'] ?? ''));
         if (empty($client_id)) {
             wp_send_json_error(array('message' => __('ID cliente mancante.', 'fp-git-updater')));
+            return;
         }
         $clients = MasterEndpoint::get_connected_clients();
         if (!isset($clients[$client_id])) {
             wp_send_json_error(array('message' => __('Cliente non trovato.', 'fp-git-updater')));
+            return;
         }
         unset($clients[$client_id]);
         update_option(MasterEndpoint::OPTION_CONNECTED_CLIENTS, $clients);
@@ -1471,11 +1474,13 @@ class Admin {
         $client_id = sanitize_text_field(wp_unslash($_POST['client_id'] ?? ''));
         if (empty($client_id)) {
             wp_send_json_error(array('message' => __('ID cliente mancante.', 'fp-git-updater')));
+            return;
         }
 
         $all_clients = get_option(MasterEndpoint::OPTION_CONNECTED_CLIENTS, []);
         if (!isset($all_clients[$client_id])) {
             wp_send_json_error(array('message' => __('Cliente non trovato.', 'fp-git-updater')));
+            return;
         }
 
         // Ricava l'URL del sito cliente

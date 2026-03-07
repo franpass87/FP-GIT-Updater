@@ -622,7 +622,8 @@
         // Funzione helper per mostrare notifiche (senza scroll per non disturbare)
         function showNotice(type, message) {
             const noticeClass = type === 'success' ? 'notice-success' : 'notice-error';
-            const notice = $('<div class="notice ' + noticeClass + ' is-dismissible"><p>' + message + '</p></div>');
+            const $p = $('<p>').text(message);
+            const notice = $('<div class="notice ' + noticeClass + ' is-dismissible"></div>').append($p);
             
             $('.fp-git-updater-wrap h1').after(notice);
             

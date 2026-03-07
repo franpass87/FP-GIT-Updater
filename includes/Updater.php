@@ -512,8 +512,8 @@ class Updater {
      * @return string Versione del plugin su GitHub o stringa vuota
      */
     public function get_github_plugin_version($plugin, $commit_sha = null) {
-        $repo = $plugin['github_repo'];
-        $branch = isset($plugin['branch']) ? $plugin['branch'] : 'main';
+        $repo = $plugin['github_repo'] ?? '';
+        $branch = $plugin['branch'] ?? 'main';
         
         // Se non abbiamo il commit SHA, proviamo a ottenerlo; se fallisce usiamo il branch
         if (empty($commit_sha)) {
@@ -857,8 +857,8 @@ class Updater {
      * Ottieni l'ultimo commit dal repository GitHub per un plugin specifico
      */
     private function get_latest_commit($plugin) {
-        $repo = $plugin['github_repo'];
-        $branch = isset($plugin['branch']) ? $plugin['branch'] : 'main';
+        $repo = $plugin['github_repo'] ?? '';
+        $branch = $plugin['branch'] ?? 'main';
         
         // Valida repository
         $repo_validation = $this->validate_repository($repo);
