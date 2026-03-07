@@ -933,6 +933,37 @@
             });
         });
         
+        // Aggiorna versioni plugin da un cliente specifico
+        $(document).on('click', '.fp-refresh-client-versions-btn', function() {
+            var $btn = $(this);
+            var clientId = $btn.data('client-id');
+            if (!clientId) return;
+            var origHtml = $btn.html();
+            $btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span>');
+            $.post(fpGitUpdater.ajax_url, {
+                action: 'fp_git_updater_refresh_client_versions',
+                nonce: fpGitUpdater.nonce,
+                client_id: clientId
+            }).done(function(response) {
+                if (response.success) {
+                    showNotice('success', response.data.message);
+                    // Aggiorna la cella plugin nella riga
+                    var plugins = response.data.plugins || {};
+                    var slugs = Object.keys(plugins);
+                    var str = slugs.length ? slugs.slice(0, 8).join(', ') + (slugs.length > 8 ? ' +' + (slugs.length - 8) + '…' : '') : '—';
+                    var $row = $btn.closest('tr');
+                    $row.find('.fp-client-plugins-list').text(str);
+                    $row.find('.fp-client-plugins-list').next('small').text('(' + slugs.length + ')');
+                } else {
+                    showNotice('error', response.data && response.data.message ? response.data.message : 'Errore durante l\'aggiornamento.');
+                }
+            }).fail(function() {
+                showNotice('error', 'Errore di connessione.');
+            }).always(function() {
+                $btn.prop('disabled', false).html(origHtml);
+            });
+        });
+
         // Rimuovi cliente
         $(document).on('click', '.fp-remove-client-btn', function() {
             var $btn = $(this);
