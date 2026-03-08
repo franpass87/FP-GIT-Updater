@@ -277,12 +277,22 @@ if (!defined('ABSPATH')) {
                     <span class="fp-deploy-client-dot"></span>
                     <span class="fp-deploy-client-name"><?php echo esc_html($c); ?></span>
                     <?php if (!empty($c_ver)): ?>
-                        <span class="fp-deploy-client-ver <?php echo esc_attr($ver_class); ?>">v<?php echo esc_html($c_ver); ?></span>
+                        <span class="fp-deploy-client-ver <?php echo esc_attr($ver_class); ?>" data-client-id="<?php echo esc_attr($c); ?>">v<?php echo esc_html($c_ver); ?></span>
+                    <?php else: ?>
+                        <span class="fp-deploy-client-ver fp-deploy-client-ver--unknown" data-client-id="<?php echo esc_attr($c); ?>">—</span>
                     <?php endif; ?>
                 </label>
                 <?php endforeach; ?>
             </div>
             <div class="fp-deploy-footer">
+                <button type="button"
+                        class="button button-small fp-sync-versions-btn"
+                        data-plugin-slug="<?php echo esc_attr($plugin_slug_for_clients); ?>"
+                        data-github-version="<?php echo esc_attr($github_version); ?>"
+                        title="<?php esc_attr_e('Interroga i siti selezionati e aggiorna le versioni mostrate', 'fp-git-updater'); ?>">
+                    <span class="dashicons dashicons-update"></span>
+                    <?php _e('Sincronizza versioni', 'fp-git-updater'); ?>
+                </button>
                 <button type="button" class="button button-primary button-small fp-deploy-install-inline">
                     <span class="dashicons dashicons-download"></span> <?php _e('Installa sui selezionati', 'fp-git-updater'); ?>
                 </button>

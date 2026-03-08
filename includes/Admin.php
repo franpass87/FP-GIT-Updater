@@ -48,6 +48,8 @@ class Admin {
         add_action('wp_ajax_fp_git_updater_clear_update_lock', array($this, 'ajax_clear_update_lock'));
         add_action('wp_ajax_fp_git_updater_remove_client', array($this, 'ajax_remove_client'));
         add_action('wp_ajax_fp_git_updater_refresh_client_versions', array($this, 'ajax_refresh_client_versions'));
+        add_action('wp_ajax_fp_git_updater_refresh_single_client_versions', array($this, 'ajax_refresh_single_client_versions'));
+        add_action('wp_ajax_fp_git_updater_sync_client_version', array($this, 'ajax_sync_client_version'));
     }
     
     /**
@@ -1411,20 +1413,41 @@ class Admin {
             echo '</p>';
         } else {
             echo '<table class="wp-list-table widefat fixed striped fp-master-clients-table"><thead><tr>';
-            echo '<th scope="col" style="width:28%;">' . esc_html__('Sito cliente', 'fp-git-updater') . '</th>';
-            echo '<th scope="col" style="width:35%;">' . esc_html__('Plugin installati', 'fp-git-updater') . '</th>';
+            echo '<th scope="col" style="width:32%;">' . esc_html__('Sito cliente', 'fp-git-updater') . '</th>';
+            echo '<th scope="col" style="width:33%;">' . esc_html__('Plugin installati', 'fp-git-updater') . '</th>';
             echo '<th scope="col">' . esc_html__('Ultima connessione', 'fp-git-updater') . '</th>';
-            echo '<th scope="col" style="width:100px;"></th></tr></thead><tbody>';
+            echo '<th scope="col" style="width:80px;"></th></tr></thead><tbody>';
             foreach ($clients as $client_id => $data) {
                 $installed = $data['installed_plugins'] ?? [];
+                $plugin_versions = $data['plugin_versions'] ?? [];
                 $count_plugins = count($installed);
                 $installed_str = !empty($installed) ? implode(', ', array_slice($installed, 0, 8)) . ($count_plugins > 8 ? ' +' . ($count_plugins - 8) . '…' : '') : '—';
+                $has_versions = !empty($plugin_versions);
                 $row_id = 'fp-client-row-' . sanitize_html_class($client_id);
                 echo '<tr id="' . esc_attr($row_id) . '">';
                 echo '<td><strong>' . esc_html($client_id) . '</strong></td>';
-                echo '<td><small class="fp-client-plugins-list" data-client-id="' . esc_attr($client_id) . '">' . esc_html($installed_str) . '</small>';
-                if ($count_plugins > 0) {
-                    echo ' <small style="color:var(--fp-text-muted);">(' . $count_plugins . ')</small>';
+                // Colonna plugin: con versioni inline se disponibili, altrimenti solo slug
+                echo '<td class="fp-client-versions-cell" data-client-id="' . esc_attr($client_id) . '">';
+                if ($has_versions) {
+                    echo '<div class="fp-client-plugins-with-versions">';
+                    $i = 0;
+                    foreach ($plugin_versions as $slug => $ver) {
+                        if ($i >= 8) break;
+                        echo '<span class="fp-client-plugin-entry">'
+                            . '<span class="fp-client-plugin-slug">' . esc_html($slug) . '</span>'
+                            . ' <span class="fp-deploy-client-ver fp-deploy-client-ver--ok">v' . esc_html($ver) . '</span>'
+                            . '</span>';
+                        $i++;
+                    }
+                    if ($count_plugins > 8) {
+                        echo '<span class="fp-version-more">+' . ($count_plugins - 8) . ' altri</span>';
+                    }
+                    echo '</div>';
+                } else {
+                    echo '<small class="fp-client-plugins-list" data-client-id="' . esc_attr($client_id) . '">' . esc_html($installed_str) . '</small>';
+                    if ($count_plugins > 0) {
+                        echo ' <small style="color:var(--fp-text-muted);">(' . $count_plugins . ')</small>';
+                    }
                 }
                 echo '</td>';
                 echo '<td>' . esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), $data['last_seen'] ?? 0)) . '</td>';
@@ -1494,12 +1517,14 @@ class Admin {
         }
         if (empty($site_url)) {
             wp_send_json_error(array('message' => __('URL sito cliente non disponibile. Aspetta la prossima sincronizzazione automatica.', 'fp-git-updater')));
+            return;
         }
 
         // Recupera il secret configurato sul Master
         $secret = get_option(MasterEndpoint::OPTION_MASTER_CLIENT_SECRET, '');
         if (empty($secret)) {
-            wp_send_json_error(array('message' => __('Chiave segreta Master non configurata.', 'fp-git-updater')));
+            wp_send_json_error(array('message' => __('Chiave segreta Master non configurata. Vai nelle impostazioni e salva la chiave segreta.', 'fp-git-updater')));
+            return;
         }
 
         // Chiama l'endpoint /plugin-versions sul Bridge del cliente
@@ -1513,16 +1538,27 @@ class Admin {
 
         if (is_wp_error($response)) {
             wp_send_json_error(array('message' => __('Impossibile contattare il sito cliente: ', 'fp-git-updater') . $response->get_error_message()));
+            return;
         }
 
         $code = wp_remote_retrieve_response_code($response);
         if ($code !== 200) {
-            wp_send_json_error(array('message' => sprintf(__('Il sito cliente ha risposto con errore HTTP %d.', 'fp-git-updater'), $code)));
+            if ($code === 401 || $code === 403) {
+                $msg = sprintf(
+                    __('Accesso negato dal sito cliente (HTTP %d). Verifica che la chiave segreta Master sia identica su entrambi i siti.', 'fp-git-updater'),
+                    $code
+                );
+            } else {
+                $msg = sprintf(__('Il sito cliente ha risposto con errore HTTP %d.', 'fp-git-updater'), $code);
+            }
+            wp_send_json_error(array('message' => $msg));
+            return;
         }
 
         $body = json_decode(wp_remote_retrieve_body($response), true);
         if (empty($body['success']) || !isset($body['plugins'])) {
             wp_send_json_error(array('message' => __('Risposta non valida dal sito cliente.', 'fp-git-updater')));
+            return;
         }
 
         // Aggiorna i dati del cliente nel DB del Master
@@ -1537,6 +1573,179 @@ class Admin {
             'message'  => sprintf(__('Versioni aggiornate: %d plugin trovati su %s.', 'fp-git-updater'), count($slugs), $client_id),
             'plugins'  => $plugins_map,
             'count'    => count($slugs),
+        ));
+    }
+
+    /**
+     * AJAX: Interroga un singolo cliente e restituisce le versioni plugin (usato da "Versioni in tempo reale")
+     * Versione leggera di ajax_refresh_client_versions: restituisce solo i dati, non aggiorna il DB.
+     */
+    public function ajax_refresh_single_client_versions() {
+        check_ajax_referer('fp_git_updater_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Accesso negato.', 'fp-git-updater')), 403);
+        }
+
+        $client_id = sanitize_text_field(wp_unslash($_POST['client_id'] ?? ''));
+        if (empty($client_id)) {
+            wp_send_json_error(array('message' => __('ID cliente mancante.', 'fp-git-updater')));
+            return;
+        }
+
+        $all_clients = get_option(MasterEndpoint::OPTION_CONNECTED_CLIENTS, []);
+        if (!isset($all_clients[$client_id])) {
+            wp_send_json_error(array('message' => __('Cliente non trovato.', 'fp-git-updater')));
+            return;
+        }
+
+        $client_data = $all_clients[$client_id];
+        $site_url = $client_data['url'] ?? '';
+        if (empty($site_url)) {
+            if (preg_match('#^[a-z0-9]([a-z0-9\-\.]+)?[a-z0-9]\.[a-z]{2,}$#i', $client_id)) {
+                $site_url = 'https://' . $client_id;
+            }
+        }
+        if (empty($site_url)) {
+            wp_send_json_error(array('message' => __('URL sito cliente non disponibile.', 'fp-git-updater')));
+            return;
+        }
+
+        $secret = get_option(MasterEndpoint::OPTION_MASTER_CLIENT_SECRET, '');
+        if (empty($secret)) {
+            wp_send_json_error(array('message' => __('Chiave segreta Master non configurata.', 'fp-git-updater')));
+            return;
+        }
+
+        $endpoint = rtrim($site_url, '/') . '/wp-json/fp-remote-bridge/v1/plugin-versions';
+        $response = wp_remote_get($endpoint, [
+            'timeout' => 15,
+            'headers' => [
+                'X-FP-Client-Secret' => $secret,
+            ],
+        ]);
+
+        if (is_wp_error($response)) {
+            wp_send_json_error(array(
+                'message' => __('Impossibile contattare il sito: ', 'fp-git-updater') . $response->get_error_message(),
+                'client_id' => $client_id,
+            ));
+            return;
+        }
+
+        $code = wp_remote_retrieve_response_code($response);
+        if ($code !== 200) {
+            $msg = $code === 401 || $code === 403
+                ? sprintf(__('Accesso negato (HTTP %d). Verifica la chiave segreta.', 'fp-git-updater'), $code)
+                : sprintf(__('Errore HTTP %d dal sito cliente.', 'fp-git-updater'), $code);
+            wp_send_json_error(array('message' => $msg, 'client_id' => $client_id));
+            return;
+        }
+
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        if (empty($body['success']) || !isset($body['plugins'])) {
+            wp_send_json_error(array('message' => __('Risposta non valida dal sito cliente.', 'fp-git-updater'), 'client_id' => $client_id));
+            return;
+        }
+
+        $plugins_map = $body['plugins'];
+        $slugs = array_keys($plugins_map);
+
+        // Aggiorna anche il DB del Master
+        $all_clients[$client_id]['installed_plugins'] = $slugs;
+        $all_clients[$client_id]['plugin_versions']   = $plugins_map;
+        $all_clients[$client_id]['last_seen']         = time();
+        update_option(MasterEndpoint::OPTION_CONNECTED_CLIENTS, $all_clients);
+
+        wp_send_json_success(array(
+            'client_id' => $client_id,
+            'plugins'   => $plugins_map,
+            'count'     => count($slugs),
+        ));
+    }
+
+    /**
+     * AJAX: Forza connessione con un sito cliente e restituisce la versione di un plugin specifico.
+     * Usato dal pulsante refresh inline nella griglia "Installa su clienti" di ogni plugin.
+     */
+    public function ajax_sync_client_version() {
+        check_ajax_referer('fp_git_updater_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Accesso negato.', 'fp-git-updater')), 403);
+        }
+
+        $client_id   = sanitize_text_field(wp_unslash($_POST['client_id'] ?? ''));
+        $plugin_slug = sanitize_text_field(wp_unslash($_POST['plugin_slug'] ?? ''));
+
+        if (empty($client_id)) {
+            wp_send_json_error(array('message' => __('ID cliente mancante.', 'fp-git-updater')));
+            return;
+        }
+
+        $all_clients = get_option(MasterEndpoint::OPTION_CONNECTED_CLIENTS, []);
+        if (!isset($all_clients[$client_id])) {
+            wp_send_json_error(array('message' => __('Cliente non trovato.', 'fp-git-updater')));
+            return;
+        }
+
+        $client_data = $all_clients[$client_id];
+        $site_url    = $client_data['url'] ?? '';
+        if (empty($site_url) && preg_match('#^[a-z0-9]([a-z0-9\-\.]+)?[a-z0-9]\.[a-z]{2,}$#i', $client_id)) {
+            $site_url = 'https://' . $client_id;
+        }
+        if (empty($site_url)) {
+            wp_send_json_error(array('message' => __('URL sito cliente non disponibile.', 'fp-git-updater')));
+            return;
+        }
+
+        $secret = get_option(MasterEndpoint::OPTION_MASTER_CLIENT_SECRET, '');
+        if (empty($secret)) {
+            wp_send_json_error(array('message' => __('Chiave segreta Master non configurata.', 'fp-git-updater')));
+            return;
+        }
+
+        $endpoint = rtrim($site_url, '/') . '/wp-json/fp-remote-bridge/v1/plugin-versions';
+        $response = wp_remote_get($endpoint, [
+            'timeout' => 15,
+            'headers' => [ 'X-FP-Client-Secret' => $secret ],
+        ]);
+
+        if (is_wp_error($response)) {
+            wp_send_json_error(array('message' => $response->get_error_message()));
+            return;
+        }
+
+        $code = wp_remote_retrieve_response_code($response);
+        if ($code !== 200) {
+            $msg = ($code === 401 || $code === 403)
+                ? sprintf(__('Accesso negato (HTTP %d). Verifica la chiave segreta.', 'fp-git-updater'), $code)
+                : sprintf(__('Errore HTTP %d.', 'fp-git-updater'), $code);
+            wp_send_json_error(array('message' => $msg));
+            return;
+        }
+
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        if (empty($body['success']) || !isset($body['plugins'])) {
+            wp_send_json_error(array('message' => __('Risposta non valida dal sito cliente.', 'fp-git-updater')));
+            return;
+        }
+
+        $plugins_map = $body['plugins'];
+        $slugs       = array_keys($plugins_map);
+
+        // Salva nel DB del Master
+        $all_clients[$client_id]['installed_plugins'] = $slugs;
+        $all_clients[$client_id]['plugin_versions']   = $plugins_map;
+        $all_clients[$client_id]['last_seen']         = time();
+        update_option(MasterEndpoint::OPTION_CONNECTED_CLIENTS, $all_clients);
+
+        // Versione del plugin specifico richiesto
+        $plugin_version = !empty($plugin_slug) ? ($plugins_map[$plugin_slug] ?? '') : '';
+
+        wp_send_json_success(array(
+            'client_id'      => $client_id,
+            'plugin_slug'    => $plugin_slug,
+            'plugin_version' => $plugin_version,
+            'all_plugins'    => $plugins_map,
         ));
     }
 

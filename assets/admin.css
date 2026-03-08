@@ -642,10 +642,15 @@
     background: #f59e0b;
 }
 
+.fp-deploy-client-ver--unknown {
+    background: #9ca3af;
+}
+
 /* Footer con pulsante installa */
 .fp-plugin-deploy-inline .fp-deploy-footer {
     display: flex;
     justify-content: flex-end;
+    gap: 6px;
     padding-top: 4px;
 }
 
@@ -2262,6 +2267,131 @@ html {
 
 .fp-master-deploy-status--inactive .dashicons {
     color: var(--fp-warning);
+}
+
+/* === VERSIONI INLINE CLIENTI === */
+.fp-client-plugins-with-versions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    align-items: center;
+}
+
+.fp-client-plugin-entry {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    white-space: nowrap;
+}
+
+.fp-client-plugin-slug {
+    font-size: 12px;
+    color: var(--fp-text);
+}
+
+/* === VERSIONI IN TEMPO REALE === */
+.fp-master-clients-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.fp-versions-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+
+.fp-version-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: var(--fp-primary-light);
+    border: 1px solid #c3d9f0;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.fp-version-pill code {
+    background: transparent;
+    padding: 0;
+    font-size: 11px;
+    color: var(--fp-primary-dark);
+    font-family: monospace;
+}
+
+.fp-version-pill strong {
+    color: var(--fp-text);
+    font-size: 11px;
+}
+
+.fp-version-more {
+    font-size: 11px;
+    color: var(--fp-text-muted);
+    padding: 1px 4px;
+}
+
+.fp-version-more--expandable {
+    cursor: pointer;
+    color: var(--fp-primary);
+    text-decoration: underline;
+}
+
+.fp-version-more--expandable:hover {
+    color: var(--fp-primary-dark);
+}
+
+.fp-versions-placeholder {
+    color: var(--fp-text-muted);
+    font-size: 13px;
+}
+
+.fp-versions-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--fp-text-muted);
+    font-size: 12px;
+}
+
+.fp-versions-loading .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--fp-primary);
+}
+
+.fp-versions-error {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--fp-error);
+    font-size: 12px;
+}
+
+.fp-versions-error .dashicons {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+.fp-versions-cell--ok {
+    background: #f0faf2 !important;
+}
+
+.fp-client-site-link {
+    color: var(--fp-text-muted);
+    text-decoration: none;
+}
+
+.fp-client-site-link:hover {
+    color: var(--fp-primary);
+    text-decoration: underline;
 }
 
 .fp-master-clients-card {

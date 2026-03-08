@@ -819,6 +819,77 @@
             doDeployInstall(repo, branch, name, clientIds, $(this));
         });
 
+        // Sincronizza versioni sui clienti selezionati
+        $(document).on('click', '.fp-sync-versions-btn', function() {
+            var $btn = $(this);
+            var $block = $btn.closest('.fp-plugin-deploy-inline');
+            var pluginSlug = $btn.data('plugin-slug') || '';
+            var githubVersion = $btn.data('github-version') || '';
+
+            // Raccoglie i client selezionati
+            var clientIds = [];
+            $block.find('.fp-client-cb:checked').each(function() {
+                var v = $(this).val();
+                if (v) clientIds.push(v);
+            });
+
+            if (clientIds.length === 0) {
+                showNotice('error', 'Seleziona almeno un sito prima di sincronizzare.');
+                return;
+            }
+
+            var origHtml = $btn.html();
+            $btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Sincronizzazione...');
+
+            var done = 0;
+            var errors = 0;
+            var total = clientIds.length;
+
+            clientIds.forEach(function(clientId) {
+                $.post(fpGitUpdater.ajax_url, {
+                    action: 'fp_git_updater_sync_client_version',
+                    nonce: fpGitUpdater.nonce,
+                    client_id: clientId,
+                    plugin_slug: pluginSlug
+                }).done(function(response) {
+                    if (response.success) {
+                        var ver = response.data.plugin_version || '';
+                        var $badge = $block.find('.fp-deploy-client-ver[data-client-id="' + clientId + '"]');
+                        if ($badge.length) {
+                            if (ver) {
+                                var verClass = 'fp-deploy-client-ver';
+                                if (githubVersion) {
+                                    if (window.compareVersions) {
+                                        verClass += ver === githubVersion ? ' fp-deploy-client-ver--ok' : ' fp-deploy-client-ver--old';
+                                    } else {
+                                        verClass += ver === githubVersion ? ' fp-deploy-client-ver--ok' : ' fp-deploy-client-ver--old';
+                                    }
+                                } else {
+                                    verClass += ' fp-deploy-client-ver--ok';
+                                }
+                                $badge.attr('class', verClass).attr('data-client-id', clientId).text('v' + ver);
+                            } else {
+                                $badge.attr('class', 'fp-deploy-client-ver fp-deploy-client-ver--unknown').text('—');
+                            }
+                        }
+                    } else {
+                        errors++;
+                    }
+                }).fail(function() {
+                    errors++;
+                }).always(function() {
+                    done++;
+                    if (done >= total) {
+                        $btn.prop('disabled', false).html(origHtml);
+                        var msg = errors > 0
+                            ? (total - errors) + '/' + total + ' siti sincronizzati. ' + errors + ' errori.'
+                            : total + ' siti sincronizzati.';
+                        showNotice(errors > 0 ? 'error' : 'success', msg);
+                    }
+                });
+            });
+        });
+
         $(document).on('click', '.fp-deploy-install-btn', function() {
             var $row = $(this).closest('tr');
             var repo = $row.data('repo');
@@ -904,7 +975,6 @@
             }).done(function(response) {
                 if (response.success) {
                     showNotice('success', response.data.message);
-                    // Aggiorna la cella plugin nella riga
                     var plugins = response.data.plugins || {};
                     var slugs = Object.keys(plugins);
                     var str = slugs.length ? slugs.slice(0, 8).join(', ') + (slugs.length > 8 ? ' +' + (slugs.length - 8) + '…' : '') : '—';
@@ -916,6 +986,7 @@
                     } else if (slugs.length > 0) {
                         $row.find('.fp-client-plugins-list').after('<small style="color:var(--fp-text-muted);">(' + slugs.length + ')</small>');
                     }
+                    renderVersionsCell($row.find('.fp-client-versions-cell'), plugins);
                 } else {
                     showNotice('error', response.data && response.data.message ? response.data.message : 'Errore durante l\'aggiornamento.');
                 }
@@ -924,6 +995,114 @@
             }).always(function() {
                 $btn.prop('disabled', false).html(origHtml);
             });
+        });
+
+        // ===== VERSIONI IN TEMPO REALE: aggiorna tutti i clienti uno per uno =====
+
+        function renderVersionsCell($cell, plugins) {
+            if (!plugins || Object.keys(plugins).length === 0) {
+                $cell.html('<span class="fp-versions-placeholder">—</span>');
+                return;
+            }
+            var slugs = Object.keys(plugins);
+            var html = '<div class="fp-client-plugins-with-versions">';
+            var shown = slugs.slice(0, 8);
+            shown.forEach(function(slug) {
+                html += '<span class="fp-client-plugin-entry">'
+                    + '<span class="fp-client-plugin-slug">' + $('<span>').text(slug).html() + '</span>'
+                    + ' <span class="fp-deploy-client-ver fp-deploy-client-ver--ok">v' + $('<span>').text(plugins[slug]).html() + '</span>'
+                    + '</span>';
+            });
+            if (slugs.length > 8) {
+                html += '<span class="fp-version-more">+' + (slugs.length - 8) + ' altri</span>';
+            }
+            html += '</div>';
+            $cell.html(html);
+        }
+
+        $(document).on('click', '#fp-refresh-all-versions-btn', function() {
+            var $btn = $(this);
+            var origHtml = $btn.html();
+
+            // Raccoglie tutti i client_id dalla tabella
+            var clientIds = [];
+            $('.fp-master-clients-table tbody tr[id^="fp-client-row-"]').each(function() {
+                var cid = $(this).find('.fp-client-versions-cell').data('client-id');
+                if (cid) clientIds.push(cid);
+            });
+
+            if (clientIds.length === 0) {
+                showNotice('error', 'Nessun cliente trovato nella tabella.');
+                return;
+            }
+
+            $btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Interrogazione in corso...');
+
+            // Mostra stato "caricamento" su tutte le celle versioni
+            clientIds.forEach(function(cid) {
+                var $cell = $('.fp-client-versions-cell[data-client-id="' + CSS.escape(cid) + '"]');
+                $cell.html('<span class="fp-versions-loading"><span class="dashicons dashicons-update spin"></span></span>');
+            });
+
+            var total = clientIds.length;
+            var done = 0;
+            var errors = 0;
+
+            function onClientDone() {
+                done++;
+                $btn.html('<span class="dashicons dashicons-update spin"></span> ' + done + '/' + total + '...');
+                if (done >= total) {
+                    $btn.prop('disabled', false).html(origHtml);
+                    var msg = errors > 0
+                        ? (total - errors) + ' su ' + total + ' clienti aggiornati. ' + errors + ' errori.'
+                        : 'Versioni aggiornate per tutti i ' + total + ' clienti.';
+                    showNotice(errors > 0 ? 'error' : 'success', msg);
+                }
+            }
+
+            // Interroga i clienti con concorrenza massima di 3
+            var nextIndex = 0;
+
+            function processNext() {
+                if (nextIndex >= clientIds.length) return;
+                var index = nextIndex++;
+                var cid = clientIds[index];
+                var $cell = $('.fp-client-versions-cell[data-client-id="' + CSS.escape(cid) + '"]');
+                var $row = $cell.closest('tr');
+
+                $.post(fpGitUpdater.ajax_url, {
+                    action: 'fp_git_updater_refresh_single_client_versions',
+                    nonce: fpGitUpdater.nonce,
+                    client_id: cid
+                }).done(function(response) {
+                    if (response.success) {
+                        var plugins = response.data.plugins || {};
+                        var slugs = Object.keys(plugins);
+                        renderVersionsCell($cell, plugins);
+                        var str = slugs.length ? slugs.slice(0, 8).join(', ') + (slugs.length > 8 ? ' +' + (slugs.length - 8) + '…' : '') : '—';
+                        $row.find('.fp-client-plugins-list').text(str);
+                        var $counter = $row.find('.fp-client-plugins-list').next('small');
+                        if ($counter.length) { $counter.text('(' + slugs.length + ')'); }
+                        $cell.addClass('fp-versions-cell--ok');
+                    } else {
+                        errors++;
+                        var errMsg = response.data && response.data.message ? response.data.message : 'Errore';
+                        $cell.html('<span class="fp-versions-error" title="' + $('<span>').text(errMsg).html() + '"><span class="dashicons dashicons-warning"></span> Errore</span>');
+                    }
+                }).fail(function() {
+                    errors++;
+                    $cell.html('<span class="fp-versions-error"><span class="dashicons dashicons-warning"></span> Connessione fallita</span>');
+                }).always(function() {
+                    onClientDone();
+                    processNext();
+                });
+            }
+
+            // Avvia con max 3 richieste parallele
+            var concurrency = Math.min(3, clientIds.length);
+            for (var i = 0; i < concurrency; i++) {
+                processNext();
+            }
         });
 
         // Rimuovi cliente
