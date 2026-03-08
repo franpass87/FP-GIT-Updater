@@ -860,6 +860,9 @@
                         var ver = response.data.plugin_version || '';
                         var allPlugins = response.data.all_plugins || {};
 
+                        // Debug: mostra gli slug ricevuti nella console
+                        console.log('[FP Sync] client:', clientId, '| plugin_slug cercato:', pluginSlug, '| plugin_version:', ver, '| all_plugins:', allPlugins);
+
                         // Fallback: cerca lo slug con varianti (es. con/senza www, case)
                         if (!ver && pluginSlug) {
                             var slugLower = pluginSlug.toLowerCase();
