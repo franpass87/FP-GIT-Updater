@@ -50,6 +50,7 @@ class Admin {
         add_action('wp_ajax_fp_git_updater_refresh_client_versions', array($this, 'ajax_refresh_client_versions'));
         add_action('wp_ajax_fp_git_updater_refresh_single_client_versions', array($this, 'ajax_refresh_single_client_versions'));
         add_action('wp_ajax_fp_git_updater_sync_client_version', array($this, 'ajax_sync_client_version'));
+        add_action('wp_ajax_fp_git_updater_edit_client', array($this, 'ajax_edit_client'));
     }
     
     /**
@@ -1755,6 +1756,58 @@ class Admin {
             'plugin_slug'    => $plugin_slug,
             'plugin_version' => $plugin_version,
             'all_plugins'    => $plugins_map,
+        ));
+    }
+
+    /**
+     * AJAX: Modifica dati di un cliente (client_id e/o url)
+     */
+    public function ajax_edit_client() {
+        check_ajax_referer('fp_git_updater_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Accesso negato.', 'fp-git-updater')), 403);
+        }
+
+        $old_client_id = sanitize_text_field(wp_unslash($_POST['client_id'] ?? ''));
+        $new_client_id = sanitize_text_field(wp_unslash($_POST['new_client_id'] ?? ''));
+        $new_url       = esc_url_raw(wp_unslash($_POST['new_url'] ?? ''));
+
+        if (empty($old_client_id)) {
+            wp_send_json_error(array('message' => __('ID cliente mancante.', 'fp-git-updater')));
+            return;
+        }
+
+        $clients = get_option(MasterEndpoint::OPTION_CONNECTED_CLIENTS, []);
+        if (!isset($clients[$old_client_id])) {
+            wp_send_json_error(array('message' => __('Cliente non trovato.', 'fp-git-updater')));
+            return;
+        }
+
+        $new_client_id = !empty($new_client_id) ? $new_client_id : $old_client_id;
+
+        // Se il client_id cambia, rinomina la chiave
+        if ($new_client_id !== $old_client_id) {
+            if (isset($clients[$new_client_id])) {
+                wp_send_json_error(array('message' => sprintf(
+                    __('Esiste già un cliente con ID "%s".', 'fp-git-updater'),
+                    $new_client_id
+                )));
+                return;
+            }
+            $clients[$new_client_id] = $clients[$old_client_id];
+            unset($clients[$old_client_id]);
+        }
+
+        // Aggiorna URL
+        $clients[$new_client_id]['url'] = $new_url;
+
+        update_option(MasterEndpoint::OPTION_CONNECTED_CLIENTS, $clients);
+
+        wp_send_json_success(array(
+            'message'        => __('Cliente aggiornato.', 'fp-git-updater'),
+            'old_client_id'  => $old_client_id,
+            'new_client_id'  => $new_client_id,
+            'new_url'        => $new_url,
         ));
     }
 

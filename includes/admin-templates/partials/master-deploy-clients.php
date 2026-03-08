@@ -165,10 +165,18 @@ $backup_dir_writable = $backup_dir_exists && is_writable($backup_dir);
                 <span class="fp-master-clients-badge"><?php echo count($connected_clients); ?></span>
             <?php endif; ?>
         </h3>
-        <button type="button" id="fp-refresh-clients-btn" class="button button-secondary" title="<?php esc_attr_e('Ricarica elenco clienti', 'fp-git-updater'); ?>">
-            <span class="dashicons dashicons-update"></span>
-            <?php _e('Aggiorna elenco', 'fp-git-updater'); ?>
-        </button>
+        <div class="fp-master-clients-actions">
+            <?php if (!empty($connected_clients)): ?>
+            <button type="button" id="fp-refresh-all-versions-btn" class="button button-primary" title="<?php esc_attr_e('Interroga tutti i siti in tempo reale e mostra le versioni plugin installate', 'fp-git-updater'); ?>">
+                <span class="dashicons dashicons-visibility"></span>
+                <?php _e('Versioni in tempo reale', 'fp-git-updater'); ?>
+            </button>
+            <?php endif; ?>
+            <button type="button" id="fp-refresh-clients-btn" class="button button-secondary" title="<?php esc_attr_e('Ricarica elenco clienti', 'fp-git-updater'); ?>">
+                <span class="dashicons dashicons-update"></span>
+                <?php _e('Aggiorna elenco', 'fp-git-updater'); ?>
+            </button>
+        </div>
     </div>
     <p class="fp-master-clients-desc">
         <?php _e('Siti dei tuoi clienti con FP Remote Bridge che hanno contattato il Master negli ultimi 30 giorni. I plugin installati vengono rilevati automaticamente.', 'fp-git-updater'); ?>
@@ -200,13 +208,54 @@ $backup_dir_writable = $backup_dir_exists && is_writable($backup_dir);
             <tbody>
                 <?php foreach ($connected_clients as $client_id => $data):
                     $installed = $data['installed_plugins'] ?? [];
-                    $installed_str = !empty($installed) ? implode(', ', array_slice($installed, 0, 8)) . (count($installed) > 8 ? '…' : '') : '—';
+                    $plugin_versions = $data['plugin_versions'] ?? [];
+                    $count_plugins = count($installed);
+                    $installed_str = !empty($installed) ? implode(', ', array_slice($installed, 0, 8)) . ($count_plugins > 8 ? ' +' . ($count_plugins - 8) . '…' : '') : '—';
+                    $row_class_id = sanitize_html_class($client_id);
+                    $has_versions = !empty($plugin_versions);
                     ?>
-                    <tr id="fp-client-row-<?php echo esc_attr(sanitize_html_class($client_id)); ?>">
+                    <tr id="fp-client-row-<?php echo esc_attr($row_class_id); ?>">
                         <td><strong><?php echo esc_html($client_id); ?></strong></td>
-                        <td><small><?php echo esc_html($installed_str); ?></small></td>
+                        <td class="fp-client-versions-cell" data-client-id="<?php echo esc_attr($client_id); ?>">
+                            <?php if ($has_versions): ?>
+                                <div class="fp-client-plugins-with-versions">
+                                    <?php
+                                    $shown = array_slice($plugin_versions, 0, 8, true);
+                                    foreach ($shown as $slug => $ver):
+                                    ?>
+                                        <span class="fp-client-plugin-entry">
+                                            <span class="fp-client-plugin-slug"><?php echo esc_html($slug); ?></span>
+                                            <span class="fp-deploy-client-ver fp-deploy-client-ver--ok">v<?php echo esc_html($ver); ?></span>
+                                        </span>
+                                    <?php endforeach; ?>
+                                    <?php if ($count_plugins > 8): ?>
+                                        <span class="fp-version-more">+<?php echo $count_plugins - 8; ?> altri</span>
+                                    <?php endif; ?>
+                                </div>
+                            <?php else: ?>
+                                <small class="fp-client-plugins-list" data-client-id="<?php echo esc_attr($client_id); ?>"><?php echo esc_html($installed_str); ?></small>
+                                <?php if ($count_plugins > 0): ?>
+                                    <small style="color:var(--fp-text-muted);"> (<?php echo $count_plugins; ?>)</small>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </td>
                         <td><?php echo esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), $data['last_seen'] ?? 0)); ?></td>
-                        <td>
+                        <td style="white-space:nowrap;">
+                            <button type="button"
+                                    class="button button-small fp-refresh-client-versions-btn"
+                                    data-client-id="<?php echo esc_attr($client_id); ?>"
+                                    title="<?php esc_attr_e('Aggiorna versioni plugin da questo sito', 'fp-git-updater'); ?>"
+                                    style="margin-right:4px;">
+                                <span class="dashicons dashicons-update" style="margin-top:3px;"></span>
+                            </button>
+                            <button type="button"
+                                    class="button button-small fp-edit-client-btn"
+                                    data-client-id="<?php echo esc_attr($client_id); ?>"
+                                    data-client-url="<?php echo esc_attr($data['url'] ?? ''); ?>"
+                                    title="<?php esc_attr_e('Modifica cliente', 'fp-git-updater'); ?>"
+                                    style="margin-right:4px;">
+                                <span class="dashicons dashicons-edit" style="margin-top:3px;"></span>
+                            </button>
                             <button type="button"
                                     class="button button-small fp-remove-client-btn"
                                     data-client-id="<?php echo esc_attr($client_id); ?>"

@@ -1164,6 +1164,97 @@
             }
         });
 
+        // Modifica cliente
+        $(document).on('click', '.fp-edit-client-btn', function() {
+            var $btn = $(this);
+            var clientId  = $btn.data('client-id');
+            var clientUrl = $btn.data('client-url') || '';
+
+            // Rimuovi modal precedente
+            $('#fp-edit-client-modal').remove();
+
+            var html = '<div id="fp-edit-client-modal">'
+                + '<div class="fp-modal-backdrop"></div>'
+                + '<div class="fp-modal-box">'
+                + '<div class="fp-modal-header">'
+                + '<h3><span class="dashicons dashicons-edit"></span> Modifica cliente</h3>'
+                + '<button type="button" class="fp-modal-close"><span class="dashicons dashicons-no-alt"></span></button>'
+                + '</div>'
+                + '<div class="fp-modal-body">'
+                + '<table class="form-table" style="margin:0;">'
+                + '<tr><th style="width:120px;padding:8px 0;"><label>Client ID</label></th>'
+                + '<td style="padding:8px 0;"><input type="text" id="fp-edit-client-id" class="regular-text" value="' + $('<span>').text(clientId).html() + '"></td></tr>'
+                + '<tr><th style="padding:8px 0;"><label>URL sito</label></th>'
+                + '<td style="padding:8px 0;"><input type="url" id="fp-edit-client-url" class="regular-text" placeholder="https://esempio.com" value="' + $('<span>').text(clientUrl).html() + '"></td></tr>'
+                + '</table>'
+                + '<p style="margin:12px 0 0;font-size:12px;color:#646970;">Modifica il Client ID solo se il sito ha cambiato dominio. L\'URL serve per la sincronizzazione versioni.</p>'
+                + '</div>'
+                + '<div class="fp-modal-footer">'
+                + '<button type="button" class="button fp-modal-close">Annulla</button>'
+                + '<button type="button" class="button button-primary" id="fp-edit-client-save" data-old-id="' + $('<span>').text(clientId).html() + '">Salva</button>'
+                + '</div>'
+                + '</div>'
+                + '</div>';
+
+            $('body').append(html);
+            $('#fp-edit-client-modal').fadeIn(150);
+            $('#fp-edit-client-id').focus();
+        });
+
+        // Chiudi modal modifica
+        $(document).on('click', '.fp-modal-close, .fp-modal-backdrop', function() {
+            $('#fp-edit-client-modal').fadeOut(150, function() { $(this).remove(); });
+        });
+        $(document).on('keydown', function(e) {
+            if (e.key === 'Escape') {
+                $('#fp-edit-client-modal').fadeOut(150, function() { $(this).remove(); });
+            }
+        });
+
+        // Salva modifiche cliente
+        $(document).on('click', '#fp-edit-client-save', function() {
+            var $btn = $(this);
+            var oldId  = $btn.data('old-id');
+            var newId  = $('#fp-edit-client-id').val().trim();
+            var newUrl = $('#fp-edit-client-url').val().trim();
+
+            if (!newId) {
+                alert('Il Client ID non può essere vuoto.');
+                return;
+            }
+
+            $btn.prop('disabled', true).text('Salvataggio...');
+
+            $.post(fpGitUpdater.ajax_url, {
+                action: 'fp_git_updater_edit_client',
+                nonce: fpGitUpdater.nonce,
+                client_id: oldId,
+                new_client_id: newId,
+                new_url: newUrl
+            }).done(function(response) {
+                if (response.success) {
+                    $('#fp-edit-client-modal').fadeOut(150, function() { $(this).remove(); });
+                    showNotice('success', response.data.message);
+                    // Aggiorna la riga nella tabella
+                    var $row = $('#fp-client-row-' + oldId.replace(/[^a-zA-Z0-9_-]/g, '-'));
+                    if (!$row.length) { $row = $btn.closest('tr'); }
+                    if (newId !== oldId) {
+                        // Se il client_id è cambiato, ricarica la tabella
+                        setTimeout(function() { location.reload(); }, 800);
+                    } else {
+                        // Aggiorna solo il pulsante con il nuovo URL
+                        $row.find('.fp-edit-client-btn').data('client-url', newUrl);
+                    }
+                } else {
+                    showNotice('error', response.data && response.data.message ? response.data.message : 'Errore.');
+                    $btn.prop('disabled', false).text('Salva');
+                }
+            }).fail(function() {
+                showNotice('error', 'Errore di connessione.');
+                $btn.prop('disabled', false).text('Salva');
+            });
+        });
+
         // Rimuovi cliente
         $(document).on('click', '.fp-remove-client-btn', function() {
             var $btn = $(this);

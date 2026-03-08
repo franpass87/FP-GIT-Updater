@@ -2269,6 +2269,79 @@ html {
     color: var(--fp-warning);
 }
 
+/* === MODAL MODIFICA CLIENTE === */
+#fp-edit-client-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+}
+
+#fp-edit-client-modal .fp-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+}
+
+#fp-edit-client-modal .fp-modal-box {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.2);
+    width: 480px;
+    max-width: calc(100vw - 40px);
+}
+
+#fp-edit-client-modal .fp-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--fp-border);
+}
+
+#fp-edit-client-modal .fp-modal-header h3 {
+    margin: 0;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#fp-edit-client-modal .fp-modal-header h3 .dashicons {
+    color: var(--fp-primary);
+}
+
+#fp-edit-client-modal .fp-modal-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--fp-text-muted);
+    line-height: 1;
+}
+
+#fp-edit-client-modal .fp-modal-close:hover {
+    color: var(--fp-text);
+}
+
+#fp-edit-client-modal .fp-modal-body {
+    padding: 20px;
+}
+
+#fp-edit-client-modal .fp-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--fp-border);
+    background: var(--fp-bg-alt);
+    border-radius: 0 0 4px 4px;
+}
+
 /* === VERSIONI INLINE CLIENTI === */
 .fp-client-plugins-with-versions {
     display: flex;
