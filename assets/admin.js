@@ -864,35 +864,51 @@
                         if (!ver && pluginSlug) {
                             var slugLower = pluginSlug.toLowerCase();
                             var slugNoHyphens = slugLower.replace(/-/g, '');
-                            var bestMatch = '';
-                            var bestVer = '';
 
-                            $.each(allPlugins, function(k, v) {
-                                var kLower = k.toLowerCase();
-                                var kNoHyphens = kLower.replace(/-/g, '');
+                            // Alias noti per plugin con nomi cartella variabili
+                            var knownAliases = {
+                                'fp-remote-bridge': [
+                                    'fp-remote-bridge',
+                                    'fp-remote-bridge-update',
+                                    'fp-remote-bridge-main',
+                                    'fp-remotebridge',
+                                    'fpremotebridge',
+                                    'remote-bridge',
+                                    'fp-bridge'
+                                ]
+                            };
 
-                                // Match esatto
-                                if (kLower === slugLower) {
-                                    ver = v;
-                                    return false;
-                                }
-                                // Match senza trattini
-                                if (kNoHyphens === slugNoHyphens) {
-                                    ver = v;
-                                    return false;
-                                }
-                                // Match parziale: la chiave contiene lo slug o viceversa
-                                if (kLower.indexOf(slugLower) !== -1 || slugLower.indexOf(kLower) !== -1) {
-                                    // Prendi il match più lungo (più specifico)
-                                    if (kLower.length > bestMatch.length) {
-                                        bestMatch = kLower;
-                                        bestVer = v;
+                            // Controlla alias noti prima
+                            if (knownAliases[slugLower]) {
+                                $.each(knownAliases[slugLower], function(i, alias) {
+                                    if (allPlugins[alias] !== undefined) {
+                                        ver = allPlugins[alias];
+                                        return false;
                                     }
-                                }
-                            });
+                                });
+                            }
 
-                            if (!ver && bestVer) {
-                                ver = bestVer;
+                            // Fallback generico: match senza trattini, poi parziale
+                            if (!ver) {
+                                var bestMatch = '';
+                                var bestVer = '';
+                                $.each(allPlugins, function(k, v) {
+                                    var kLower = k.toLowerCase();
+                                    var kNoHyphens = kLower.replace(/-/g, '');
+                                    if (kNoHyphens === slugNoHyphens) {
+                                        ver = v;
+                                        return false;
+                                    }
+                                    if (kLower.indexOf(slugLower) !== -1 || slugLower.indexOf(kLower) !== -1) {
+                                        if (kLower.length > bestMatch.length) {
+                                            bestMatch = kLower;
+                                            bestVer = v;
+                                        }
+                                    }
+                                });
+                                if (!ver && bestVer) {
+                                    ver = bestVer;
+                                }
                             }
                         }
 
