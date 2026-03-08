@@ -820,13 +820,16 @@
         });
 
         // Sincronizza versioni sui clienti selezionati
-        $(document).on('click', '.fp-sync-versions-btn', function() {
+        $(document).on('click', '.fp-sync-versions-btn', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
             var $btn = $(this);
             var $block = $btn.closest('.fp-plugin-deploy-inline');
             var pluginSlug = $btn.data('plugin-slug') || '';
             var githubVersion = $btn.data('github-version') || '';
 
-            // Raccoglie i client selezionati
+            // Raccoglie i client selezionati (checkbox spuntate)
             var clientIds = [];
             $block.find('.fp-client-cb:checked').each(function() {
                 var v = $(this).val();
@@ -834,7 +837,7 @@
             });
 
             if (clientIds.length === 0) {
-                showNotice('error', 'Seleziona almeno un sito prima di sincronizzare.');
+                showNotice('error', 'Seleziona almeno un sito con le checkbox prima di sincronizzare.');
                 return;
             }
 
@@ -843,6 +846,7 @@
 
             var done = 0;
             var errors = 0;
+            var errorMsgs = [];
             var total = clientIds.length;
 
             clientIds.forEach(function(clientId) {
@@ -858,33 +862,34 @@
                         if ($badge.length) {
                             if (ver) {
                                 var verClass = 'fp-deploy-client-ver';
-                                if (githubVersion) {
-                                    if (window.compareVersions) {
-                                        verClass += ver === githubVersion ? ' fp-deploy-client-ver--ok' : ' fp-deploy-client-ver--old';
-                                    } else {
-                                        verClass += ver === githubVersion ? ' fp-deploy-client-ver--ok' : ' fp-deploy-client-ver--old';
-                                    }
-                                } else {
-                                    verClass += ' fp-deploy-client-ver--ok';
-                                }
+                                verClass += (githubVersion && ver !== githubVersion)
+                                    ? ' fp-deploy-client-ver--old'
+                                    : ' fp-deploy-client-ver--ok';
                                 $badge.attr('class', verClass).attr('data-client-id', clientId).text('v' + ver);
                             } else {
+                                // Plugin non trovato sul sito (non installato)
                                 $badge.attr('class', 'fp-deploy-client-ver fp-deploy-client-ver--unknown').text('—');
                             }
                         }
                     } else {
                         errors++;
+                        var errMsg = (response.data && response.data.message) ? response.data.message : 'Errore';
+                        errorMsgs.push(clientId + ': ' + errMsg);
                     }
-                }).fail(function() {
+                }).fail(function(xhr) {
                     errors++;
+                    errorMsgs.push(clientId + ': connessione fallita (HTTP ' + xhr.status + ')');
                 }).always(function() {
                     done++;
                     if (done >= total) {
                         $btn.prop('disabled', false).html(origHtml);
-                        var msg = errors > 0
-                            ? (total - errors) + '/' + total + ' siti sincronizzati. ' + errors + ' errori.'
-                            : total + ' siti sincronizzati.';
-                        showNotice(errors > 0 ? 'error' : 'success', msg);
+                        if (errors === 0) {
+                            showNotice('success', total + ' ' + (total === 1 ? 'sito sincronizzato.' : 'siti sincronizzati.'));
+                        } else if (errors < total) {
+                            showNotice('error', (total - errors) + '/' + total + ' siti OK. Errori: ' + errorMsgs.join(' | '));
+                        } else {
+                            showNotice('error', 'Sincronizzazione fallita. ' + errorMsgs.join(' | '));
+                        }
                     }
                 });
             });
