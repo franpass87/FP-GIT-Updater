@@ -860,18 +860,40 @@
                         var ver = response.data.plugin_version || '';
                         var allPlugins = response.data.all_plugins || {};
 
-                        // Debug: mostra gli slug ricevuti nella console
-                        console.log('[FP Sync] client:', clientId, '| plugin_slug cercato:', pluginSlug, '| plugin_version:', ver, '| all_plugins:', allPlugins);
-
-                        // Fallback: cerca lo slug con varianti (es. con/senza www, case)
+                        // Fallback: cerca lo slug con varie strategie di matching
                         if (!ver && pluginSlug) {
                             var slugLower = pluginSlug.toLowerCase();
+                            var slugNoHyphens = slugLower.replace(/-/g, '');
+                            var bestMatch = '';
+                            var bestVer = '';
+
                             $.each(allPlugins, function(k, v) {
-                                if (k.toLowerCase() === slugLower || k.toLowerCase().replace(/-/g, '') === slugLower.replace(/-/g, '')) {
+                                var kLower = k.toLowerCase();
+                                var kNoHyphens = kLower.replace(/-/g, '');
+
+                                // Match esatto
+                                if (kLower === slugLower) {
                                     ver = v;
                                     return false;
                                 }
+                                // Match senza trattini
+                                if (kNoHyphens === slugNoHyphens) {
+                                    ver = v;
+                                    return false;
+                                }
+                                // Match parziale: la chiave contiene lo slug o viceversa
+                                if (kLower.indexOf(slugLower) !== -1 || slugLower.indexOf(kLower) !== -1) {
+                                    // Prendi il match più lungo (più specifico)
+                                    if (kLower.length > bestMatch.length) {
+                                        bestMatch = kLower;
+                                        bestVer = v;
+                                    }
+                                }
                             });
+
+                            if (!ver && bestVer) {
+                                ver = bestVer;
+                            }
                         }
 
                         var $badge = $block.find('.fp-deploy-client-ver[data-client-id="' + clientId + '"]');
