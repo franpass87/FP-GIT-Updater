@@ -858,6 +858,19 @@
                 }).done(function(response) {
                     if (response.success) {
                         var ver = response.data.plugin_version || '';
+                        var allPlugins = response.data.all_plugins || {};
+
+                        // Fallback: cerca lo slug con varianti (es. con/senza www, case)
+                        if (!ver && pluginSlug) {
+                            var slugLower = pluginSlug.toLowerCase();
+                            $.each(allPlugins, function(k, v) {
+                                if (k.toLowerCase() === slugLower || k.toLowerCase().replace(/-/g, '') === slugLower.replace(/-/g, '')) {
+                                    ver = v;
+                                    return false;
+                                }
+                            });
+                        }
+
                         var $badge = $block.find('.fp-deploy-client-ver[data-client-id="' + clientId + '"]');
                         if ($badge.length) {
                             if (ver) {
@@ -867,8 +880,8 @@
                                     : ' fp-deploy-client-ver--ok';
                                 $badge.attr('class', verClass).attr('data-client-id', clientId).text('v' + ver);
                             } else {
-                                // Plugin non trovato sul sito (non installato)
-                                $badge.attr('class', 'fp-deploy-client-ver fp-deploy-client-ver--unknown').text('—');
+                                // Plugin non installato su questo sito
+                                $badge.attr('class', 'fp-deploy-client-ver fp-deploy-client-ver--unknown').attr('title', 'Plugin non trovato su questo sito').text('n/a');
                             }
                         }
                     } else {
