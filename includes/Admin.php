@@ -1689,11 +1689,20 @@ class Admin {
 
         $client_data = $all_clients[$client_id];
         $site_url    = $client_data['url'] ?? '';
-        if (empty($site_url) && preg_match('#^[a-z0-9]([a-z0-9\-\.]+)?[a-z0-9]\.[a-z]{2,}$#i', $client_id)) {
-            $site_url = 'https://' . $client_id;
-        }
+
+        // Fallback: costruisci URL dal client_id se sembra un dominio (con o senza www)
         if (empty($site_url)) {
-            wp_send_json_error(array('message' => __('URL sito cliente non disponibile.', 'fp-git-updater')));
+            $cid_clean = preg_replace('#^https?://#', '', $client_id);
+            if (preg_match('#^[a-z0-9]([a-z0-9\-\.]+)?[a-z0-9]\.[a-z]{2,}(/.*)?$#i', $cid_clean)) {
+                $site_url = 'https://' . ltrim($cid_clean, '/');
+            }
+        }
+
+        if (empty($site_url)) {
+            wp_send_json_error(array('message' => sprintf(
+                __('URL sito non disponibile per "%s". Vai sul sito cliente → Impostazioni → FP Remote Bridge → Sincronizza ora, poi riprova.', 'fp-git-updater'),
+                $client_id
+            )));
             return;
         }
 
