@@ -1,0 +1,123 @@
+# Changelog
+
+All notable changes to FP Updater will be documented in this file.
+
+## [1.6.8] - 2026-03-08
+### Added
+- Pulsante modifica cliente con modal per correggere ID e URL
+
+## [1.6.7] - 2026-03-08
+### Fixed
+- Alias noti `fp-remote-bridge` + fallback generico slug matching
+
+## [1.6.6] - 2026-03-08
+### Fixed
+- Slug matching parziale per cartelle plugin con nome diverso
+
+## [1.6.4] - 2026-03-08
+### Fixed
+- Badge versione: fallback slug fuzzy + `n/a` se plugin non installato
+
+## [1.6.3] - 2026-03-08
+### Fixed
+- Fallback URL cliente migliorato con messaggio errore dettagliato
+
+## [1.6.2] - 2026-03-08
+### Fixed
+- Sync versioni: errori visibili, `e.preventDefault`, messaggi dettagliati
+
+## [1.6.0] - 2026-03-07
+### Added
+- Pulsante sincronizza versioni sui clienti selezionati
+
+### Fixed
+- Logger prepare, SettingsBackup validazione+esc_url, uninstall opzioni master, XSS plugin-template
+- Namespace `WP_REST_Response`, rate limiter IP spoofing, Encryption IV+decrypt, Migration lock, htaccess backup
+- `commit_short->latest_commit_short`, WP_Filesystem check, fallback `??` in Updater
+
+## [1.5.4] - 2026-03-07
+### Added
+- Bottone refresh versioni per ogni cliente
+- Endpoint `plugin-versions` su Bridge
+
+## [1.5.2] - 2026-03-07
+### Fixed
+- UI duplicati rimossi
+- Supporto POST a `master-updates-status` per `installed_plugins` illimitati
+
+## [1.5.1] - 2026-03-06
+### Added
+- Endpoint `/deploy-and-reload` per aggiornare Bridge con reload forzato
+
+## [1.5.0] - 2026-03-05
+### Added
+- Pulsante elimina cliente nella lista clienti collegati
+
+## [1.4.8] - 2026-03-05
+### Added
+- Push `trigger-sync` ai client dopo deploy
+
+### Fixed
+- Slug maiuscole normalizzate, pulizia lista deploy
+
+## [1.4.7] - 2026-03-05
+### Fixed
+- `deploy-install` non accumula duplicati e pulisce lista scaduta
+
+## [1.3.8] - 2026-03-04
+### Fixed
+- Rimosso hash `#tab-X` dall'URL per evitare scroll anchor
+
+## [1.3.7] - 2026-03-04
+### Added
+- Griglia clienti nella sezione deploy plugin
+
+## [1.3.6] - 2026-03-04
+### Added
+- Mostra commit SHA e messaggio nelle card plugin e self-update
+
+## [1.3.5] - 2026-03-04
+### Added
+- Favicon SVG personalizzata nelle pagine admin (icona sync blu-viola)
+
+## [1.3.4] - 2026-03-03
+### Fixed
+- Auto-updater, self-update ricorsione, Master clienti e debug
+- Namespace `WP_Error` + self-update fallback
+- Lock orfano: auto-sblocco dopo 15 min + pulsante "Sblocca e riprova"
+
+## [1.3.3] - 2026-03-02
+### Fixed
+- Gestione errori critici: `get_backup_stats`, plugin-item try-catch, admin.js nullish coalescing
+- Usa repo `franpass87/FP-GIT-Updater` per auto-aggiornamento
+
+## [1.3.2] - 2026-03-02
+### Fixed
+- Backup system, AJAX handlers, cron, UI/UX, Migration init
+
+## [1.2.9] - 2026-01-10
+### Added
+- Visualizzazione versione installata e GitHub nella sezione auto-aggiornamento
+
+### Changed
+- Rimossi tutti i keyframes e animazioni decorative non utilizzate
+
+## [1.2.8] - 2026-01-08
+### Added
+- Sistema gestione backup con limiti e pulizia automatica
+- Fallback automatico per errore HTTP 401 durante download aggiornamenti
+- Pulizia automatica file non necessari durante installazione
+
+## [1.2.7] - 2025-12-31
+### Changed
+- Usa `rename` invece di `copy_dir`: molto più veloce e affidabile su hosting condivisi
+
+## [1.2.5] - 2025-11-05
+### Fixed
+- Auto-aggiornamento completo: assegnato ID speciale `fp_git_updater_self`
+
+## [1.0.0] - 2025-10-xx
+### Added
+- Release iniziale: aggiornamenti automatici plugin WordPress da GitHub
+- Supporto repo privati con token GitHub
+- Dashboard admin con stato aggiornamenti
