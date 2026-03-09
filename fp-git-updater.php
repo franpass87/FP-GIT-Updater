@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: FP Updater
- * Plugin URI: https://www.francescopasseri.com
+ * Plugin URI: https://francescopasseri.com
  * Description: Gestione sicura degli aggiornamenti dei plugin da GitHub. Supporta sia aggiornamenti automatici che manuali tramite webhook, proteggendo i tuoi siti da aggiornamenti problematici.
  * Version: 1.6.8
  * Author: Francesco Passeri
- * Author URI: https://www.francescopasseri.com
+ * Author URI: https://francescopasseri.com
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: fp-git-updater
