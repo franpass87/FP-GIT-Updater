@@ -3,7 +3,7 @@
  * Plugin Name: FP Updater
  * Plugin URI: https://francescopasseri.com
  * Description: Gestione sicura degli aggiornamenti dei plugin da GitHub. Supporta sia aggiornamenti automatici che manuali tramite webhook, proteggendo i tuoi siti da aggiornamenti problematici.
- * Version: 1.6.8
+ * Version: 1.6.9
  * Author: Francesco Passeri
  * Author URI: https://francescopasseri.com
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if (substr_count($self_basename, '/') > 1) {
 }
 
 // Definisci costanti del plugin
-define('FP_GIT_UPDATER_VERSION', '1.6.8');
+define('FP_GIT_UPDATER_VERSION', '1.6.9');
 define('FP_GIT_UPDATER_PLUGIN_DIR', dirname(__FILE__) . '/');
 define('FP_GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FP_GIT_UPDATER_PLUGIN_FILE', __FILE__);
@@ -304,11 +304,7 @@ class FP_Git_Updater {
         $settings = wp_parse_args($existing_settings, $default_settings);
         update_option('fp_git_updater_settings', $settings);
 
-        // Fallback: schedula il cron se non già presente (Updater potrebbe non essere caricato)
-        $interval = isset($settings['update_check_interval']) ? $settings['update_check_interval'] : 'hourly';
-        if (!wp_next_scheduled('fp_git_updater_check_update')) {
-            wp_schedule_event(time() + 60, $interval, 'fp_git_updater_check_update');
-        }
+        // Non schedula più il cron dei controlli: solo controlli manuali per evitare rate limit API GitHub
     }
     
     /**

@@ -2,6 +2,10 @@
 
 All notable changes to FP Updater will be documented in this file.
 
+## [1.6.9] - 2026-03-10
+### Changed
+- Controlli aggiornamenti solo manuali: rimosso cron automatico per evitare rate limit API GitHub
+
 ## [1.6.8] - 2026-03-08
 ### Added
 - Pulsante modifica cliente con modal per correggere ID e URL

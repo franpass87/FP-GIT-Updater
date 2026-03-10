@@ -32,21 +32,18 @@ class Updater {
         add_action('fp_git_updater_cleanup_old_logs', array('FP\GitUpdater\Logger', 'clear_old_logs'));
         add_action('fp_git_updater_cleanup_old_backups', array($this, 'cleanup_old_backups'));
         
-        // Schedula controlli periodici se abilitati
-        $this->schedule_update_checks();
+        // Non schedula più controlli automatici: solo controlli manuali (vedi ajax_check_updates)
+        $this->unschedule_update_checks();
         $this->schedule_backup_cleanup();
     }
     
     /**
-     * Schedula i controlli periodici per aggiornamenti
+     * Rimuove il cron dei controlli automatici (controlli solo manuali per evitare rate limit API GitHub)
      */
-    private function schedule_update_checks() {
-        $settings = get_option('fp_git_updater_settings');
-        $interval = isset($settings['update_check_interval']) ? $settings['update_check_interval'] : 'hourly';
-        
-        if (!wp_next_scheduled('fp_git_updater_check_update')) {
-            // Aggiungi 1 minuto di offset per evitare race condition
-            wp_schedule_event(time() + 60, $interval, 'fp_git_updater_check_update');
+    private function unschedule_update_checks() {
+        $timestamp = wp_next_scheduled('fp_git_updater_check_update');
+        if ($timestamp !== false) {
+            wp_unschedule_event($timestamp, 'fp_git_updater_check_update');
         }
     }
     
