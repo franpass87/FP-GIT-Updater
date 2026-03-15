@@ -2,6 +2,10 @@
 
 All notable changes to FP Updater will be documented in this file.
 
+## [1.6.10] - 2026-03-15
+### Fixed
+- Eliminazione cliente: i clienti rimossi dalla lista non riappaiono più quando il sito cliente si riconnette al Master (blacklist clienti rimossi)
+
 ## [1.6.9] - 2026-03-10
 ### Changed
 - Controlli aggiornamenti solo manuali: rimosso cron automatico per evitare rate limit API GitHub

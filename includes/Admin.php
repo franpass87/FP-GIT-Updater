@@ -1483,6 +1483,15 @@ class Admin {
         }
         unset($clients[$client_id]);
         update_option(MasterEndpoint::OPTION_CONNECTED_CLIENTS, $clients);
+        // Evita che il cliente riappaia quando il suo sito si riconnette al Master
+        $removed = get_option(MasterEndpoint::OPTION_REMOVED_CLIENT_IDS, []);
+        if (!is_array($removed)) {
+            $removed = [];
+        }
+        if (!in_array($client_id, $removed, true)) {
+            $removed[] = $client_id;
+            update_option(MasterEndpoint::OPTION_REMOVED_CLIENT_IDS, $removed);
+        }
         wp_send_json_success(array('message' => sprintf(__('Cliente "%s" rimosso.', 'fp-git-updater'), $client_id)));
     }
 

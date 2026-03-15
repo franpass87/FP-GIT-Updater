@@ -26,6 +26,8 @@ class MasterEndpoint
     public const OPTION_DEPLOY_INSTALL = 'fp_git_updater_deploy_install';
     public const OPTION_DEPLOY_UPDATE = 'fp_git_updater_deploy_update';
     public const OPTION_CONNECTED_CLIENTS = 'fp_git_updater_connected_clients';
+    /** Opzione: ID clienti rimossi dall’admin (non riaggiunti quando il sito si riconnette). */
+    public const OPTION_REMOVED_CLIENT_IDS = 'fp_git_updater_removed_client_ids';
     public const HEADER_SECRET = 'X-FP-Client-Secret';
     public const HEADER_CLIENT_ID = 'X-FP-Client-ID';
 
@@ -466,6 +468,12 @@ class MasterEndpoint
             return;
         }
 
+        // Non riaggiungere clienti che l’admin ha rimosso dalla lista
+        $removed = get_option(self::OPTION_REMOVED_CLIENT_IDS, []);
+        if (is_array($removed) && in_array($client_id, $removed, true)) {
+            return;
+        }
+
         $now = time();
         $clients = get_option(self::OPTION_CONNECTED_CLIENTS, []);
         if (!is_array($clients)) {
@@ -528,9 +536,16 @@ class MasterEndpoint
             return [];
         }
 
+        $removed = get_option(self::OPTION_REMOVED_CLIENT_IDS, []);
+        if (!is_array($removed)) {
+            $removed = [];
+        }
         $cutoff = time() - self::CLIENT_STALE_SECONDS;
         $filtered = [];
         foreach ($clients as $id => $data) {
+            if (in_array($id, $removed, true)) {
+                continue;
+            }
             if (!is_array($data) || empty($data['last_seen'])) {
                 continue;
             }
