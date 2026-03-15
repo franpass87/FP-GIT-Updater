@@ -25,9 +25,9 @@ class MasterEndpoint
     public const OPTION_DEPLOY_AUTHORIZED_UNTIL = 'fp_git_updater_deploy_authorized_until';
     public const OPTION_DEPLOY_INSTALL = 'fp_git_updater_deploy_install';
     public const OPTION_DEPLOY_UPDATE = 'fp_git_updater_deploy_update';
-    public const OPTION_CONNECTED_CLIENTS = 'fp_git_updater_connected_clients';
-    /** Opzione: ID clienti rimossi dall’admin (non riaggiunti quando il sito si riconnette). */
-    public const OPTION_REMOVED_CLIENT_IDS = 'fp_git_updater_removed_client_ids';
+    public const OPTION_CONNECTED_CLIENTS = 'fp_git_updater_connected_clients';’admin (non riaggiunti quando il sito si riconnette). */
+    /** Mapping vecchio client_id -> client_id corrente (dopo rinomina), così il sito che si riconnette con il vecchio ID aggiorna l'entry con il nome nuovo. */
+    public const OPTION_CLIENT_ID_ALIASES = 'fp_git_updater_client_id_aliases';
     public const HEADER_SECRET = 'X-FP-Client-Secret';
     public const HEADER_CLIENT_ID = 'X-FP-Client-ID';
 
@@ -469,11 +469,8 @@ class MasterEndpoint
         }
 
         // Non riaggiungere clienti che l’admin ha rimosso dalla lista
-        $removed = get_option(self::OPTION_REMOVED_CLIENT_IDS, []);
-        if (is_array($removed) && in_array($client_id, $removed, true)) {
-            return;
-        }
-
+        // Se il cliente è stato rinominato, aggiorna l'entry con il nome nuovo (così non riappare il vecchio ID)
+        $resolved_id = self::resolve_client_id_alias($client_id);
         $now = time();
         $clients = get_option(self::OPTION_CONNECTED_CLIENTS, []);
         if (!is_array($clients)) {
@@ -512,16 +509,37 @@ class MasterEndpoint
         }
         $site_url = esc_url_raw($site_url);
 
-        $clients[$client_id] = [
+        $clients[$resolved_id] = [
             'last_seen'         => $now,
-            'first_seen'        => $clients[$client_id]['first_seen'] ?? $now,
+            'first_seen'        => $clients[$resolved_id]['first_seen'] ?? $clients[$client_id]['first_seen'] ?? $now,
             'installed_plugins' => array_values(array_unique($slugs)),
             'plugin_versions'   => $plugin_versions,
-            'url'               => $site_url ?: ($clients[$client_id]['url'] ?? ''),
+            'url'               => $site_url ?: ($clients[$resolved_id]['url'] ?? $clients[$client_id]['url'] ?? ''),
         ];
 
         update_option(self::OPTION_CONNECTED_CLIENTS, $clients);
-        Logger::log('info', 'Master: client registrato', ['client_id' => $client_id, 'plugins_count' => count($installed_plugins)]);
+        Logger::log('info', 'Master: client registrato', ['client_id' => $resolved_id, 'plugins_count' => count($installed_plugins)]);
+    }
+
+    /**
+     * Risolve un client_id eventualmente rinominato: restituisce l'ID corrente (chiave in connected_clients).
+     *
+     * @param string $client_id ID inviato dal Bridge (può essere un vecchio nome dopo rinomina)
+     * @return string ID da usare come chiave (nuovo nome se esiste alias, altrimenti $client_id)
+     */
+    private static function resolve_client_id_alias(string $client_id): string
+    {
+        $aliases = get_option(self::OPTION_CLIENT_ID_ALIASES, []);
+        if (!is_array($aliases)) {
+            return $client_id;
+        }
+        $id = $client_id;
+        $seen = [];
+        while (isset($aliases[$id]) && !isset($seen[$id])) {
+            $seen[$id] = true;
+            $id = $aliases[$id];
+        }
+        return is_string($id) ? $id : $client_id;
     }
 
     /**
@@ -536,16 +554,9 @@ class MasterEndpoint
             return [];
         }
 
-        $removed = get_option(self::OPTION_REMOVED_CLIENT_IDS, []);
-        if (!is_array($removed)) {
-            $removed = [];
-        }
         $cutoff = time() - self::CLIENT_STALE_SECONDS;
         $filtered = [];
         foreach ($clients as $id => $data) {
-            if (in_array($id, $removed, true)) {
-                continue;
-            }
             if (!is_array($data) || empty($data['last_seen'])) {
                 continue;
             }

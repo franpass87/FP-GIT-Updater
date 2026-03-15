@@ -1483,15 +1483,6 @@ class Admin {
         }
         unset($clients[$client_id]);
         update_option(MasterEndpoint::OPTION_CONNECTED_CLIENTS, $clients);
-        // Evita che il cliente riappaia quando il suo sito si riconnette al Master
-        $removed = get_option(MasterEndpoint::OPTION_REMOVED_CLIENT_IDS, []);
-        if (!is_array($removed)) {
-            $removed = [];
-        }
-        if (!in_array($client_id, $removed, true)) {
-            $removed[] = $client_id;
-            update_option(MasterEndpoint::OPTION_REMOVED_CLIENT_IDS, $removed);
-        }
         wp_send_json_success(array('message' => sprintf(__('Cliente "%s" rimosso.', 'fp-git-updater'), $client_id)));
     }
 
@@ -1794,7 +1785,7 @@ class Admin {
 
         $new_client_id = !empty($new_client_id) ? $new_client_id : $old_client_id;
 
-        // Se il client_id cambia, rinomina la chiave
+        // Se il client_id cambia, rinomina la chiave e registra l'alias (così le riconnessioni con il vecchio ID aggiornano l'entry con il nome nuovo)
         if ($new_client_id !== $old_client_id) {
             if (isset($clients[$new_client_id])) {
                 wp_send_json_error(array('message' => sprintf(
@@ -1805,6 +1796,13 @@ class Admin {
             }
             $clients[$new_client_id] = $clients[$old_client_id];
             unset($clients[$old_client_id]);
+
+            $aliases = get_option(MasterEndpoint::OPTION_CLIENT_ID_ALIASES, []);
+            if (!is_array($aliases)) {
+                $aliases = [];
+            }
+            $aliases[$old_client_id] = $new_client_id;
+            update_option(MasterEndpoint::OPTION_CLIENT_ID_ALIASES, $aliases);
         }
 
         // Aggiorna URL

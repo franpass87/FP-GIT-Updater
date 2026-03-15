@@ -37,7 +37,7 @@ delete_option('fp_git_updater_db_version');
 delete_option('fp_git_updater_master_mode');
 delete_option('fp_git_updater_master_client_secret');
 delete_option('fp_git_updater_connected_clients');
-delete_option('fp_git_updater_removed_client_ids');
+delete_option('fp_git_updater_client_id_aliases');
 delete_option('fp_git_updater_deploy_authorized_until');
 delete_option('fp_git_updater_deploy_install');
 delete_option('fp_git_updater_deploy_update');
