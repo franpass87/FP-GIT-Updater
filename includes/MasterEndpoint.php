@@ -25,7 +25,8 @@ class MasterEndpoint
     public const OPTION_DEPLOY_AUTHORIZED_UNTIL = 'fp_git_updater_deploy_authorized_until';
     public const OPTION_DEPLOY_INSTALL = 'fp_git_updater_deploy_install';
     public const OPTION_DEPLOY_UPDATE = 'fp_git_updater_deploy_update';
-    public const OPTION_CONNECTED_CLIENTS = 'fp_git_updater_connected_clients';’admin (non riaggiunti quando il sito si riconnette). */
+    /** Client registrati dal Master. */
+    public const OPTION_CONNECTED_CLIENTS = 'fp_git_updater_connected_clients';
     /** Mapping vecchio client_id -> client_id corrente (dopo rinomina), così il sito che si riconnette con il vecchio ID aggiorna l'entry con il nome nuovo. */
     public const OPTION_CLIENT_ID_ALIASES = 'fp_git_updater_client_id_aliases';
     public const HEADER_SECRET = 'X-FP-Client-Secret';

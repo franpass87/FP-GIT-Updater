@@ -2,6 +2,11 @@
 
 All notable changes to FP Updater will be documented in this file.
 
+## [1.6.11] - 2026-03-18
+### Fixed
+- Risolto errore critico in admin dovuto a testo corrotto nella dichiarazione della costante `OPTION_CONNECTED_CLIENTS` in `MasterEndpoint`
+- Ripulita coda corrotta del file `CHANGELOG.md` con righe duplicate/troncate
+
 ## [1.6.10] - 2026-03-15
 ### Added
 - Alias client_id dopo rinomina: se rinomini un cliente, il sito che si riconnette con il vecchio ID aggiorna l'entry con il nome nuovo (il vecchio nome non riappare)
