@@ -471,11 +471,23 @@ class MasterEndpoint
 
         // Non riaggiungere clienti che l’admin ha rimosso dalla lista
         // Se il cliente è stato rinominato, aggiorna l'entry con il nome nuovo (così non riappare il vecchio ID)
-        $resolved_id = self::resolve_client_id_alias($client_id);
+        $normalized_input = self::normalize_client_id($client_id);
+        $resolved_id = self::resolve_client_id_alias($normalized_input);
+        if ($resolved_id === $normalized_input) {
+            $resolved_id = self::resolve_client_id_alias($client_id);
+        }
+        if ($resolved_id === $client_id && $normalized_input !== $client_id) {
+            $resolved_id = $normalized_input;
+        }
         $now = time();
+        $first_seen_fallback = null;
         $clients = get_option(self::OPTION_CONNECTED_CLIENTS, []);
         if (!is_array($clients)) {
             $clients = [];
+        }
+        if ($resolved_id === $normalized_input && isset($clients[$client_id]) && $client_id !== $normalized_input) {
+            $first_seen_fallback = $clients[$client_id]['first_seen'] ?? null;
+            unset($clients[$client_id]);
         }
 
         // Parsare il formato "slug:version" — compatibile con il vecchio formato "slug"
@@ -512,7 +524,7 @@ class MasterEndpoint
 
         $clients[$resolved_id] = [
             'last_seen'         => $now,
-            'first_seen'        => $clients[$resolved_id]['first_seen'] ?? $clients[$client_id]['first_seen'] ?? $now,
+            'first_seen'        => $clients[$resolved_id]['first_seen'] ?? $clients[$client_id]['first_seen'] ?? $first_seen_fallback ?? $now,
             'installed_plugins' => array_values(array_unique($slugs)),
             'plugin_versions'   => $plugin_versions,
             'url'               => $site_url ?: ($clients[$resolved_id]['url'] ?? $clients[$client_id]['url'] ?? ''),
@@ -523,7 +535,25 @@ class MasterEndpoint
     }
 
     /**
+     * Normalizza un client_id per confronto e lookup alias.
+     * Il Bridge può inviare "https://example.com" o "example.com": stessa entità.
+     *
+     * @param string $client_id ID inviato dal Bridge
+     * @return string Forma canonica (host lowercase, senza protocollo)
+     */
+    public static function normalize_client_id(string $client_id): string
+    {
+        $s = trim($client_id);
+        $s = preg_replace('#^https?://#i', '', $s);
+        $s = preg_replace('#/.*$#', '', $s);
+        $s = strtolower(trim($s, '/'));
+        return $s === '' ? $client_id : $s;
+    }
+
+    /**
      * Risolve un client_id eventualmente rinominato: restituisce l'ID corrente (chiave in connected_clients).
+     * Controlla sia l'ID esatto che la forma normalizzata (evita duplicati quando il Bridge invia
+     * "https://example.com" vs "example.com").
      *
      * @param string $client_id ID inviato dal Bridge (può essere un vecchio nome dopo rinomina)
      * @return string ID da usare come chiave (nuovo nome se esiste alias, altrimenti $client_id)
@@ -535,6 +565,12 @@ class MasterEndpoint
             return $client_id;
         }
         $id = $client_id;
+        if (!isset($aliases[$id])) {
+            $normalized = self::normalize_client_id($client_id);
+            if ($normalized !== $id && isset($aliases[$normalized])) {
+                $id = $aliases[$normalized];
+            }
+        }
         $seen = [];
         while (isset($aliases[$id]) && !isset($seen[$id])) {
             $seen[$id] = true;

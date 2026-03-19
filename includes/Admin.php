@@ -1803,6 +1803,10 @@ class Admin {
                 $aliases = [];
             }
             $aliases[$old_client_id] = $new_client_id;
+            $normalized_old = MasterEndpoint::normalize_client_id($old_client_id);
+            if ($normalized_old !== $old_client_id) {
+                $aliases[$normalized_old] = $new_client_id;
+            }
             update_option(MasterEndpoint::OPTION_CLIENT_ID_ALIASES, $aliases);
         }
 

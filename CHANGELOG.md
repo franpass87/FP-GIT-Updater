@@ -2,6 +2,10 @@
 
 All notable changes to FP Updater will be documented in this file.
 
+## [1.6.13] - 2026-03-19
+### Fixed
+- Rinomina cliente: il vecchio nome non riappare più nella lista. Normalizzazione client_id (es. `https://example.com` ↔ `example.com`) e alias per entrambe le forme, così le riconnessioni del Bridge aggiornano l'entry rinominata invece di creare duplicati
+
 ## [1.6.12] - 2026-03-19
 ### Fixed
 - Modal modifica cliente: corretto salvataggio e chiusura. Ora usa `$.ajax` con `dataType: 'json'`, gestione errori migliorata (403/sessione scaduta, parsererror), `preventDefault`/`stopPropagation` sul click Salva
