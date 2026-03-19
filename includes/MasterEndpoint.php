@@ -480,15 +480,31 @@ class MasterEndpoint
             $resolved_id = $normalized_input;
         }
         $now = time();
-        $first_seen_fallback = null;
+        $earliest_first_seen = null;
         $clients = get_option(self::OPTION_CONNECTED_CLIENTS, []);
         if (!is_array($clients)) {
             $clients = [];
         }
-        if ($resolved_id === $normalized_input && isset($clients[$client_id]) && $client_id !== $normalized_input) {
-            $first_seen_fallback = $clients[$client_id]['first_seen'] ?? null;
-            unset($clients[$client_id]);
+        if ($resolved_id === $normalized_input) {
+            $to_merge = [$resolved_id, $client_id];
+            foreach (array_keys($clients) as $existing_key) {
+                if ($existing_key !== $resolved_id && self::normalize_client_id($existing_key) === $normalized_input) {
+                    $to_merge[] = $existing_key;
+                }
+            }
+            foreach ($to_merge as $key) {
+                $fs = $clients[$key]['first_seen'] ?? null;
+                if ($fs && (!$earliest_first_seen || $fs < $earliest_first_seen)) {
+                    $earliest_first_seen = $fs;
+                }
+            }
+            foreach (array_keys($clients) as $existing_key) {
+                if ($existing_key !== $resolved_id && self::normalize_client_id($existing_key) === $normalized_input) {
+                    unset($clients[$existing_key]);
+                }
+            }
         }
+        $first_seen_fallback = $earliest_first_seen;
 
         // Parsare il formato "slug:version" — compatibile con il vecchio formato "slug"
         // Gli slug vengono normalizzati in lowercase per confronti case-insensitive
@@ -525,7 +541,7 @@ class MasterEndpoint
 
         $clients[$resolved_id] = [
             'last_seen'         => $now,
-            'first_seen'        => $clients[$resolved_id]['first_seen'] ?? $clients[$client_id]['first_seen'] ?? $first_seen_fallback ?? $now,
+            'first_seen'        => $first_seen_fallback ?? $clients[$resolved_id]['first_seen'] ?? $clients[$client_id]['first_seen'] ?? $now,
             'installed_plugins' => array_values(array_unique($slugs)),
             'plugin_versions'   => $plugin_versions,
             'url'               => $site_url ?: ($clients[$resolved_id]['url'] ?? $clients[$client_id]['url'] ?? ''),
@@ -538,10 +554,10 @@ class MasterEndpoint
 
     /**
      * Normalizza un client_id per confronto e lookup alias.
-     * Il Bridge può inviare "https://example.com" o "example.com": stessa entità.
+     * Il Bridge può inviare "https://www.example.com", "example.com" ecc.: stessa entità.
      *
      * @param string $client_id ID inviato dal Bridge
-     * @return string Forma canonica (host lowercase, senza protocollo)
+     * @return string Forma canonica (host lowercase, senza protocollo, senza www)
      */
     public static function normalize_client_id(string $client_id): string
     {
@@ -549,6 +565,7 @@ class MasterEndpoint
         $s = preg_replace('#^https?://#i', '', $s);
         $s = preg_replace('#/.*$#', '', $s);
         $s = strtolower(trim($s, '/'));
+        $s = preg_replace('#^www\.#i', '', $s);
         return $s === '' ? $client_id : $s;
     }
 
