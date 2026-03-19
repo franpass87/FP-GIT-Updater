@@ -1454,6 +1454,7 @@ class Admin {
                 echo '<td>' . esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), $data['last_seen'] ?? 0)) . '</td>';
                 echo '<td style="white-space:nowrap;">';
                 echo '<button type="button" class="button button-small fp-refresh-client-versions-btn" data-client-id="' . esc_attr($client_id) . '" title="' . esc_attr__('Aggiorna versioni plugin da questo sito', 'fp-git-updater') . '" style="margin-right:4px;"><span class="dashicons dashicons-update" style="margin-top:3px;"></span></button>';
+                echo '<button type="button" class="button button-small fp-edit-client-btn" data-client-id="' . esc_attr($client_id) . '" data-client-url="' . esc_attr($data['url'] ?? '') . '" title="' . esc_attr__('Modifica cliente', 'fp-git-updater') . '" style="margin-right:4px;"><span class="dashicons dashicons-edit" style="margin-top:3px;"></span></button>';
                 echo '<button type="button" class="button button-small fp-remove-client-btn" data-client-id="' . esc_attr($client_id) . '" title="' . esc_attr__('Rimuovi cliente', 'fp-git-updater') . '" style="color:#b32d2e;border-color:#b32d2e;"><span class="dashicons dashicons-trash" style="margin-top:3px;"></span></button>';
                 echo '</td></tr>';
             }

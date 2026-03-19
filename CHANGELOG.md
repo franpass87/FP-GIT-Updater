@@ -2,6 +2,11 @@
 
 All notable changes to FP Updater will be documented in this file.
 
+## [1.6.12] - 2026-03-19
+### Fixed
+- Modal modifica cliente: corretto salvataggio e chiusura. Ora usa `$.ajax` con `dataType: 'json'`, gestione errori migliorata (403/sessione scaduta, parsererror), `preventDefault`/`stopPropagation` sul click Salva
+- Pulsante Modifica cliente incluso nell'HTML restituito da "Aggiorna elenco" (ajax_refresh_clients)
+
 ## [1.6.11] - 2026-03-18
 ### Fixed
 - Risolto errore critico in admin dovuto a testo corrotto nella dichiarazione della costante `OPTION_CONNECTED_CLIENTS` in `MasterEndpoint`

@@ -1199,20 +1199,34 @@
             $('body').append(html);
             $('#fp-edit-client-modal').fadeIn(150);
             $('#fp-edit-client-id').focus();
+
+            function closeEditModal() {
+                var $m = $('#fp-edit-client-modal');
+                if ($m.length) {
+                    $m.fadeOut(150, function() {
+                        $(this).remove();
+                        $(document).off('keydown.fpEditClientModal');
+                    });
+                }
+            }
+            $(document).off('keydown.fpEditClientModal').on('keydown.fpEditClientModal', function(e) {
+                if (e.key === 'Escape') closeEditModal();
+            });
         });
 
-        // Chiudi modal modifica
-        $(document).on('click', '.fp-modal-close, .fp-modal-backdrop', function() {
-            $('#fp-edit-client-modal').fadeOut(150, function() { $(this).remove(); });
-        });
-        $(document).on('keydown', function(e) {
-            if (e.key === 'Escape') {
-                $('#fp-edit-client-modal').fadeOut(150, function() { $(this).remove(); });
-            }
+        // Chiudi modal modifica (Annulla o click su backdrop)
+        $(document).on('click', '#fp-edit-client-modal .fp-modal-close, #fp-edit-client-modal .fp-modal-backdrop', function(e) {
+            e.stopPropagation();
+            $('#fp-edit-client-modal').fadeOut(150, function() {
+                $(this).remove();
+                $(document).off('keydown.fpEditClientModal');
+            });
         });
 
         // Salva modifiche cliente
-        $(document).on('click', '#fp-edit-client-save', function() {
+        $(document).on('click', '#fp-edit-client-save', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             var $btn = $(this);
             var oldId  = $btn.data('old-id');
             var newId  = $('#fp-edit-client-id').val().trim();
@@ -1223,34 +1237,52 @@
                 return;
             }
 
+            var $modal = $('#fp-edit-client-modal');
             $btn.prop('disabled', true).text('Salvataggio...');
 
-            $.post(fpGitUpdater.ajax_url, {
-                action: 'fp_git_updater_edit_client',
-                nonce: fpGitUpdater.nonce,
-                client_id: oldId,
-                new_client_id: newId,
-                new_url: newUrl
+            $.ajax({
+                url: fpGitUpdater.ajax_url,
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    action: 'fp_git_updater_edit_client',
+                    nonce: fpGitUpdater.nonce,
+                    client_id: oldId,
+                    new_client_id: newId,
+                    new_url: newUrl
+                }
             }).done(function(response) {
-                if (response.success) {
-                    $('#fp-edit-client-modal').fadeOut(150, function() { $(this).remove(); });
-                    showNotice('success', response.data.message);
-                    // Aggiorna la riga nella tabella
-                    var $row = $('#fp-client-row-' + oldId.replace(/[^a-zA-Z0-9_-]/g, '-'));
-                    if (!$row.length) { $row = $btn.closest('tr'); }
+                if (response && response.success) {
+                    $modal.fadeOut(150, function() {
+                        $(this).remove();
+                        $(document).off('keydown.fpEditClientModal');
+                    });
+                    showNotice('success', response.data && response.data.message ? response.data.message : 'Cliente aggiornato.');
+                    var rowId = 'fp-client-row-' + oldId.replace(/[^a-zA-Z0-9_-]/g, '-');
+                    var $row = $('#' + rowId);
                     if (newId !== oldId) {
-                        // Se il client_id è cambiato, ricarica la tabella
                         setTimeout(function() { location.reload(); }, 800);
-                    } else {
-                        // Aggiorna solo il pulsante con il nuovo URL
+                    } else if ($row.length) {
                         $row.find('.fp-edit-client-btn').data('client-url', newUrl);
                     }
                 } else {
-                    showNotice('error', response.data && response.data.message ? response.data.message : 'Errore.');
+                    var errMsg = (response && response.data && response.data.message) ? response.data.message : 'Errore durante il salvataggio.';
+                    showNotice('error', errMsg);
                     $btn.prop('disabled', false).text('Salva');
                 }
-            }).fail(function() {
-                showNotice('error', 'Errore di connessione.');
+            }).fail(function(xhr, status, err) {
+                var errMsg = 'Errore di connessione.';
+                if (xhr.status === 403) {
+                    errMsg = 'Sessione scaduta. Ricarica la pagina e riprova.';
+                } else if (xhr.status === 400 || xhr.status === 500) {
+                    try {
+                        var r = typeof xhr.responseJSON === 'object' ? xhr.responseJSON : JSON.parse(xhr.responseText || '{}');
+                        if (r.data && r.data.message) errMsg = r.data.message;
+                    } catch (ex) {}
+                } else if (status === 'parsererror') {
+                    errMsg = 'Risposta non valida dal server. Ricarica la pagina e riprova.';
+                }
+                showNotice('error', errMsg);
                 $btn.prop('disabled', false).text('Salva');
             });
         });
