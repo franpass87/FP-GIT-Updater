@@ -29,6 +29,8 @@ class MasterEndpoint
     public const OPTION_CONNECTED_CLIENTS = 'fp_git_updater_connected_clients';
     /** Mapping vecchio client_id -> client_id corrente (dopo rinomina), così il sito che si riconnette con il vecchio ID aggiorna l'entry con il nome nuovo. */
     public const OPTION_CLIENT_ID_ALIASES = 'fp_git_updater_client_id_aliases';
+    /** Client rimossi manualmente dall'admin (non devono riapparire al ping successivo). */
+    public const OPTION_REMOVED_CLIENTS = 'fp_git_updater_removed_clients';
     public const HEADER_SECRET = 'X-FP-Client-Secret';
     public const HEADER_CLIENT_ID = 'X-FP-Client-ID';
 
@@ -97,8 +99,12 @@ class MasterEndpoint
 
     public static function handle_request(WP_REST_Request $request): WP_REST_Response
     {
-        $client_id = $request->get_header(self::HEADER_CLIENT_ID) ?: $request->get_param('client_id');
-        $client_id = is_string($client_id) ? sanitize_text_field($client_id) : '';
+        $client_id = self::get_canonical_client_id_from_request($request);
+        if ($client_id !== '') {
+            // Usa un ID canonico per matching deploy e lookup dati cliente.
+            // Evita mismatch tra formati diversi (es. www.example.com vs example.com).
+            $client_id = self::resolve_client_id_alias(self::normalize_client_id($client_id));
+        }
 
         $installed_raw = $request->get_param('installed_plugins');
         $installed_slugs = [];
@@ -449,15 +455,11 @@ class MasterEndpoint
      */
     private static function register_client_connection(WP_REST_Request $request, array $installed_plugins = []): void
     {
-        $client_id = $request->get_header(self::HEADER_CLIENT_ID);
-        if (empty($client_id)) {
-            $client_id = $request->get_param('client_id');
-        }
+        $client_id = self::get_canonical_client_id_from_request($request);
         if (empty($client_id) || !is_string($client_id)) {
             return;
         }
 
-        $client_id = sanitize_text_field($client_id);
         if (strlen($client_id) > 255) {
             $client_id = substr($client_id, 0, 255);
         }
@@ -466,6 +468,12 @@ class MasterEndpoint
                 'has_header' => !empty($request->get_header(self::HEADER_CLIENT_ID)),
                 'has_param' => $request->get_param('client_id') !== null,
             ]);
+            return;
+        }
+
+        // Non riaggiungere clienti rimossi manualmente dall'admin.
+        if (self::is_client_removed($client_id)) {
+            Logger::log('info', 'Master: ping ignorato per cliente rimosso manualmente', ['client_id' => $client_id]);
             return;
         }
 
@@ -550,6 +558,61 @@ class MasterEndpoint
 
         update_option(self::OPTION_CONNECTED_CLIENTS, $clients);
         Logger::log('info', 'Master: client registrato', ['client_id' => $resolved_id, 'plugins_count' => count($installed_plugins)]);
+    }
+
+    /**
+     * Verifica se un client è stato rimosso manualmente dall'admin.
+     *
+     * @param string $client_id ID inviato dal Bridge
+     * @return bool True se il client è in blocco rimozione
+     */
+    private static function is_client_removed(string $client_id): bool
+    {
+        $removed = get_option(self::OPTION_REMOVED_CLIENTS, []);
+        if (!is_array($removed)) {
+            return false;
+        }
+
+        $raw = trim($client_id);
+        $normalized = self::normalize_client_id($client_id);
+        $resolved = self::resolve_client_id_alias($normalized);
+
+        return isset($removed[$raw]) || isset($removed[$normalized]) || isset($removed[$resolved]);
+    }
+
+    /**
+     * Estrae un client_id canonico dalla request usando header/param e, quando disponibile,
+     * l'host dell'URL sito inviato dal Bridge.
+     *
+     * Se X-FP-Site-URL contiene un host valido, viene preferito perché più stabile
+     * rispetto a client_id manuali/non uniformi (es. "oplatium" vs "oplatium.it").
+     *
+     * @param WP_REST_Request $request Request in ingresso dal Bridge.
+     * @return string Client ID canonico o stringa vuota.
+     */
+    private static function get_canonical_client_id_from_request(WP_REST_Request $request): string
+    {
+        $client_id = $request->get_header(self::HEADER_CLIENT_ID) ?: $request->get_param('client_id');
+        $client_id = is_string($client_id) ? sanitize_text_field($client_id) : '';
+        $client_id = trim($client_id);
+
+        $site_url = $request->get_header('X-FP-Site-URL');
+        $site_url = is_string($site_url) ? trim($site_url) : '';
+        if ($site_url !== '') {
+            $site_host = wp_parse_url($site_url, PHP_URL_HOST);
+            if (is_string($site_host) && $site_host !== '') {
+                $normalized_host = self::normalize_client_id($site_host);
+                if ($normalized_host !== '') {
+                    return $normalized_host;
+                }
+            }
+        }
+
+        if ($client_id === '') {
+            return '';
+        }
+
+        return self::normalize_client_id($client_id);
     }
 
     /**

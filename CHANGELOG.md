@@ -2,6 +2,12 @@
 
 All notable changes to FP Updater will be documented in this file.
 
+## [1.6.16] - 2026-03-19
+### Fixed
+- Clienti doppioni: canonizzazione client_id tramite host estratto da `X-FP-Site-URL` del Bridge (previene mismatch tra varianti dello stesso dominio)
+- Blacklist rimozione clienti ora include anche l'host estratto dall'URL salvato, impedendo ricomparsa con alias diversi
+- Corretto bug in `ajax_remove_client` che leggeva URL del client dopo averlo rimosso dall'array
+
 ## [1.6.15] - 2026-03-19
 ### Fixed
 - Duplicati clienti: normalizzazione ora rimuove "www." (es. www.example.com = example.com) e rimuove tutte le chiavi che normalizzano allo stesso valore

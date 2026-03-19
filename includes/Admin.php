@@ -601,7 +601,7 @@ class Admin {
         try {
             $updater = Updater::get_instance();
             $result = $updater->run_update_by_id($plugin_id);
-            
+
             if (is_wp_error($result)) {
                 wp_send_json_error(array('message' => $result->get_error_message()), 500);
             } elseif ($result) {
@@ -1384,7 +1384,10 @@ class Admin {
             wp_send_json_error(array('message' => __('ID plugin obbligatorio.', 'fp-git-updater')), 400);
         }
 
-        MasterEndpoint::authorize_deploy_update(array($plugin_id));
+        // Usa lo slug per la fase di push immediato (trigger-sync),
+        // mantenendo compatibilità con il lookup plugin lato Master.
+        $deploy_key = !empty($plugin_slug) ? $plugin_slug : $plugin_id;
+        MasterEndpoint::authorize_deploy_update(array($deploy_key));
         $clients = MasterEndpoint::get_clients_with_plugin($plugin_slug);
         $until = (int) get_option(MasterEndpoint::OPTION_DEPLOY_AUTHORIZED_UNTIL, 0);
         wp_send_json_success(array(
@@ -1487,8 +1490,27 @@ class Admin {
             wp_send_json_error(array('message' => __('Cliente non trovato.', 'fp-git-updater')));
             return;
         }
+        $client_data = $clients[$client_id];
         unset($clients[$client_id]);
         update_option(MasterEndpoint::OPTION_CONNECTED_CLIENTS, $clients);
+
+        // Marca il client come rimosso manualmente per evitare che si ricrei al ping successivo.
+        $removed = get_option(MasterEndpoint::OPTION_REMOVED_CLIENTS, []);
+        if (!is_array($removed)) {
+            $removed = [];
+        }
+        $removed[$client_id] = time();
+        $normalized_id = MasterEndpoint::normalize_client_id($client_id);
+        $removed[$normalized_id] = time();
+        $client_url = $client_data['url'] ?? '';
+        if (is_string($client_url) && $client_url !== '') {
+            $client_host = wp_parse_url($client_url, PHP_URL_HOST);
+            if (is_string($client_host) && $client_host !== '') {
+                $removed[MasterEndpoint::normalize_client_id($client_host)] = time();
+            }
+        }
+        update_option(MasterEndpoint::OPTION_REMOVED_CLIENTS, $removed);
+
         wp_send_json_success(array('message' => sprintf(__('Cliente "%s" rimosso.', 'fp-git-updater'), $client_id)));
     }
 
