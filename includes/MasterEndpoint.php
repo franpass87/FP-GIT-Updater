@@ -521,6 +521,7 @@ class MasterEndpoint
             }
         }
         $site_url = esc_url_raw($site_url);
+        $site_name = sanitize_text_field($request->get_header('X-FP-Site-Name') ?? '');
 
         $clients[$resolved_id] = [
             'last_seen'         => $now,
@@ -528,6 +529,7 @@ class MasterEndpoint
             'installed_plugins' => array_values(array_unique($slugs)),
             'plugin_versions'   => $plugin_versions,
             'url'               => $site_url ?: ($clients[$resolved_id]['url'] ?? $clients[$client_id]['url'] ?? ''),
+            'site_name'         => $site_name ?: ($clients[$resolved_id]['site_name'] ?? $clients[$client_id]['site_name'] ?? ''),
         ];
 
         update_option(self::OPTION_CONNECTED_CLIENTS, $clients);

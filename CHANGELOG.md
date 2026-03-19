@@ -2,6 +2,10 @@
 
 All notable changes to FP Updater will be documented in this file.
 
+## [1.6.14] - 2026-03-19
+### Added
+- Nome sito nella lista clienti: il Master mostra il nome del sito (Impostazioni > Generale) inviato dal Bridge, con fallback al client_id/dominio
+
 ## [1.6.13] - 2026-03-19
 ### Fixed
 - Rinomina cliente: il vecchio nome non riappare più nella lista. Normalizzazione client_id (es. `https://example.com` ↔ `example.com`) e alias per entrambe le forme, così le riconnessioni del Bridge aggiornano l'entry rinominata invece di creare duplicati

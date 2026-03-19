@@ -1424,9 +1424,14 @@ class Admin {
                 $count_plugins = count($installed);
                 $installed_str = !empty($installed) ? implode(', ', array_slice($installed, 0, 8)) . ($count_plugins > 8 ? ' +' . ($count_plugins - 8) . '…' : '') : '—';
                 $has_versions = !empty($plugin_versions);
+                $display_name = !empty($data['site_name']) ? $data['site_name'] : $client_id;
                 $row_id = 'fp-client-row-' . sanitize_html_class($client_id);
                 echo '<tr id="' . esc_attr($row_id) . '">';
-                echo '<td><strong>' . esc_html($client_id) . '</strong></td>';
+                echo '<td><strong>' . esc_html($display_name) . '</strong>';
+                if (!empty($data['site_name'])) {
+                    echo '<br><small style="color:var(--fp-text-muted);">' . esc_html($client_id) . '</small>';
+                }
+                echo '</td>';
                 // Colonna plugin: con versioni inline se disponibili, altrimenti solo slug
                 echo '<td class="fp-client-versions-cell" data-client-id="' . esc_attr($client_id) . '">';
                 if ($has_versions) {
@@ -1569,10 +1574,13 @@ class Admin {
         $all_clients[$client_id]['installed_plugins'] = $slugs;
         $all_clients[$client_id]['plugin_versions']   = $plugins_map;
         $all_clients[$client_id]['last_seen']         = time();
+        if (!empty($body['site_name'])) {
+            $all_clients[$client_id]['site_name'] = sanitize_text_field($body['site_name']);
+        }
         update_option(MasterEndpoint::OPTION_CONNECTED_CLIENTS, $all_clients);
 
         wp_send_json_success(array(
-            'message'  => sprintf(__('Versioni aggiornate: %d plugin trovati su %s.', 'fp-git-updater'), count($slugs), $client_id),
+            'message'  => sprintf(__('Versioni aggiornate: %d plugin trovati su %s.', 'fp-git-updater'), count($slugs), $all_clients[$client_id]['site_name'] ?? $client_id),
             'plugins'  => $plugins_map,
             'count'    => count($slugs),
         ));
@@ -1656,6 +1664,9 @@ class Admin {
         $all_clients[$client_id]['installed_plugins'] = $slugs;
         $all_clients[$client_id]['plugin_versions']   = $plugins_map;
         $all_clients[$client_id]['last_seen']         = time();
+        if (!empty($body['site_name'])) {
+            $all_clients[$client_id]['site_name'] = sanitize_text_field($body['site_name']);
+        }
         update_option(MasterEndpoint::OPTION_CONNECTED_CLIENTS, $all_clients);
 
         wp_send_json_success(array(
@@ -1747,6 +1758,9 @@ class Admin {
         $all_clients[$client_id]['installed_plugins'] = $slugs;
         $all_clients[$client_id]['plugin_versions']   = $plugins_map;
         $all_clients[$client_id]['last_seen']         = time();
+        if (!empty($body['site_name'])) {
+            $all_clients[$client_id]['site_name'] = sanitize_text_field($body['site_name']);
+        }
         update_option(MasterEndpoint::OPTION_CONNECTED_CLIENTS, $all_clients);
 
         // Versione del plugin specifico richiesto

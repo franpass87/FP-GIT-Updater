@@ -213,9 +213,10 @@ $backup_dir_writable = $backup_dir_exists && is_writable($backup_dir);
                     $installed_str = !empty($installed) ? implode(', ', array_slice($installed, 0, 8)) . ($count_plugins > 8 ? ' +' . ($count_plugins - 8) . '…' : '') : '—';
                     $row_class_id = sanitize_html_class($client_id);
                     $has_versions = !empty($plugin_versions);
+                    $display_name = !empty($data['site_name']) ? $data['site_name'] : $client_id;
                     ?>
                     <tr id="fp-client-row-<?php echo esc_attr($row_class_id); ?>">
-                        <td><strong><?php echo esc_html($client_id); ?></strong></td>
+                        <td><strong><?php echo esc_html($display_name); ?></strong><?php if (!empty($data['site_name'])): ?><br><small style="color:var(--fp-text-muted);"><?php echo esc_html($client_id); ?></small><?php endif; ?></td>
                         <td class="fp-client-versions-cell" data-client-id="<?php echo esc_attr($client_id); ?>">
                             <?php if ($has_versions): ?>
                                 <div class="fp-client-plugins-with-versions">
