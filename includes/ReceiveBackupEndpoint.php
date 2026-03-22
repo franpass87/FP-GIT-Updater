@@ -132,7 +132,7 @@ class ReceiveBackupEndpoint
         $htaccess = $dir . '/.htaccess';
         if (!file_exists($htaccess)) {
             $content = "# FP Backups - deny direct access\nDeny from all\n";
-            if (!file_put_contents($htaccess, $content)) {
+            if (!file_put_contents($htaccess, $content) && defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('[FP Updater] Impossibile creare .htaccess in: ' . $dir);
             }
         }

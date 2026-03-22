@@ -2,6 +2,10 @@
 
 All notable changes to FP Updater will be documented in this file.
 
+## [1.6.17] - 2026-03-22
+### Fixed
+- error_log condizionati a WP_DEBUG: bootstrap fatale, Logger fallback, ReceiveBackupEndpoint .htaccess (no-debug-in-production).
+
 ## [1.6.16] - 2026-03-19
 ### Fixed
 - Clienti doppioni: canonizzazione client_id tramite host estratto da `X-FP-Site-URL` del Bridge (previene mismatch tra varianti dello stesso dominio)

@@ -3,7 +3,7 @@
  * Plugin Name: FP Updater
  * Plugin URI: https://francescopasseri.com
  * Description: Gestione sicura degli aggiornamenti dei plugin da GitHub. Supporta sia aggiornamenti automatici che manuali tramite webhook, proteggendo i tuoi siti da aggiornamenti problematici.
- * Version: 1.6.16
+ * Version: 1.6.17
  * Author: Francesco Passeri
  * Author URI: https://francescopasseri.com
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if (substr_count($self_basename, '/') > 1) {
 }
 
 // Definisci costanti del plugin
-define('FP_GIT_UPDATER_VERSION', '1.6.16');
+define('FP_GIT_UPDATER_VERSION', '1.6.17');
 define('FP_GIT_UPDATER_PLUGIN_DIR', dirname(__FILE__) . '/');
 define('FP_GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FP_GIT_UPDATER_PLUGIN_FILE', __FILE__);
@@ -395,7 +395,9 @@ function fp_git_updater_init() {
     try {
         return FP_Git_Updater::get_instance();
     } catch (Exception $e) {
-        error_log("[FP-GIT-UPDATER] Errore fatale durante l'inizializzazione: " . $e->getMessage());
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("[FP-GIT-UPDATER] Errore fatale durante l'inizializzazione: " . $e->getMessage());
+        }
         return false;
     }
 }

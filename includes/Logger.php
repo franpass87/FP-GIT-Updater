@@ -42,8 +42,10 @@ class Logger {
                 wp_schedule_event(time() + DAY_IN_SECONDS, 'daily', 'fp_git_updater_cleanup_old_logs');
             }
         } catch (\Exception $e) {
-            // Fallback: logga su error_log se il database fallisce
-            error_log('FP Updater - Errore logging: ' . $e->getMessage());
+            // Fallback: logga su error_log se il database fallisce (solo in debug)
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('FP Updater - Errore logging: ' . $e->getMessage());
+            }
         }
     }
     
@@ -106,7 +108,9 @@ class Logger {
                 'totale_rimanenti' => $count
             ));
         } catch (\Exception $e) {
-            error_log('FP Updater - Errore pulizia log: ' . $e->getMessage());
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('FP Updater - Errore pulizia log: ' . $e->getMessage());
+            }
         }
     }
     
