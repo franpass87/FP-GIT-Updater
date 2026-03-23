@@ -108,7 +108,7 @@ class Logger {
                 'totale_rimanenti' => $count
             ));
         } catch (\Exception $e) {
-            if (defined('WP_DEBUG') && WP_DEBUG) {
+            if (defined('WP_DEBUG') && WP_DEBUG && function_exists('error_log')) {
                 error_log('FP Updater - Errore pulizia log: ' . $e->getMessage());
             }
         }

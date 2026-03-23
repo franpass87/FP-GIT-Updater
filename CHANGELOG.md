@@ -2,6 +2,10 @@
 
 All notable changes to FP Updater will be documented in this file.
 
+## [1.6.18] - 2026-03-22
+### Fixed
+- `error_log` in Logger::clear_old_logs condizionato a WP_DEBUG (completamento no-debug-in-production).
+
 ## [1.6.17] - 2026-03-22
 ### Fixed
 - error_log condizionati a WP_DEBUG: bootstrap fatale, Logger fallback, ReceiveBackupEndpoint .htaccess (no-debug-in-production).
