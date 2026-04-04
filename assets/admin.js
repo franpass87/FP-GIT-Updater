@@ -634,6 +634,155 @@
             }, 5000);
         }
 
+        /**
+         * Modal barra avanzamento: contatto sequenziale trigger-sync sui client.
+         */
+        function fpRemoveDeployProgressModal() {
+            $('#fp-deploy-progress-modal').remove();
+        }
+
+        function fpOpenDeployProgressModal(title, totalTargets) {
+            fpRemoveDeployProgressModal();
+            var safeTitle = $('<span>').text(title || '').html();
+            var html = ''
+                + '<div id="fp-deploy-progress-modal" class="fp-deploy-progress-modal" role="dialog" aria-modal="true" aria-labelledby="fp-deploy-progress-title">'
+                + '<div class="fp-deploy-progress-backdrop"></div>'
+                + '<div class="fp-deploy-progress-box">'
+                + '<h3 id="fp-deploy-progress-title" class="fp-deploy-progress-title">' + safeTitle + '</h3>'
+                + '<p class="fp-deploy-progress-phase" id="fp-deploy-progress-phase"></p>'
+                + '<div class="fp-deploy-progress-bar-wrap" aria-hidden="true">'
+                + '<div class="fp-deploy-progress-bar" id="fp-deploy-progress-bar"></div>'
+                + '</div>'
+                + '<p class="fp-deploy-progress-counter" id="fp-deploy-progress-counter"></p>'
+                + '<ul class="fp-deploy-progress-log" id="fp-deploy-progress-log" aria-live="polite"></ul>'
+                + '</div>'
+                + '</div>';
+            $('body').append(html);
+            $('#fp-deploy-progress-modal').fadeIn(120);
+            if (totalTargets > 0) {
+                $('#fp-deploy-progress-counter').text('0 / ' + totalTargets);
+            }
+        }
+
+        function fpSetDeployProgressPhase(text) {
+            $('#fp-deploy-progress-phase').text(text || '');
+        }
+
+        function fpSetDeployProgressIndex(done, total) {
+            var pct = total > 0 ? Math.round((done / total) * 100) : 0;
+            $('#fp-deploy-progress-bar').css('width', pct + '%');
+            $('#fp-deploy-progress-counter').text(done + ' / ' + total);
+        }
+
+        function fpAppendDeployLog(text, kind) {
+            var cls = kind === 'ok' ? 'fp-deploy-log-line--ok' : 'fp-deploy-log-line--err';
+            var $li = $('<li class="fp-deploy-log-line ' + cls + '"></li>').text(text);
+            var $log = $('#fp-deploy-progress-log');
+            $log.append($li);
+            $log.scrollTop($log[0].scrollHeight);
+        }
+
+        /**
+         * @param {string[]} targets client_id
+         * @param {object} opts { title, introMessage, reloadDelayMs, onClosed }
+         */
+        function fpRunDeployTriggerSequence(targets, opts) {
+            opts = opts || {};
+            var title = opts.title || 'Distribuzione in corso';
+            var intro = opts.introMessage || 'Autorizzazione salvata. Contatto dei siti cliente in corso…';
+            var reloadDelay = typeof opts.reloadDelayMs === 'number' ? opts.reloadDelayMs : 1800;
+            var onClosed = typeof opts.onClosed === 'function' ? opts.onClosed : null;
+            var list = Array.isArray(targets) ? targets.slice() : [];
+            var total = list.length;
+
+            if (total === 0) {
+                if (onClosed) {
+                    onClosed();
+                }
+                return;
+            }
+
+            fpOpenDeployProgressModal(title, total);
+            fpSetDeployProgressPhase(intro);
+
+            var index = 0;
+            var okCount = 0;
+            var failCount = 0;
+
+            function finish() {
+                fpSetDeployProgressIndex(total, total);
+                fpSetDeployProgressPhase('Completato.');
+                var summary = okCount + ' siti contattati con successo';
+                if (failCount > 0) {
+                    summary += ', ' + failCount + ' con errori o risposta non OK.';
+                } else {
+                    summary += '.';
+                }
+                fpAppendDeployLog(summary, failCount > 0 ? 'err' : 'ok');
+                setTimeout(function() {
+                    $('#fp-deploy-progress-modal').fadeOut(150, function() {
+                        fpRemoveDeployProgressModal();
+                        if (failCount === 0) {
+                            showNotice('success', summary);
+                        } else {
+                            showNotice('error', summary);
+                        }
+                        if (onClosed) {
+                            onClosed();
+                        }
+                        setTimeout(function() {
+                            location.reload();
+                        }, reloadDelay);
+                    });
+                }, 400);
+            }
+
+            function step() {
+                if (index >= total) {
+                    finish();
+                    return;
+                }
+                var cid = list[index];
+                fpSetDeployProgressPhase('Sincronizzazione con «' + cid + '»…');
+                fpSetDeployProgressIndex(index, total);
+
+                $.ajax({
+                    url: fpGitUpdater.ajax_url,
+                    type: 'POST',
+                    dataType: 'json',
+                    data: {
+                        action: 'fp_git_updater_deploy_trigger_client',
+                        nonce: fpGitUpdater.nonce,
+                        client_id: cid
+                    }
+                }).done(function(resp) {
+                    if (resp && resp.success && resp.data) {
+                        if (resp.data.ok) {
+                            okCount++;
+                        } else {
+                            failCount++;
+                        }
+                        fpAppendDeployLog(resp.data.message || cid, resp.data.ok ? 'ok' : 'err');
+                    } else {
+                        failCount++;
+                        fpAppendDeployLog((resp && resp.data && resp.data.message) ? resp.data.message : 'Risposta non valida', 'err');
+                    }
+                }).fail(function(xhr) {
+                    failCount++;
+                    var m = 'Errore di connessione';
+                    if (xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
+                        m = xhr.responseJSON.data.message;
+                    }
+                    fpAppendDeployLog(m, 'err');
+                }).always(function() {
+                    index++;
+                    step();
+                });
+            }
+
+            step();
+        }
+
         // ===== MODALITÀ MASTER: Copia URL con feedback =====
         $(document).on('click', '.fp-btn-copy, .fp-btn-copy-master', function() {
             var $btn = $(this);
@@ -794,8 +943,17 @@
                 client_ids_json: JSON.stringify(clientIds)
             }).done(function(response) {
                 if (response.success) {
-                    showNotice('success', response.data.message);
-                    setTimeout(function() { location.reload(); }, 1500);
+                    var targets = (response.data && response.data.trigger_targets) ? response.data.trigger_targets : [];
+                    if (targets.length > 0) {
+                        fpRunDeployTriggerSequence(targets, {
+                            title: 'Installazione sui client',
+                            introMessage: response.data.message || 'Autorizzazione salvata. Contatto dei siti…'
+                        });
+                    } else {
+                        showNotice('success', response.data.message);
+                        setTimeout(function() { location.reload(); }, 1500);
+                        $btn.prop('disabled', false).attr('aria-busy', 'false').html(originalHtml);
+                    }
                 } else {
                     showNotice('error', response.data && response.data.message ? response.data.message : 'Errore');
                     $btn.prop('disabled', false).attr('aria-busy', 'false').html(originalHtml);
@@ -968,7 +1126,9 @@
             var pluginId = $btn.data('plugin-id');
             var $row = $btn.closest('tr');
             var pluginSlug = $row.data('plugin-slug') || pluginId;
-            $btn.prop('disabled', true);
+            var originalHtml = $btn.html();
+            $btn.prop('disabled', true).attr('aria-busy', 'true')
+                .html('<span class="dashicons dashicons-update spin"></span> …');
             $.post(fpGitUpdater.ajax_url, {
                 action: 'fp_git_updater_deploy_update',
                 nonce: fpGitUpdater.nonce,
@@ -976,15 +1136,24 @@
                 plugin_slug: pluginSlug
             }).done(function(response) {
                 if (response.success) {
-                    showNotice('success', response.data.message);
-                    setTimeout(function() { location.reload(); }, 1500);
+                    var targets = (response.data && response.data.trigger_targets) ? response.data.trigger_targets : [];
+                    if (targets.length > 0) {
+                        fpRunDeployTriggerSequence(targets, {
+                            title: 'Aggiornamento client',
+                            introMessage: response.data.message || 'Autorizzazione salvata. Contatto dei siti…'
+                        });
+                    } else {
+                        showNotice('success', response.data.message);
+                        setTimeout(function() { location.reload(); }, 1500);
+                        $btn.prop('disabled', false).attr('aria-busy', 'false').html(originalHtml);
+                    }
                 } else {
                     showNotice('error', response.data && response.data.message ? response.data.message : 'Errore');
-                    $btn.prop('disabled', false);
+                    $btn.prop('disabled', false).attr('aria-busy', 'false').html(originalHtml);
                 }
             }).fail(function() {
                 showNotice('error', 'Errore di connessione.');
-                $btn.prop('disabled', false);
+                $btn.prop('disabled', false).attr('aria-busy', 'false').html(originalHtml);
             });
         });
 

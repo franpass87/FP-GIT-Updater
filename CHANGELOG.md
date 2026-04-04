@@ -2,6 +2,13 @@
 
 All notable changes to FP Updater will be documented in this file.
 
+## [1.6.19] - 2026-04-05
+### Added
+- Modalità Master: durante «Installa su clienti» e «Aggiorna tutti» viene mostrato un pannello con barra di avanzamento, fase corrente e log per ogni sito contattato (trigger-sync sequenziale verso FP Remote Bridge).
+
+### Changed
+- `authorize_deploy_install` / `authorize_deploy_update` accettano `$defer_remote_trigger` (default false): REST e flussi esistenti restano invariati; l’admin AJAX differisce il push e usa `fp_git_updater_deploy_trigger_client` per cliente.
+
 ## [1.6.18] - 2026-03-22
 ### Fixed
 - `error_log` in Logger::clear_old_logs condizionato a WP_DEBUG (completamento no-debug-in-production).

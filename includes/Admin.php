@@ -44,6 +44,7 @@ class Admin {
         add_action('wp_ajax_fp_git_updater_refresh_github_version', array($this, 'ajax_refresh_github_version'));
         add_action('wp_ajax_fp_git_updater_deploy_install', array($this, 'ajax_deploy_install'));
         add_action('wp_ajax_fp_git_updater_deploy_update', array($this, 'ajax_deploy_update'));
+        add_action('wp_ajax_fp_git_updater_deploy_trigger_client', array($this, 'ajax_deploy_trigger_client'));
         add_action('wp_ajax_fp_git_updater_refresh_clients', array($this, 'ajax_refresh_clients'));
         add_action('wp_ajax_fp_git_updater_clear_update_lock', array($this, 'ajax_clear_update_lock'));
         add_action('wp_ajax_fp_git_updater_remove_client', array($this, 'ajax_remove_client'));
@@ -1355,7 +1356,7 @@ class Admin {
             'branch' => $branch,
         );
 
-        MasterEndpoint::authorize_deploy_install($plugin, $client_ids);
+        MasterEndpoint::authorize_deploy_install($plugin, $client_ids, true);
         $until = (int) get_option(MasterEndpoint::OPTION_DEPLOY_AUTHORIZED_UNTIL, 0);
         wp_send_json_success(array(
             'message' => sprintf(
@@ -1363,7 +1364,8 @@ class Admin {
                 esc_html($plugin['name']),
                 count($client_ids)
             ),
-            'valid_until' => $until,
+            'valid_until'     => $until,
+            'trigger_targets' => $client_ids,
         ));
     }
 
@@ -1387,15 +1389,87 @@ class Admin {
         // Usa lo slug per la fase di push immediato (trigger-sync),
         // mantenendo compatibilità con il lookup plugin lato Master.
         $deploy_key = !empty($plugin_slug) ? $plugin_slug : $plugin_id;
-        MasterEndpoint::authorize_deploy_update(array($deploy_key));
-        $clients = MasterEndpoint::get_clients_with_plugin($plugin_slug);
+        $clients    = MasterEndpoint::get_clients_with_plugin($plugin_slug);
+        MasterEndpoint::authorize_deploy_update(array($deploy_key), true);
         $until = (int) get_option(MasterEndpoint::OPTION_DEPLOY_AUTHORIZED_UNTIL, 0);
         wp_send_json_success(array(
             'message' => sprintf(
                 __('Aggiornamento autorizzato. %d clienti aggiorneranno nelle prossime 2 ore.', 'fp-git-updater'),
                 count($clients)
             ),
-            'valid_until' => $until,
+            'valid_until'     => $until,
+            'trigger_targets' => $clients,
+        ));
+    }
+
+    /**
+     * AJAX: trigger-sync bloccante verso un singolo client (sequenza con barra avanzamento in admin).
+     */
+    public function ajax_deploy_trigger_client() {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['nonce'])), 'fp_git_updater_nonce')) {
+            wp_send_json_error(array('message' => __('Nonce non valido.', 'fp-git-updater')), 400);
+        }
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Permessi insufficienti.', 'fp-git-updater')), 403);
+        }
+
+        $client_id = isset($_POST['client_id']) ? sanitize_text_field(wp_unslash($_POST['client_id'])) : '';
+        if ($client_id === '') {
+            wp_send_json_error(array('message' => __('Client ID mancante.', 'fp-git-updater')), 400);
+        }
+
+        $until = (int) get_option(MasterEndpoint::OPTION_DEPLOY_AUTHORIZED_UNTIL, 0);
+        if ($until <= time()) {
+            wp_send_json_error(array(
+                'message' => __('La finestra di distribuzione è scaduta. Ripeti l\'operazione da «Installa» o «Aggiorna tutti».', 'fp-git-updater'),
+            ), 400);
+        }
+
+        $r = MasterEndpoint::trigger_sync_client_blocking($client_id);
+
+        $message = '';
+        if ($r['ok']) {
+            $message = sprintf(
+                /* translators: %s: client id (domain or URL) */
+                __('Sincronizzazione avviata su %s.', 'fp-git-updater'),
+                $client_id
+            );
+        } elseif ($r['error'] === 'no_secret') {
+            $message = __('Chiave segreta Master non configurata: impossibile contattare il sito cliente.', 'fp-git-updater');
+        } elseif ($r['error'] === 'unknown_client') {
+            $message = sprintf(
+                /* translators: %s: client id */
+                __('Cliente «%s» non trovato nell’elenco collegati.', 'fp-git-updater'),
+                $client_id
+            );
+        } elseif ($r['error'] === 'request_failed' && !empty($r['detail'])) {
+            $message = sprintf(
+                /* translators: 1: client id, 2: WordPress/HTTP error message */
+                __('Connessione a %1$s non riuscita: %2$s', 'fp-git-updater'),
+                $client_id,
+                $r['detail']
+            );
+        } elseif ($r['error'] === 'bad_status') {
+            $message = sprintf(
+                /* translators: 1: client id, 2: HTTP status code */
+                __('Risposta HTTP %2$d dal sito %1$s (trigger-sync).', 'fp-git-updater'),
+                $client_id,
+                $r['http_code']
+            );
+        } else {
+            $message = sprintf(
+                /* translators: %s: client id */
+                __('Impossibile avviare la sincronizzazione su %s.', 'fp-git-updater'),
+                $client_id
+            );
+        }
+
+        wp_send_json_success(array(
+            'ok'         => $r['ok'],
+            'http_code'  => $r['http_code'],
+            'client_id'  => $client_id,
+            'message'    => $message,
+            'error_code' => $r['error'],
         ));
     }
 
