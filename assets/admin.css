@@ -48,6 +48,329 @@
     --radius-xl: 16px;
     --radius-pill: 999px;
     --fpdms-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --fpdms-secondary: #11998e;
+    --fpdms-gradient-secondary: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    --fpdms-info: #3b82f6;
+    --fpdms-info-bg: #dbeafe;
+    --fpdms-info-text: #1e40af;
+    --fpdms-warning: #f59e0b;
+    --fpdms-warning-bg: #fef3c7;
+    --fpdms-warning-text: #92400e;
+}
+
+/* --------------------------------------------------------------------------
+   FP Admin UI — layout pagina (fpgitupdater-*)
+   -------------------------------------------------------------------------- */
+body.fpgitupdater-admin-shell #wpbody-content > .wrap.fpgitupdater-admin-page {
+    margin-top: 12px;
+}
+
+.fpgitupdater-page-header {
+    background: var(--fpdms-gradient-primary);
+    border-radius: var(--radius-xl);
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+}
+
+.fpgitupdater-page-header-content {
+    flex: 1;
+    min-width: 200px;
+}
+
+.fpgitupdater-page-header .fpgitupdater-page-header-title {
+    margin: 0 0 0.25rem 0;
+    color: #fff !important;
+    font-size: 1.5rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+}
+
+.fpgitupdater-page-header .fpgitupdater-page-header-title .dashicons {
+    font-size: 1.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+}
+
+.fpgitupdater-page-header-desc {
+    margin: 0;
+    opacity: 0.95;
+    font-size: 0.95rem;
+    color: #fff !important;
+}
+
+.fpgitupdater-page-header-badge {
+    background: rgba(255, 255, 255, 0.25);
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-pill);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+/* Bottoni FP (accanto a .button WP) */
+.fpgitupdater-admin-page .fpgitupdater-btn.button-primary,
+.fpgitupdater-admin-page input.fpgitupdater-btn-primary.button-primary {
+    background: var(--fpdms-gradient-primary) !important;
+    border: none !important;
+    color: #fff !important;
+    box-shadow: 0 4px 14px rgba(102, 126, 234, 0.35) !important;
+    font-weight: 600 !important;
+    border-radius: var(--radius-md) !important;
+    padding: 0.5rem 1.15rem !important;
+    transition: var(--fpdms-transition) !important;
+}
+
+.fpgitupdater-admin-page .fpgitupdater-btn.button-primary:hover,
+.fpgitupdater-admin-page input.fpgitupdater-btn-primary.button-primary:hover {
+    filter: brightness(1.05);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(102, 126, 234, 0.45) !important;
+}
+
+.fpgitupdater-admin-page .fpgitupdater-btn-secondary.button,
+.fpgitupdater-admin-page .fpgitupdater-btn-secondary.button-secondary {
+    background: var(--fpdms-bg-white) !important;
+    border: 2px solid var(--fpdms-border) !important;
+    color: var(--fpdms-text) !important;
+    font-weight: 600 !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: none !important;
+}
+
+.fpgitupdater-admin-page .fpgitupdater-btn-secondary.button:hover {
+    border-color: var(--fpdms-primary) !important;
+    color: var(--fpdms-primary-dark) !important;
+}
+
+.fpgitupdater-admin-page .fpgitupdater-btn-ghost.button {
+    background: transparent !important;
+    border: 1px solid var(--fpdms-danger) !important;
+    color: var(--fpdms-danger) !important;
+}
+
+.fpgitupdater-admin-page .fpgitupdater-btn-ghost.button:hover {
+    background: var(--fpdms-danger-bg) !important;
+}
+
+.fpgitupdater-admin-page .fpgitupdater-btn--sm {
+    padding: 0.2rem 0.5rem !important;
+    font-size: 12px !important;
+}
+
+.fpgitupdater-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.fpgitupdater-toolbar--spaced {
+    margin-top: 1.25rem;
+}
+
+/* Card block (backup, sezioni) */
+.fpgitupdater-card-block {
+    background: var(--fpdms-bg-white);
+    border: 1px solid var(--fpdms-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+    transition: var(--fpdms-transition);
+}
+
+.fpgitupdater-card-block:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.fpgitupdater-card-block__head {
+    background: var(--fpdms-bg-light);
+    border-bottom: 2px solid var(--fpdms-border-light);
+    padding: 0.85rem 1.25rem;
+}
+
+.fpgitupdater-card-block__title {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--fpdms-text);
+}
+
+.fpgitupdater-card-block__subtitle {
+    margin: 1.25rem 0 0.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--fpdms-text);
+}
+
+.fpgitupdater-card-block__body {
+    padding: 1.25rem 1.5rem;
+}
+
+.fpgitupdater-card-block--muted .fpgitupdater-card-block__body {
+    background: var(--fpdms-bg-light);
+}
+
+.fpgitupdater-card-block--help .fpgitupdater-card-block__body {
+    background: var(--fpdms-bg-white);
+}
+
+/* Form table FP */
+.fpgitupdater-form-table th {
+    color: var(--fpdms-text);
+    font-weight: 600;
+}
+
+.fpgitupdater-admin-page .fpgitupdater-form-table input.regular-text,
+.fpgitupdater-admin-page .fpgitupdater-form-table input[type="password"],
+.fpgitupdater-admin-page .fpgitupdater-form-table input[type="text"],
+.fpgitupdater-admin-page .fpgitupdater-form-table input[type="url"],
+.fpgitupdater-admin-page .fpgitupdater-form-table textarea,
+.fpgitupdater-admin-page .fpgitupdater-form-table select,
+.fpgitupdater-admin-page .fp-settings-card .form-table input.regular-text,
+.fpgitupdater-admin-page .fp-settings-card .form-table input[type="password"],
+.fpgitupdater-admin-page .fp-settings-card .form-table input[type="text"],
+.fpgitupdater-admin-page .fp-settings-card .form-table input[type="url"],
+.fpgitupdater-admin-page .fp-settings-card .form-table textarea,
+.fpgitupdater-admin-page .fp-settings-card .form-table select {
+    border: 2px solid var(--fpdms-border) !important;
+    border-radius: var(--radius-md) !important;
+}
+
+.fpgitupdater-admin-page .fpgitupdater-form-table input:focus,
+.fpgitupdater-admin-page .fpgitupdater-form-table textarea:focus,
+.fpgitupdater-admin-page .fpgitupdater-form-table select:focus,
+.fpgitupdater-admin-page .fp-settings-card .form-table input:focus,
+.fpgitupdater-admin-page .fp-settings-card .form-table textarea:focus,
+.fpgitupdater-admin-page .fp-settings-card .form-table select:focus {
+    border-color: var(--fpdms-primary) !important;
+    box-shadow: 0 0 0 1px rgba(102, 126, 234, 0.25) !important;
+    outline: none !important;
+}
+
+.is-monospace,
+.fpgitupdater-admin-page .is-monospace {
+    font-family: Consolas, Monaco, "SF Mono", monospace;
+    font-size: 12px;
+}
+
+.fpgitupdater-prose-list {
+    margin: 0.5rem 0 0;
+    padding-left: 1.25rem;
+    color: var(--fpdms-text-light);
+    line-height: 1.55;
+}
+
+.fpgitupdater-log-details {
+    margin-top: 8px;
+}
+
+.fpgitupdater-log-details-summary {
+    cursor: pointer;
+    color: var(--fpdms-primary);
+    font-weight: 600;
+}
+
+.fpgitupdater-log-pre {
+    margin-top: 10px;
+    padding: 12px;
+    background: var(--fpdms-bg-light);
+    border: 1px solid var(--fpdms-border);
+    border-radius: var(--radius-md);
+    overflow-x: auto;
+}
+
+/* Tabelle WP con thead gradiente */
+.fpgitupdater-wp-table thead th {
+    background: var(--fpdms-gradient-primary) !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+    border-color: transparent !important;
+}
+
+.fpgitupdater-wp-table thead th a {
+    color: #fff !important;
+}
+
+.fpgitupdater-table-scroll {
+    overflow-x: auto;
+    border-radius: var(--radius-md);
+}
+
+.fpgitupdater-col-date {
+    width: 150px;
+}
+
+.fpgitupdater-col-type {
+    width: 100px;
+}
+
+.fpgitupdater-col-version {
+    width: 100px;
+}
+
+.fpgitupdater-col-actions {
+    width: 200px;
+}
+
+.fpgitupdater-table-empty {
+    text-align: center;
+    padding: 2rem !important;
+    color: var(--fpdms-text-muted);
+}
+
+/* Callout / alert FP (sostituisce box con stili inline) */
+.fpgitupdater-callout {
+    padding: 1rem 1.25rem;
+    margin: 12px 0;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--fpdms-border);
+}
+
+.fpgitupdater-callout--info {
+    background: var(--fpdms-info-bg);
+    border-left: 4px solid var(--fpdms-info);
+    border-color: var(--fpdms-border);
+}
+
+.fpgitupdater-callout--info p {
+    margin: 0 0 12px;
+}
+
+.fpgitupdater-callout--info p:last-child {
+    margin-bottom: 0;
+}
+
+.fpgitupdater-callout--info ol {
+    margin: 0 0 0 1.25rem;
+    padding: 0;
+}
+
+.fpgitupdater-callout--info .fpgitupdater-callout__hint {
+    margin: 12px 0 0;
+    font-size: 12px;
+    color: var(--fpdms-text-muted);
+}
+
+.fpgitupdater-notice-mode .dashicons {
+    color: var(--fpdms-primary) !important;
+}
+
+.fpgitupdater-notice-mode--manual {
+    border-left-color: var(--fpdms-warning) !important;
+    background: var(--fpdms-warning-bg) !important;
+}
+
+.fpgitupdater-notice-mode--manual .dashicons {
+    color: var(--fpdms-warning) !important;
 }
 
 /* === MAIN WRAPPER === */
@@ -56,28 +379,28 @@
     margin: 0;
 }
 
-/* === HEADER === */
-.fp-git-updater-wrap > h1 {
+/* Vecchio h1 pagina: solo se non è screen-reader (pagina non migrata) */
+.fp-git-updater-wrap > h1:not(.screen-reader-text) {
     display: flex;
     align-items: center;
     gap: 12px;
     font-size: 28px;
     font-weight: 600;
-    color: var(--fp-text);
+    color: var(--fpdms-text);
     margin-bottom: 20px;
     padding: 15px 0;
-    border-bottom: 1px solid var(--fp-border);
+    border-bottom: 1px solid var(--fpdms-border);
 }
 
-.fp-git-updater-wrap > h1::after {
+.fp-git-updater-wrap > h1:not(.screen-reader-text)::after {
     display: none !important;
 }
 
-.fp-git-updater-wrap > h1 .dashicons {
+.fp-git-updater-wrap > h1:not(.screen-reader-text) .dashicons {
     font-size: 32px;
     width: 32px;
     height: 32px;
-    color: var(--fp-primary);
+    color: var(--fpdms-primary);
     animation: none !important;
 }
 
@@ -86,7 +409,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: var(--fp-error);
+    background: var(--fpdms-danger);
     color: #fff;
     font-size: 12px;
     font-weight: 600;
@@ -106,12 +429,18 @@
 .fp-git-updater-header,
 .fp-status-box,
 .fp-git-updater-instructions {
-    background: var(--fp-bg);
-    border: 1px solid var(--fp-border);
-    border-radius: var(--fp-radius);
+    background: var(--fpdms-bg-white);
+    border: 1px solid var(--fpdms-border);
+    border-radius: var(--radius-lg);
     margin: 20px 0;
     padding: 20px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    box-shadow: var(--shadow-md);
+}
+
+.fpgitupdater-admin-page .fpgitupdater-card-block.fp-git-updater-header,
+.fpgitupdater-admin-page .fpgitupdater-card-block.fp-git-updater-instructions {
+    margin: 0 0 1.5rem !important;
+    padding: 0 !important;
 }
 
 .fp-git-updater-header::before,
@@ -214,19 +543,19 @@
 }
 
 .log-badge-info {
-    background: var(--fp-info);
+    background: var(--fpdms-info);
 }
 
 .log-badge-success {
-    background: var(--fp-success);
+    background: var(--fpdms-success);
 }
 
 .log-badge-warning {
-    background: var(--fp-warning);
+    background: var(--fpdms-warning);
 }
 
 .log-badge-error {
-    background: var(--fp-error);
+    background: var(--fpdms-danger);
 }
 
 .log-badge-webhook {
@@ -314,12 +643,12 @@
 }
 
 .fp-plugin-item {
-    background: var(--fp-bg);
-    border: 1px solid var(--fp-border);
-    border-radius: var(--fp-radius);
+    background: var(--fpdms-bg-white);
+    border: 1px solid var(--fpdms-border);
+    border-radius: var(--radius-lg);
     padding: 0;
-    box-shadow: 0 1px 3px rgba(0,0,0,.08);
-    transition: var(--fp-transition);
+    box-shadow: var(--shadow-md);
+    transition: var(--fpdms-transition);
     overflow: hidden;
     margin-bottom: 0;
 }
@@ -1232,9 +1561,9 @@ select:focus:not(:focus-visible) {
 
 /* === TABS === */
 .fp-tab-nav {
-    background: var(--fp-bg-alt) !important;
-    border: 1px solid var(--fp-border) !important;
-    border-radius: var(--fp-radius) !important;
+    background: var(--fpdms-bg-light) !important;
+    border: 1px solid var(--fpdms-border) !important;
+    border-radius: var(--radius-lg) !important;
     margin: 20px 0 !important;
     padding: 8px !important;
 }
@@ -1302,16 +1631,17 @@ select:focus:not(:focus-visible) {
 }
 
 .fp-tab-link:hover {
-    background: var(--fp-primary-light) !important;
-    color: var(--fp-primary) !important;
-    border-color: var(--fp-primary) !important;
+    background: rgba(102, 126, 234, 0.1) !important;
+    color: var(--fpdms-primary-dark) !important;
+    border-color: var(--fpdms-primary) !important;
 }
 
 .fp-tab-item.active .fp-tab-link {
     color: #fff !important;
-    background: var(--fp-primary) !important;
-    border-color: var(--fp-primary-dark) !important;
+    background: var(--fpdms-gradient-primary) !important;
+    border: none !important;
     font-weight: 600 !important;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35) !important;
 }
 
 .fp-tab-link .dashicons {
@@ -1667,18 +1997,21 @@ select:focus:not(:focus-visible) {
 }
 
 /* === FORM ACTIONS === */
-.fp-form-actions {
-    background: var(--fp-bg);
-    padding: 20px;
-    margin: 20px 0 0 0;
-    border-top: 1px solid var(--fp-border);
+.fp-form-actions,
+.fpgitupdater-form-actions {
+    background: var(--fpdms-bg-light);
+    padding: 1.25rem 1.5rem;
+    margin: 2rem 0 0 0;
+    border-top: 2px solid var(--fpdms-border-light);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .fp-form-actions::before {
     display: none;
 }
 
-.fp-form-actions .button-large {
+.fp-form-actions .button-large,
+.fpgitupdater-form-actions .button-large {
     padding: 10px 24px;
     font-size: 14px;
     font-weight: 600;
@@ -1688,8 +2021,9 @@ select:focus:not(:focus-visible) {
     letter-spacing: normal;
 }
 
-.fp-form-actions .button-large:hover {
-    background: var(--fp-primary-dark);
+.fp-form-actions .button-large:hover,
+.fpgitupdater-form-actions .button-large:hover {
+    filter: brightness(1.05);
 }
 
 /* === RESPONSIVE TABS & DEPLOY === */
@@ -1842,7 +2176,7 @@ html {
 }
 
 .fp-section-title .dashicons {
-    color: var(--fp-primary);
+    color: var(--fpdms-primary);
     font-size: 22px;
     width: 22px;
     height: 22px;
@@ -1857,17 +2191,23 @@ html {
 
 /* === SETTINGS CARD === */
 .fp-settings-card {
-    background: var(--fp-bg);
-    border: 1px solid var(--fp-border);
-    border-radius: var(--fp-radius);
+    background: var(--fpdms-bg-white);
+    border: 1px solid var(--fpdms-border);
+    border-radius: var(--radius-lg);
     padding: 25px;
-    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    box-shadow: var(--shadow-md);
     margin-bottom: 25px;
+    transition: var(--fpdms-transition);
+}
+
+.fp-settings-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-1px);
 }
 
 /* Separazione visiva tra step 1, 2, 3 */
 .fp-master-config-card {
-    border-left: 4px solid var(--fp-primary);
+    border-left: 4px solid var(--fpdms-primary);
 }
 
 .fp-plugins-section-header {
@@ -2686,14 +3026,6 @@ html {
 .fp-checkbox-label {
     display: block;
     margin-bottom: 8px;
-}
-
-/* === FORM ACTIONS === */
-.fp-form-actions {
-    margin-top: 30px;
-    padding-top: 20px;
-    border-top: 1px solid var(--fp-border);
-    background: var(--fp-bg);
 }
 
 /* === HEADER SUBTITLE === */

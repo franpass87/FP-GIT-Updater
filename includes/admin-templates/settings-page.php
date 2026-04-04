@@ -15,14 +15,21 @@ if (!defined('ABSPATH')) {
 
 ?>
 
-<div class="wrap fp-git-updater-wrap">
-    <h1>
-        <span class="dashicons dashicons-update"></span>
-        <?php _e('FP Updater', 'fp-git-updater'); ?>
-        <span class="fp-header-subtitle">
-            <?php _e('Gestione aggiornamenti da GitHub', 'fp-git-updater'); ?>
-        </span>
-    </h1>
+<div class="wrap fp-git-updater-wrap fpgitupdater-admin-page">
+    <h1 class="screen-reader-text"><?php esc_html_e('FP Updater', 'fp-git-updater'); ?></h1>
+
+    <div class="fpgitupdater-page-header">
+        <div class="fpgitupdater-page-header-content">
+            <h2 class="fpgitupdater-page-header-title" aria-hidden="true">
+                <span class="dashicons dashicons-update" aria-hidden="true"></span>
+                <?php esc_html_e('FP Updater', 'fp-git-updater'); ?>
+            </h2>
+            <p class="fpgitupdater-page-header-desc">
+                <?php esc_html_e('Gestione aggiornamenti da GitHub, backup, Master e distribuzione ai siti client.', 'fp-git-updater'); ?>
+            </p>
+        </div>
+        <span class="fpgitupdater-page-header-badge"><?php echo esc_html('v' . FP_GIT_UPDATER_VERSION); ?></span>
+    </div>
     
     <?php 
     // Includi notifica per modalità aggiornamento
@@ -120,7 +127,7 @@ if (!defined('ABSPATH')) {
                 <?php endif; ?>
             </div>
             
-            <button type="button" id="fp-add-plugin" class="button button-primary fp-add-plugin-btn">
+            <button type="button" id="fp-add-plugin" class="button button-primary fp-add-plugin-btn fpgitupdater-btn fpgitupdater-btn-primary">
                 <span class="dashicons dashicons-plus-alt"></span>
                 <?php _e('Aggiungi Nuovo Plugin', 'fp-git-updater'); ?>
             </button>
@@ -153,8 +160,8 @@ if (!defined('ABSPATH')) {
         </div>
         
         <!-- Bottone Salva Impostazioni -->
-        <div class="fp-form-actions" id="fp-main-form-actions">
-            <?php submit_button(__('Salva Impostazioni', 'fp-git-updater'), 'primary large', 'submit', false); ?>
+        <div class="fp-form-actions fpgitupdater-form-actions" id="fp-main-form-actions">
+            <?php submit_button(__('Salva impostazioni', 'fp-git-updater'), 'primary large fpgitupdater-btn fpgitupdater-btn-primary', 'submit', false, array('id' => 'submit')); ?>
         </div>
     </form>
 </div>

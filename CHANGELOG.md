@@ -2,6 +2,16 @@
 
 All notable changes to FP Updater will be documented in this file.
 
+## [1.7.0] - 2026-04-05
+### Added
+- Admin: classe body `fpgitupdater-admin-shell`, wrapper `fpgitupdater-admin-page`, banner titolo pagina (gradiente FP, badge versione, `h1` solo screen-reader) su Impostazioni, Log e Backup.
+- CSS: componenti `fpgitupdater-page-header`, `fpgitupdater-card-block`, `fpgitupdater-btn*`, tabelle `fpgitupdater-wp-table` (thead gradiente), form-table e focus ring token `--fpdms-*`.
+
+### Changed
+- Interfaccia admin allineata al **FP Admin UI Design System** (token DMS, card, tab attive, plugin card, badge log, azioni form).
+- Pagina Backup: rimossi stili inline principali; testi user-facing passati a funzioni di traduzione dove toccati.
+- Enqueue asset admin: riconoscimento anche tramite `$_GET['page']` per hook sotto-menu (coerenza con linee guida FP).
+
 ## [1.6.20] - 2026-04-05
 ### Changed
 - Modal distribuzione Master: grafica allineata al **FP Admin UI Design System** (token `--fpdms-*`, header con gradiente viola come gli altri plugin FP, card pannello, barra avanzamento e log con colori success/danger canonici, classi `fpgitupdater-deploy-modal__*`).

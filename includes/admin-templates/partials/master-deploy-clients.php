@@ -80,7 +80,7 @@ $backup_dir_writable = $backup_dir_exists && is_writable($backup_dir);
             <span id="fp-github-repos-loading" class="fp-loading-text fp-loading-text--hidden" aria-live="polite"><?php _e('Caricamento...', 'fp-git-updater'); ?></span>
         </div>
         <div id="fp-github-repos-list" class="fp-github-repos-list fp-github-repos-list--hidden">
-            <table class="wp-list-table widefat fixed striped">
+            <table class="wp-list-table widefat fixed striped fpgitupdater-wp-table">
                 <thead>
                     <tr>
                         <th style="width:30%"><?php _e('Plugin', 'fp-git-updater'); ?></th>
@@ -105,7 +105,7 @@ $backup_dir_writable = $backup_dir_exists && is_writable($backup_dir);
                 <?php _e('Nessun aggiornamento disponibile. Usa «Controlla aggiornamenti» sui plugin nella lista sopra per rilevare nuove versioni.', 'fp-git-updater'); ?>
             </p>
         <?php else: ?>
-            <table class="wp-list-table widefat fixed striped fp-deploy-update-table">
+            <table class="wp-list-table widefat fixed striped fp-deploy-update-table fpgitupdater-wp-table">
                 <thead>
                     <tr>
                         <th><?php _e('Plugin', 'fp-git-updater'); ?></th>
@@ -183,20 +183,20 @@ $backup_dir_writable = $backup_dir_exists && is_writable($backup_dir);
     </p>
     <div id="fp-master-clients-content">
     <?php if (empty($connected_clients)): ?>
-        <div class="fp-master-clients-empty" style="padding: 16px; background: #f0f6fc; border-left: 4px solid #2271b1; margin: 12px 0;">
-            <p style="margin: 0 0 12px;"><strong><?php _e('Nessun cliente collegato.', 'fp-git-updater'); ?></strong></p>
-            <p style="margin: 0 0 8px;"><?php _e('Per far apparire un sito qui:', 'fp-git-updater'); ?></p>
-            <ol style="margin: 0 0 0 20px; padding: 0;">
-                <li><?php _e('Sul sito del cliente: Impostazioni → FP Remote Bridge', 'fp-git-updater'); ?></li>
-                <li><?php _e('Inserisci URL Master (es. https://manager.francescopasseri.com) e la Chiave segreta (identica a quella qui sopra)', 'fp-git-updater'); ?></li>
-                <li><?php _e('Salva e clicca «Sincronizza ora» — il cliente apparirà subito in questa lista', 'fp-git-updater'); ?></li>
+        <div class="fp-master-clients-empty fpgitupdater-callout fpgitupdater-callout--info">
+            <p><strong><?php esc_html_e('Nessun cliente collegato.', 'fp-git-updater'); ?></strong></p>
+            <p><?php esc_html_e('Per far apparire un sito qui:', 'fp-git-updater'); ?></p>
+            <ol>
+                <li><?php esc_html_e('Sul sito del cliente: Impostazioni → FP Remote Bridge', 'fp-git-updater'); ?></li>
+                <li><?php esc_html_e('Inserisci URL Master (es. https://manager.francescopasseri.com) e la Chiave segreta (identica a quella qui sopra)', 'fp-git-updater'); ?></li>
+                <li><?php esc_html_e('Salva e clicca «Sincronizza ora» — il cliente apparirà subito in questa lista', 'fp-git-updater'); ?></li>
             </ol>
-            <p style="margin: 12px 0 0; font-size: 12px; color: #646970;">
-                <?php _e('Se il cliente non appare: verifica che Modalità Master sia attiva, che la chiave segreta coincida esattamente e che il sito cliente riesca a raggiungere l\'URL del Master.', 'fp-git-updater'); ?>
+            <p class="fpgitupdater-callout__hint">
+                <?php esc_html_e('Se il cliente non appare: verifica che Modalità Master sia attiva, che la chiave segreta coincida esattamente e che il sito cliente riesca a raggiungere l\'URL del Master.', 'fp-git-updater'); ?>
             </p>
         </div>
     <?php else: ?>
-        <table class="wp-list-table widefat fixed striped fp-master-clients-table">
+        <table class="wp-list-table widefat fixed striped fp-master-clients-table fpgitupdater-wp-table">
             <thead>
                 <tr>
                     <th scope="col" style="width: 32%;"><?php _e('Sito cliente', 'fp-git-updater'); ?></th>

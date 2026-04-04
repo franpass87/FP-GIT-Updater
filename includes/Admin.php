@@ -28,6 +28,7 @@ class Admin {
         add_action('admin_init', array($this, 'register_settings'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
         add_action('admin_head', array($this, 'add_custom_favicon'));
+        add_filter('admin_body_class', array($this, 'filter_admin_body_class'));
         
         // AJAX handlers
         add_action('wp_ajax_fp_git_updater_check_updates', array($this, 'ajax_check_updates'));
@@ -358,10 +359,30 @@ class Admin {
     }
     
     /**
+     * Aggiunge classe body per skin admin allineata al design system FP.
+     *
+     * @param string $classes Classi CSS del body (admin).
+     * @return string
+     */
+    public function filter_admin_body_class($classes) {
+        $screen = function_exists('get_current_screen') ? get_current_screen() : null;
+        if ($screen && strpos((string) $screen->id, 'fp-git-updater') !== false) {
+            $classes .= ' fpgitupdater-admin-shell';
+        }
+
+        return $classes;
+    }
+
+    /**
      * Enqueue admin assets
      */
     public function enqueue_admin_assets($hook) {
-        if (strpos($hook, 'fp-git-updater') === false) {
+        $page     = isset($_GET['page']) ? sanitize_text_field(wp_unslash((string) $_GET['page'])) : '';
+        $our_pages = array('fp-git-updater', 'fp-git-updater-backup', 'fp-git-updater-logs');
+        $is_our_screen = (strpos((string) $hook, 'fp-git-updater') !== false)
+            || in_array($page, $our_pages, true);
+
+        if (!$is_our_screen) {
             return;
         }
         
@@ -488,59 +509,73 @@ class Admin {
         $logs = Logger::get_logs(100);
         
         ?>
-        <div class="wrap fp-git-updater-wrap">
-            <h1>
-                <span class="dashicons dashicons-list-view"></span>
-                FP Updater - Log
-            </h1>
-            
-            <div class="fp-logs-actions">
-                <button type="button" id="fp-clear-logs" class="button">
-                    <span class="dashicons dashicons-trash"></span> Pulisci Log
+        <div class="wrap fp-git-updater-wrap fpgitupdater-admin-page">
+            <h1 class="screen-reader-text"><?php esc_html_e('FP Updater — Log', 'fp-git-updater'); ?></h1>
+
+            <div class="fpgitupdater-page-header">
+                <div class="fpgitupdater-page-header-content">
+                    <h2 class="fpgitupdater-page-header-title" aria-hidden="true">
+                        <span class="dashicons dashicons-list-view" aria-hidden="true"></span>
+                        <?php esc_html_e('Log attività', 'fp-git-updater'); ?>
+                    </h2>
+                    <p class="fpgitupdater-page-header-desc">
+                        <?php esc_html_e('Registro eventi, errori e operazioni del plugin.', 'fp-git-updater'); ?>
+                    </p>
+                </div>
+                <span class="fpgitupdater-page-header-badge"><?php echo esc_html('v' . FP_GIT_UPDATER_VERSION); ?></span>
+            </div>
+
+            <div class="fpgitupdater-toolbar fp-logs-actions">
+                <button type="button" id="fp-clear-logs" class="button fpgitupdater-btn fpgitupdater-btn-secondary">
+                    <span class="dashicons dashicons-trash" aria-hidden="true"></span>
+                    <?php esc_html_e('Pulisci log', 'fp-git-updater'); ?>
                 </button>
-                <button type="button" class="button" onclick="location.reload()">
-                    <span class="dashicons dashicons-update"></span> Ricarica
+                <button type="button" class="button fpgitupdater-btn fpgitupdater-btn-secondary" onclick="location.reload()">
+                    <span class="dashicons dashicons-update" aria-hidden="true"></span>
+                    <?php esc_html_e('Ricarica', 'fp-git-updater'); ?>
                 </button>
             </div>
-            
-            <table class="wp-list-table widefat fixed striped">
-                <thead>
-                    <tr>
-                        <th style="width: 150px">Data/Ora</th>
-                        <th style="width: 100px">Tipo</th>
-                        <th>Messaggio</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php if (empty($logs)): ?>
+
+            <div class="fpgitupdater-table-scroll">
+                <table class="wp-list-table widefat fixed striped fpgitupdater-wp-table">
+                    <thead>
                         <tr>
-                            <td colspan="3" style="text-align: center; padding: 20px;">
-                                Nessun log disponibile
-                            </td>
+                            <th class="fpgitupdater-col-date"><?php esc_html_e('Data/ora', 'fp-git-updater'); ?></th>
+                            <th class="fpgitupdater-col-type"><?php esc_html_e('Tipo', 'fp-git-updater'); ?></th>
+                            <th><?php esc_html_e('Messaggio', 'fp-git-updater'); ?></th>
                         </tr>
-                    <?php else: ?>
-                        <?php foreach ($logs as $log): ?>
-                            <tr class="log-<?php echo esc_attr($log->log_type); ?>">
-                                <td><?php echo esc_html($log->log_date); ?></td>
-                                <td>
-                                    <span class="log-badge log-badge-<?php echo esc_attr($log->log_type); ?>">
-                                        <?php echo esc_html($log->log_type); ?>
-                                    </span>
-                                </td>
-                                <td>
-                                    <?php echo esc_html($log->message); ?>
-                                    <?php if ($log->details): ?>
-                                        <details style="margin-top: 5px;">
-                                            <summary style="cursor: pointer; color: #666;">Dettagli</summary>
-                                            <pre style="margin-top: 10px; background: #f5f5f5; padding: 10px; overflow-x: auto;"><?php echo esc_html(print_r(json_decode($log->details, true), true)); ?></pre>
-                                        </details>
-                                    <?php endif; ?>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($logs)) : ?>
+                            <tr>
+                                <td colspan="3" class="fpgitupdater-table-empty">
+                                    <?php esc_html_e('Nessun log disponibile.', 'fp-git-updater'); ?>
                                 </td>
                             </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </tbody>
-            </table>
+                        <?php else : ?>
+                            <?php foreach ($logs as $log) : ?>
+                                <tr class="log-<?php echo esc_attr($log->log_type); ?>">
+                                    <td><?php echo esc_html($log->log_date); ?></td>
+                                    <td>
+                                        <span class="log-badge log-badge-<?php echo esc_attr($log->log_type); ?>">
+                                            <?php echo esc_html($log->log_type); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <?php echo esc_html($log->message); ?>
+                                        <?php if ($log->details) : ?>
+                                            <details class="fpgitupdater-log-details">
+                                                <summary class="fpgitupdater-log-details-summary"><?php esc_html_e('Dettagli', 'fp-git-updater'); ?></summary>
+                                                <pre class="fpgitupdater-log-pre is-monospace"><?php echo esc_html(print_r(json_decode($log->details, true), true)); ?></pre>
+                                            </details>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
         </div>
         <?php
     }
@@ -733,128 +768,162 @@ class Admin {
         $has_settings_reset = $backup_manager->check_if_settings_reset();
         
         ?>
-        <div class="wrap fp-git-updater-wrap">
-            <h1>
-                <span class="dashicons dashicons-database"></span>
-                FP Updater - Backup e Ripristino
-            </h1>
-            
-            <?php if ($has_settings_reset): ?>
-                <div class="notice notice-warning">
-                    <p><strong>Attenzione!</strong> Le tue impostazioni sembrano essere state resettate. È disponibile un backup che puoi ripristinare.</p>
+        <div class="wrap fp-git-updater-wrap fpgitupdater-admin-page">
+            <h1 class="screen-reader-text"><?php esc_html_e('FP Updater — Backup e ripristino', 'fp-git-updater'); ?></h1>
+
+            <div class="fpgitupdater-page-header">
+                <div class="fpgitupdater-page-header-content">
+                    <h2 class="fpgitupdater-page-header-title" aria-hidden="true">
+                        <span class="dashicons dashicons-database" aria-hidden="true"></span>
+                        <?php esc_html_e('Backup e ripristino', 'fp-git-updater'); ?>
+                    </h2>
+                    <p class="fpgitupdater-page-header-desc">
+                        <?php esc_html_e('Stato backup, cronologia e ripristino delle impostazioni del plugin.', 'fp-git-updater'); ?>
+                    </p>
+                </div>
+                <span class="fpgitupdater-page-header-badge"><?php echo esc_html('v' . FP_GIT_UPDATER_VERSION); ?></span>
+            </div>
+
+            <?php if ($has_settings_reset) : ?>
+                <div class="notice notice-warning fpgitupdater-notice-compat">
                     <p>
-                        <button type="button" id="fp-quick-restore" class="button button-primary">
-                            <span class="dashicons dashicons-backup"></span> Ripristina Ora
+                        <strong><?php esc_html_e('Attenzione!', 'fp-git-updater'); ?></strong>
+                        <?php esc_html_e('Le tue impostazioni sembrano essere state resettate. È disponibile un backup che puoi ripristinare.', 'fp-git-updater'); ?>
+                    </p>
+                    <p>
+                        <button type="button" id="fp-quick-restore" class="button button-primary fpgitupdater-btn fpgitupdater-btn-primary">
+                            <span class="dashicons dashicons-backup" aria-hidden="true"></span>
+                            <?php esc_html_e('Ripristina ora', 'fp-git-updater'); ?>
                         </button>
                     </p>
                 </div>
             <?php endif; ?>
-            
-            <div class="fp-git-updater-header">
-                <h2>Stato Attuale</h2>
-                <table class="form-table">
-                    <tr>
-                        <th style="width: 200px;">Plugin Configurati:</th>
-                        <td><strong><?php echo count(is_array($current_settings) ? ($current_settings['plugins'] ?? array()) : array()); ?></strong> plugin</td>
-                    </tr>
-                    <tr>
-                        <th>Ultimo Backup:</th>
-                        <td>
-                            <?php if ($latest_backup): ?>
-                                <?php echo esc_html($latest_backup['timestamp']); ?>
-                                (<?php echo $latest_backup['manual'] ? 'Manuale' : 'Automatico'; ?>)
-                            <?php else: ?>
-                                <em>Nessun backup disponibile</em>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
-                </table>
-                
-                <div style="margin-top: 20px;">
-                    <button type="button" id="fp-create-backup" class="button button-primary">
-                        <span class="dashicons dashicons-database-add"></span> Crea Backup Manuale
-                    </button>
-                    <?php if ($latest_backup): ?>
-                        <button type="button" id="fp-restore-latest" class="button">
-                            <span class="dashicons dashicons-backup"></span> Ripristina Ultimo Backup
+
+            <div class="fp-git-updater-header fpgitupdater-card-block">
+                <div class="fpgitupdater-card-block__head">
+                    <h2 class="fpgitupdater-card-block__title"><?php esc_html_e('Stato attuale', 'fp-git-updater'); ?></h2>
+                </div>
+                <div class="fpgitupdater-card-block__body">
+                    <table class="form-table fpgitupdater-form-table">
+                        <tr>
+                            <th scope="row"><?php esc_html_e('Plugin configurati', 'fp-git-updater'); ?></th>
+                            <td>
+                                <strong><?php echo (int) count(is_array($current_settings) ? ($current_settings['plugins'] ?? array()) : array()); ?></strong>
+                                <?php esc_html_e('plugin', 'fp-git-updater'); ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><?php esc_html_e('Ultimo backup', 'fp-git-updater'); ?></th>
+                            <td>
+                                <?php if ($latest_backup) : ?>
+                                    <?php echo esc_html($latest_backup['timestamp']); ?>
+                                    (<?php echo $latest_backup['manual'] ? esc_html__('Manuale', 'fp-git-updater') : esc_html__('Automatico', 'fp-git-updater'); ?>)
+                                <?php else : ?>
+                                    <em><?php esc_html_e('Nessun backup disponibile', 'fp-git-updater'); ?></em>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div class="fpgitupdater-toolbar fpgitupdater-toolbar--spaced">
+                        <button type="button" id="fp-create-backup" class="button button-primary fpgitupdater-btn fpgitupdater-btn-primary">
+                            <span class="dashicons dashicons-database-add" aria-hidden="true"></span>
+                            <?php esc_html_e('Crea backup manuale', 'fp-git-updater'); ?>
                         </button>
-                    <?php endif; ?>
+                        <?php if ($latest_backup) : ?>
+                            <button type="button" id="fp-restore-latest" class="button fpgitupdater-btn fpgitupdater-btn-secondary">
+                                <span class="dashicons dashicons-backup" aria-hidden="true"></span>
+                                <?php esc_html_e('Ripristina ultimo backup', 'fp-git-updater'); ?>
+                            </button>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
             
-            <div class="fp-git-updater-instructions" style="margin-top: 20px;">
-                <h2>Cronologia Backup</h2>
-                
-                <?php if (empty($backup_history)): ?>
-                    <p class="description">Nessun backup disponibile nella cronologia.</p>
-                <?php else: ?>
-                    <table class="wp-list-table widefat fixed striped">
-                        <thead>
-                            <tr>
-                                <th style="width: 150px">Data/Ora</th>
-                                <th style="width: 100px">Tipo</th>
-                                <th style="width: 100px">Versione</th>
-                                <th>Plugin Salvati</th>
-                                <th style="width: 200px">Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($backup_history as $index => $backup): ?>
-                                <tr>
-                                    <td><?php echo esc_html($backup['timestamp']); ?></td>
-                                    <td>
-                                        <span class="log-badge log-badge-<?php echo $backup['manual'] ? 'info' : 'success'; ?>">
-                                            <?php echo $backup['manual'] ? 'Manuale' : 'Automatico'; ?>
-                                        </span>
-                                    </td>
-                                    <td><?php echo esc_html($backup['version'] ?? 'N/A'); ?></td>
-                                    <td>
-                                        <strong><?php echo count($backup['settings']['plugins'] ?? array()); ?></strong> plugin
-                                        <?php if (!empty($backup['settings']['plugins'])): ?>
-                                            <details style="margin-top: 5px;">
-                                                <summary style="cursor: pointer; color: #666;">Vedi dettagli</summary>
-                                                <ul style="margin-top: 10px; padding-left: 20px;">
-                                                    <?php foreach ($backup['settings']['plugins'] as $plugin): ?>
-                                                        <li>
-                                                            <strong><?php echo esc_html($plugin['name']); ?></strong><br>
-                                                            <small>Repository: <?php echo esc_html($plugin['github_repo']); ?></small>
-                                                        </li>
-                                                    <?php endforeach; ?>
-                                                </ul>
-                                            </details>
-                                        <?php endif; ?>
-                                    </td>
-                                    <td>
-                                        <button type="button" class="button button-small fp-restore-backup-btn" data-backup-index="<?php echo $index; ?>">
-                                            <span class="dashicons dashicons-backup"></span> Ripristina
-                                        </button>
-                                        <button type="button" class="button button-small fp-delete-backup-btn" data-backup-index="<?php echo $index; ?>">
-                                            <span class="dashicons dashicons-trash"></span> Elimina
-                                        </button>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                <?php endif; ?>
+            <div class="fp-git-updater-instructions fpgitupdater-card-block fpgitupdater-card-block--muted">
+                <div class="fpgitupdater-card-block__head">
+                    <h2 class="fpgitupdater-card-block__title"><?php esc_html_e('Cronologia backup', 'fp-git-updater'); ?></h2>
+                </div>
+                <div class="fpgitupdater-card-block__body">
+                    <?php if (empty($backup_history)) : ?>
+                        <p class="description"><?php esc_html_e('Nessun backup disponibile nella cronologia.', 'fp-git-updater'); ?></p>
+                    <?php else : ?>
+                        <div class="fpgitupdater-table-scroll">
+                            <table class="wp-list-table widefat fixed striped fpgitupdater-wp-table">
+                                <thead>
+                                    <tr>
+                                        <th class="fpgitupdater-col-date"><?php esc_html_e('Data/ora', 'fp-git-updater'); ?></th>
+                                        <th class="fpgitupdater-col-type"><?php esc_html_e('Tipo', 'fp-git-updater'); ?></th>
+                                        <th class="fpgitupdater-col-version"><?php esc_html_e('Versione', 'fp-git-updater'); ?></th>
+                                        <th><?php esc_html_e('Plugin salvati', 'fp-git-updater'); ?></th>
+                                        <th class="fpgitupdater-col-actions"><?php esc_html_e('Azioni', 'fp-git-updater'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($backup_history as $index => $backup) : ?>
+                                        <tr>
+                                            <td><?php echo esc_html($backup['timestamp']); ?></td>
+                                            <td>
+                                                <span class="log-badge log-badge-<?php echo $backup['manual'] ? 'info' : 'success'; ?>">
+                                                    <?php echo $backup['manual'] ? esc_html__('Manuale', 'fp-git-updater') : esc_html__('Automatico', 'fp-git-updater'); ?>
+                                                </span>
+                                            </td>
+                                            <td><?php echo esc_html($backup['version'] ?? 'N/A'); ?></td>
+                                            <td>
+                                                <strong><?php echo count($backup['settings']['plugins'] ?? array()); ?></strong>
+                                                <?php esc_html_e('plugin', 'fp-git-updater'); ?>
+                                                <?php if (!empty($backup['settings']['plugins'])) : ?>
+                                                    <details class="fpgitupdater-log-details">
+                                                        <summary class="fpgitupdater-log-details-summary"><?php esc_html_e('Vedi dettagli', 'fp-git-updater'); ?></summary>
+                                                        <ul class="fpgitupdater-prose-list">
+                                                            <?php foreach ($backup['settings']['plugins'] as $plugin) : ?>
+                                                                <li>
+                                                                    <strong><?php echo esc_html($plugin['name']); ?></strong><br>
+                                                                    <small><?php esc_html_e('Repository:', 'fp-git-updater'); ?> <?php echo esc_html($plugin['github_repo']); ?></small>
+                                                                </li>
+                                                            <?php endforeach; ?>
+                                                        </ul>
+                                                    </details>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <button type="button" class="button button-small fp-restore-backup-btn fpgitupdater-btn fpgitupdater-btn-secondary fpgitupdater-btn--sm" data-backup-index="<?php echo esc_attr((string) $index); ?>">
+                                                    <span class="dashicons dashicons-backup" aria-hidden="true"></span>
+                                                    <?php esc_html_e('Ripristina', 'fp-git-updater'); ?>
+                                                </button>
+                                                <button type="button" class="button button-small fp-delete-backup-btn fpgitupdater-btn fpgitupdater-btn-ghost fpgitupdater-btn--sm" data-backup-index="<?php echo esc_attr((string) $index); ?>">
+                                                    <span class="dashicons dashicons-trash" aria-hidden="true"></span>
+                                                    <?php esc_html_e('Elimina', 'fp-git-updater'); ?>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
-            
-            <div class="fp-git-updater-instructions" style="margin-top: 20px;">
-                <h2>Come Funziona il Backup Automatico</h2>
-                <p>Il sistema di backup protegge automaticamente le tue impostazioni:</p>
-                <ul style="padding-left: 20px;">
-                    <li><strong>Prima degli aggiornamenti:</strong> Viene creato automaticamente un backup prima di ogni aggiornamento del plugin</li>
-                    <li><strong>Dopo l'attivazione:</strong> Se le impostazioni sono state resettate, vengono ripristinate automaticamente dal backup</li>
-                    <li><strong>Backup manuali:</strong> Puoi creare backup manuali in qualsiasi momento usando il pulsante sopra</li>
-                    <li><strong>Cronologia:</strong> Vengono conservati gli ultimi 10 backup per sicurezza</li>
-                </ul>
-                
-                <h3 style="margin-top: 15px;">Quando usare il ripristino manuale</h3>
-                <ul style="padding-left: 20px;">
-                    <li>Se il ripristino automatico non è andato a buon fine</li>
-                    <li>Se vuoi tornare a una configurazione precedente specifica</li>
-                    <li>Se hai accidentalmente cancellato delle impostazioni</li>
-                </ul>
+
+            <div class="fp-git-updater-instructions fpgitupdater-card-block fpgitupdater-card-block--help">
+                <div class="fpgitupdater-card-block__head">
+                    <h2 class="fpgitupdater-card-block__title"><?php esc_html_e('Come funziona il backup automatico', 'fp-git-updater'); ?></h2>
+                </div>
+                <div class="fpgitupdater-card-block__body">
+                    <p><?php esc_html_e('Il sistema di backup protegge automaticamente le tue impostazioni:', 'fp-git-updater'); ?></p>
+                    <ul class="fpgitupdater-prose-list">
+                        <li><strong><?php esc_html_e('Prima degli aggiornamenti:', 'fp-git-updater'); ?></strong> <?php esc_html_e('viene creato automaticamente un backup prima di ogni aggiornamento del plugin.', 'fp-git-updater'); ?></li>
+                        <li><strong><?php esc_html_e('Dopo l’attivazione:', 'fp-git-updater'); ?></strong> <?php esc_html_e('se le impostazioni sono state resettate, vengono ripristinate automaticamente dal backup.', 'fp-git-updater'); ?></li>
+                        <li><strong><?php esc_html_e('Backup manuali:', 'fp-git-updater'); ?></strong> <?php esc_html_e('puoi crearne in qualsiasi momento con il pulsante sopra.', 'fp-git-updater'); ?></li>
+                        <li><strong><?php esc_html_e('Cronologia:', 'fp-git-updater'); ?></strong> <?php esc_html_e('vengono conservati gli ultimi 10 backup per sicurezza.', 'fp-git-updater'); ?></li>
+                    </ul>
+                    <h3 class="fpgitupdater-card-block__subtitle"><?php esc_html_e('Quando usare il ripristino manuale', 'fp-git-updater'); ?></h3>
+                    <ul class="fpgitupdater-prose-list">
+                        <li><?php esc_html_e('Se il ripristino automatico non è andato a buon fine.', 'fp-git-updater'); ?></li>
+                        <li><?php esc_html_e('Se vuoi tornare a una configurazione precedente specifica.', 'fp-git-updater'); ?></li>
+                        <li><?php esc_html_e('Se hai accidentalmente cancellato delle impostazioni.', 'fp-git-updater'); ?></li>
+                    </ul>
+                </div>
             </div>
         </div>
         
@@ -876,7 +945,7 @@ class Admin {
                         location.reload();
                     } else {
                         alert('Errore: ' + (response.data ? response.data.message : 'Errore sconosciuto'));
-                        $btn.prop('disabled', false).html('<span class="dashicons dashicons-database-add"></span> Crea Backup Manuale');
+                        $btn.prop('disabled', false).html('<span class="dashicons dashicons-database-add"></span> <?php echo esc_js(__('Crea backup manuale', 'fp-git-updater')); ?>');
                     }
                 });
             });
@@ -1490,7 +1559,7 @@ class Admin {
             esc_html_e('Nessun cliente collegato. I siti dei tuoi clienti appariranno qui dopo la prima connessione.', 'fp-git-updater');
             echo '</p>';
         } else {
-            echo '<table class="wp-list-table widefat fixed striped fp-master-clients-table"><thead><tr>';
+            echo '<table class="wp-list-table widefat fixed striped fp-master-clients-table fpgitupdater-wp-table"><thead><tr>';
             echo '<th scope="col" style="width:32%;">' . esc_html__('Sito cliente', 'fp-git-updater') . '</th>';
             echo '<th scope="col" style="width:33%;">' . esc_html__('Plugin installati', 'fp-git-updater') . '</th>';
             echo '<th scope="col">' . esc_html__('Ultima connessione', 'fp-git-updater') . '</th>';

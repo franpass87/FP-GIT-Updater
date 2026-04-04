@@ -11,20 +11,20 @@ if (!defined('ABSPATH')) {
 ?>
 
 <?php if (!$auto_update_enabled): ?>
-    <div class="fp-notice fp-notice-info">
+    <div class="fp-notice fp-notice-info fpgitupdater-notice-mode">
         <p>
-            <span class="dashicons dashicons-shield-alt" style="color: #2271b1;"></span>
-            <strong><?php _e('Modalità Aggiornamento Manuale Attiva', 'fp-git-updater'); ?></strong> - 
-            <?php _e('Gli aggiornamenti non verranno installati automaticamente. Riceverai una notifica quando sono disponibili e potrai installarli manualmente quando sei pronto.', 'fp-git-updater'); ?>
+            <span class="dashicons dashicons-shield-alt" aria-hidden="true"></span>
+            <strong><?php esc_html_e('Modalità aggiornamento manuale attiva', 'fp-git-updater'); ?></strong>
+            <?php esc_html_e('— Gli aggiornamenti non verranno installati automaticamente. Riceverai una notifica quando sono disponibili e potrai installarli manualmente.', 'fp-git-updater'); ?>
         </p>
     </div>
 <?php else: ?>
-    <div class="fp-notice fp-notice-info" style="border-left-color: #dba617; background: #fcf9e8;">
+    <div class="fp-notice fp-notice-info fp-notice-warning fpgitupdater-notice-mode fpgitupdater-notice-mode--manual">
         <p>
-            <span class="dashicons dashicons-warning" style="color: #dba617;"></span>
-            <strong><?php _e('Attenzione:', 'fp-git-updater'); ?></strong> 
-            <?php _e('Aggiornamento Automatico Attivo - I plugin verranno aggiornati automaticamente quando ricevi un push da GitHub.', 'fp-git-updater'); ?>
-            <br><?php _e('Per maggiore controllo e sicurezza, disabilita «Aggiornamento Automatico» nel tab Impostazioni Generali.', 'fp-git-updater'); ?>
+            <span class="dashicons dashicons-warning" aria-hidden="true"></span>
+            <strong><?php esc_html_e('Attenzione:', 'fp-git-updater'); ?></strong>
+            <?php esc_html_e('Aggiornamento automatico attivo: i plugin verranno aggiornati quando ricevi un push da GitHub.', 'fp-git-updater'); ?>
+            <br><?php esc_html_e('Per maggiore controllo disabilita «Aggiornamento automatico» nel tab Impostazioni generali.', 'fp-git-updater'); ?>
         </p>
     </div>
 <?php endif; ?>

@@ -625,7 +625,11 @@
             const $p = $('<p>').text(message);
             const notice = $('<div class="notice ' + noticeClass + ' is-dismissible"></div>').append($p);
             
-            $('.fp-git-updater-wrap h1').after(notice);
+            var $noticeAnchor = $('.fpgitupdater-admin-page > h1.screen-reader-text').first();
+            if (!$noticeAnchor.length) {
+                $noticeAnchor = $('.fp-git-updater-wrap > h1').first();
+            }
+            $noticeAnchor.after(notice);
             
             setTimeout(function() {
                 notice.fadeOut(function() {

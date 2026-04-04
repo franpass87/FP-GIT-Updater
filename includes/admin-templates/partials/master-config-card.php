@@ -92,6 +92,6 @@ $master_url = MasterEndpoint::get_endpoint_url();
                 </tr>
             </tbody>
         </table>
-        <?php submit_button(__('Salva Impostazioni Master', 'fp-git-updater'), 'secondary'); ?>
+        <?php submit_button(__('Salva impostazioni Master', 'fp-git-updater'), 'secondary fpgitupdater-btn fpgitupdater-btn-secondary', 'submit', false); ?>
     </form>
 </div>
