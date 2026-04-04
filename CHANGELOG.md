@@ -2,6 +2,10 @@
 
 All notable changes to FP Updater will be documented in this file.
 
+## [1.6.20] - 2026-04-05
+### Changed
+- Modal distribuzione Master: grafica allineata al **FP Admin UI Design System** (token `--fpdms-*`, header con gradiente viola come gli altri plugin FP, card pannello, barra avanzamento e log con colori success/danger canonici, classi `fpgitupdater-deploy-modal__*`).
+
 ## [1.6.19] - 2026-04-05
 ### Added
 - Modalità Master: durante «Installa su clienti» e «Aggiorna tutti» viene mostrato un pannello con barra di avanzamento, fase corrente e log per ogni sito contattato (trigger-sync sequenziale verso FP Remote Bridge).

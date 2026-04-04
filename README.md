@@ -2,7 +2,7 @@
 
 Sistema di aggiornamento automatico plugin WordPress da GitHub. Gestisce aggiornamenti, backup, deploy remoto su clienti e auto-aggiornamento.
 
-[![Version](https://img.shields.io/badge/version-1.6.19-blue.svg)](https://github.com/franpass87/FP-GIT-Updater)
+[![Version](https://img.shields.io/badge/version-1.6.20-blue.svg)](https://github.com/franpass87/FP-GIT-Updater)
 [![License](https://img.shields.io/badge/license-GPL%20v2-blue.svg)](LICENSE)
 
 ---

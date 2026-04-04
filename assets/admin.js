@@ -645,18 +645,24 @@
             fpRemoveDeployProgressModal();
             var safeTitle = $('<span>').text(title || '').html();
             var html = ''
-                + '<div id="fp-deploy-progress-modal" class="fp-deploy-progress-modal" role="dialog" aria-modal="true" aria-labelledby="fp-deploy-progress-title">'
-                + '<div class="fp-deploy-progress-backdrop"></div>'
-                + '<div class="fp-deploy-progress-box">'
-                + '<h3 id="fp-deploy-progress-title" class="fp-deploy-progress-title">' + safeTitle + '</h3>'
-                + '<p class="fp-deploy-progress-phase" id="fp-deploy-progress-phase"></p>'
-                + '<div class="fp-deploy-progress-bar-wrap" aria-hidden="true">'
-                + '<div class="fp-deploy-progress-bar" id="fp-deploy-progress-bar"></div>'
+                + '<div id="fp-deploy-progress-modal" class="fpgitupdater-deploy-modal" role="dialog" aria-modal="true" aria-labelledby="fp-deploy-progress-title">'
+                + '<div class="fpgitupdater-deploy-modal__backdrop"></div>'
+                + '<div class="fpgitupdater-deploy-modal__panel" role="document">'
+                + '<div class="fpgitupdater-deploy-modal__header">'
+                + '<h2 id="fp-deploy-progress-title" class="fpgitupdater-deploy-modal__title">'
+                + '<span class="dashicons dashicons-cloud-upload" aria-hidden="true"></span>'
+                + safeTitle
+                + '</h2>'
                 + '</div>'
-                + '<p class="fp-deploy-progress-counter" id="fp-deploy-progress-counter"></p>'
-                + '<ul class="fp-deploy-progress-log" id="fp-deploy-progress-log" aria-live="polite"></ul>'
-                + '</div>'
-                + '</div>';
+                + '<div class="fpgitupdater-deploy-modal__body">'
+                + '<p class="fpgitupdater-deploy-modal__phase" id="fp-deploy-progress-phase"></p>'
+                + '<div class="fpgitupdater-deploy-modal__progress" aria-hidden="true">'
+                + '<div class="fpgitupdater-deploy-modal__progress-track">'
+                + '<div class="fpgitupdater-deploy-modal__progress-fill" id="fp-deploy-progress-bar"></div>'
+                + '</div></div>'
+                + '<p class="fpgitupdater-deploy-modal__counter" id="fp-deploy-progress-counter"></p>'
+                + '<ul class="fpgitupdater-deploy-modal__log" id="fp-deploy-progress-log" aria-live="polite"></ul>'
+                + '</div></div></div>';
             $('body').append(html);
             $('#fp-deploy-progress-modal').fadeIn(120);
             if (totalTargets > 0) {
@@ -675,8 +681,8 @@
         }
 
         function fpAppendDeployLog(text, kind) {
-            var cls = kind === 'ok' ? 'fp-deploy-log-line--ok' : 'fp-deploy-log-line--err';
-            var $li = $('<li class="fp-deploy-log-line ' + cls + '"></li>').text(text);
+            var lineMod = kind === 'ok' ? 'fpgitupdater-deploy-modal__log-line--ok' : 'fpgitupdater-deploy-modal__log-line--err';
+            var $li = $('<li class="fpgitupdater-deploy-modal__log-line ' + lineMod + '"></li>').text(text);
             var $log = $('#fp-deploy-progress-log');
             $log.append($li);
             $log.scrollTop($log[0].scrollHeight);

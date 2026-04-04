@@ -23,6 +23,31 @@
     --fp-text-muted: #50575e;
     --fp-radius: 4px;
     --fp-transition: all 0.1s ease;
+
+    /* Token FP Admin UI Design System (FP Digital Marketing Suite) */
+    --fpdms-primary: #667eea;
+    --fpdms-primary-dark: #764ba2;
+    --fpdms-gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --fpdms-success: #10b981;
+    --fpdms-success-bg: #d1fae5;
+    --fpdms-success-text: #065f46;
+    --fpdms-danger: #ef4444;
+    --fpdms-danger-bg: #fee2e2;
+    --fpdms-danger-text: #991b1b;
+    --fpdms-text: #1f2937;
+    --fpdms-text-light: #4b5563;
+    --fpdms-text-muted: #9ca3af;
+    --fpdms-border: #e5e7eb;
+    --fpdms-border-light: #f3f4f6;
+    --fpdms-bg-white: #ffffff;
+    --fpdms-bg-light: #f9fafb;
+    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.12);
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 999px;
+    --fpdms-transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* === MAIN WRAPPER === */
@@ -2691,95 +2716,174 @@ html {
     padding: 25px 0;
 }
 
-/* === DEPLOY PROGRESS MODAL (Master: installa / aggiorna client) === */
-.fp-deploy-progress-modal {
+/* === MODAL DEPLOY MASTER — stile FP Admin UI (gradiente + token fpdms) === */
+.fpgitupdater-deploy-modal {
     display: none;
     position: fixed;
     inset: 0;
     z-index: 100000;
     font-size: 14px;
+    color-scheme: light;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 }
 
-.fp-deploy-progress-backdrop {
+.fpgitupdater-deploy-modal__backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.45);
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
 }
 
-.fp-deploy-progress-box {
+.fpgitupdater-deploy-modal__panel {
     position: relative;
-    max-width: 520px;
-    margin: 8vh auto 0;
-    background: var(--fp-bg, #fff);
-    border: 1px solid var(--fp-border, #dcdcde);
-    border-radius: var(--fp-radius, 4px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
-    padding: 20px 22px 18px;
-}
-
-.fp-deploy-progress-title {
-    margin: 0 0 10px;
-    font-size: 1.15em;
-    line-height: 1.3;
-    color: var(--fp-text, #1d2327);
-}
-
-.fp-deploy-progress-phase {
-    margin: 0 0 12px;
-    color: var(--fp-text-muted, #50575e);
-    min-height: 1.4em;
-}
-
-.fp-deploy-progress-bar-wrap {
-    height: 10px;
-    background: var(--fp-border-light, #f0f0f1);
-    border-radius: 6px;
+    max-width: 540px;
+    margin: 6vh auto 2rem;
+    background: var(--fpdms-bg-white);
+    border: 1px solid var(--fpdms-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
     overflow: hidden;
-    margin-bottom: 8px;
+    color: var(--fpdms-text);
 }
 
-.fp-deploy-progress-bar {
+/* Fascia titolo: stesso gradiente del page header FP */
+.fpgitupdater-deploy-modal__header {
+    background: var(--fpdms-gradient-primary);
+    padding: 1.25rem 1.5rem;
+    color: #fff;
+}
+
+.fpgitupdater-deploy-modal__title {
+    margin: 0;
+    color: #fff !important;
+    font-size: 1.35rem;
+    font-weight: 600;
+    line-height: 1.3;
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.fpgitupdater-deploy-modal__title .dashicons {
+    font-size: 1.5rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+    opacity: 0.95;
+}
+
+.fpgitupdater-deploy-modal__body {
+    padding: 1.35rem 1.5rem 1.5rem;
+    background: var(--fpdms-bg-light);
+}
+
+.fpgitupdater-deploy-modal__phase {
+    margin: 0 0 1rem;
+    min-height: 1.45em;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--fpdms-text-light);
+}
+
+.fpgitupdater-deploy-modal__progress {
+    margin-bottom: 0.75rem;
+}
+
+.fpgitupdater-deploy-modal__progress-track {
+    height: 12px;
+    background: var(--fpdms-border-light);
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    border: 1px solid var(--fpdms-border);
+}
+
+.fpgitupdater-deploy-modal__progress-fill {
     height: 100%;
     width: 0;
-    background: linear-gradient(90deg, var(--fp-primary, #2271b1), #135e96);
-    border-radius: 6px;
-    transition: width 0.25s ease;
+    max-width: 100%;
+    background: var(--fpdms-gradient-primary);
+    border-radius: var(--radius-pill);
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.fp-deploy-progress-counter {
-    margin: 0 0 12px;
-    font-size: 12px;
-    color: var(--fp-text-muted, #50575e);
+.fpgitupdater-deploy-modal__counter {
+    margin: 0 0 1rem;
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--fpdms-primary-dark);
+    background: rgba(102, 126, 234, 0.12);
+    border-radius: var(--radius-pill);
+    border: 1px solid rgba(102, 126, 234, 0.25);
 }
 
-.fp-deploy-progress-log {
+.fpgitupdater-deploy-modal__log {
     list-style: none;
     margin: 0;
-    padding: 8px 10px;
-    max-height: 200px;
+    padding: 0.65rem 0.85rem;
+    max-height: 220px;
     overflow-y: auto;
-    background: var(--fp-bg-alt, #f6f7f7);
-    border: 1px solid var(--fp-border, #dcdcde);
-    border-radius: var(--fp-radius, 4px);
+    background: var(--fpdms-bg-white);
+    border: 1px solid var(--fpdms-border);
+    border-radius: var(--radius-md);
     font-size: 12px;
-    line-height: 1.45;
+    line-height: 1.5;
+    box-shadow: var(--shadow-md);
 }
 
-.fp-deploy-log-line {
-    margin: 0 0 6px;
-    padding: 0;
+.fpgitupdater-deploy-modal__log-line {
+    margin: 0 0 0.5rem;
+    padding: 0.35rem 0 0.35rem 1.35rem;
+    position: relative;
+    border-radius: 4px;
 }
 
-.fp-deploy-log-line:last-child {
+.fpgitupdater-deploy-modal__log-line:last-child {
     margin-bottom: 0;
 }
 
-.fp-deploy-log-line--ok {
-    color: var(--fp-success, #00a32a);
+.fpgitupdater-deploy-modal__log-line::before {
+    content: "";
+    position: absolute;
+    left: 0.15rem;
+    top: 0.55rem;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--fpdms-text-muted);
 }
 
-.fp-deploy-log-line--err {
-    color: var(--fp-error, #d63638);
+.fpgitupdater-deploy-modal__log-line--ok {
+    color: var(--fpdms-success-text);
+    background: var(--fpdms-success-bg);
+}
+
+.fpgitupdater-deploy-modal__log-line--ok::before {
+    background: var(--fpdms-success);
+}
+
+.fpgitupdater-deploy-modal__log-line--err {
+    color: var(--fpdms-danger-text);
+    background: var(--fpdms-danger-bg);
+}
+
+.fpgitupdater-deploy-modal__log-line--err::before {
+    background: var(--fpdms-danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fpgitupdater-deploy-modal__progress-fill {
+        transition: none;
+    }
+
+    .fpgitupdater-deploy-modal__backdrop {
+        backdrop-filter: none;
+    }
 }
 
 /* === PRINT STYLES === */
