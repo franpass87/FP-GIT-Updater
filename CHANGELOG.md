@@ -2,6 +2,10 @@
 
 All notable changes to FP Updater will be documented in this file.
 
+## [1.7.1] - 2026-05-14
+### Added
+- Endpoint read-only `GET /wp-json/fp-git-updater/v1/cursor-mcp-sites` (secret Master) per elencare i client con `fp-remote-bridge` e sincronizzare MCP Cursor.
+
 ## [1.7.0] - 2026-04-05
 ### Added
 - Admin: classe body `fpgitupdater-admin-shell`, wrapper `fpgitupdater-admin-page`, banner titolo pagina (gradiente FP, badge versione, `h1` solo screen-reader) su Impostazioni, Log e Backup.

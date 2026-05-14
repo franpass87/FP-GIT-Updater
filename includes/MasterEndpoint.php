@@ -63,6 +63,11 @@ class MasterEndpoint
             'permission_callback' => [self::class, 'permission_check'],
             'args'                => $args,
         ]);
+        register_rest_route('fp-git-updater/v1', '/cursor-mcp-sites', [
+            'methods'             => 'GET',
+            'callback'            => [self::class, 'handle_cursor_mcp_sites'],
+            'permission_callback' => [self::class, 'permission_check'],
+        ]);
     }
 
     public static function permission_check(WP_REST_Request $request): bool
@@ -735,6 +740,69 @@ class MasterEndpoint
             $id = $aliases[$id];
         }
         return is_string($id) ? $id : $client_id;
+    }
+
+    /**
+     * Elenco read-only dei siti con FP Remote Bridge per sync MCP Cursor.
+     *
+     * @param WP_REST_Request $request Richiesta REST autenticata con secret Master.
+     * @return WP_REST_Response
+     */
+    public static function handle_cursor_mcp_sites(WP_REST_Request $request): WP_REST_Response
+    {
+        $clients = self::get_connected_clients();
+        $sites = [];
+
+        foreach ($clients as $client_id => $data) {
+            if (!is_array($data)) {
+                continue;
+            }
+
+            $installed = $data['installed_plugins'] ?? [];
+            if (!is_array($installed) || !in_array('fp-remote-bridge', $installed, true)) {
+                continue;
+            }
+
+            $url = isset($data['url']) && is_string($data['url']) ? trim($data['url']) : '';
+            if ($url === '') {
+                $url = 'https://' . ltrim((string) $client_id, '/');
+            }
+
+            $url = esc_url_raw($url);
+            if ($url === '') {
+                continue;
+            }
+
+            $name = isset($data['site_name']) && is_string($data['site_name']) ? trim($data['site_name']) : '';
+            if ($name === '') {
+                $name = (string) $client_id;
+            }
+
+            $versions = $data['plugin_versions'] ?? [];
+            $bridge_version = '';
+            if (is_array($versions) && isset($versions['fp-remote-bridge'])) {
+                $bridge_version = (string) $versions['fp-remote-bridge'];
+            }
+
+            $sites[] = [
+                'client_id' => (string) $client_id,
+                'name' => $name,
+                'site_url' => rtrim($url, '/'),
+                'bridge_version' => $bridge_version,
+                'last_seen' => (int) ($data['last_seen'] ?? 0),
+            ];
+        }
+
+        usort($sites, static function (array $a, array $b): int {
+            return strcasecmp((string) ($a['name'] ?? ''), (string) ($b['name'] ?? ''));
+        });
+
+        return new WP_REST_Response([
+            'success' => true,
+            'generated_at_gmt' => gmdate('Y-m-d H:i:s'),
+            'master_url' => site_url(),
+            'sites' => $sites,
+        ], 200);
     }
 
     /**
