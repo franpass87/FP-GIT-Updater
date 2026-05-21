@@ -12,7 +12,6 @@ namespace FP\GitUpdater\Services\Diagnostics;
 use FP\GitUpdater\Logger;
 use FP\GitUpdater\MasterEndpoint;
 use FP\GitUpdater\ReceiveBackupEndpoint;
-use FP\GitUpdater\Updater;
 use FP\GitUpdater\WebhookHandler;
 
 if (!defined('ABSPATH')) {
@@ -194,25 +193,33 @@ final class RuntimeDiagnostics
      */
     private static function build_pending_updates(): array
     {
-        $updater = Updater::get_instance();
-        $pending = $updater->get_pending_updates();
+        // Read-only: non usare Updater::get_pending_updates() (può cancellare pending obsoleti).
+        $settings = get_option('fp_git_updater_settings', []);
+        $plugins = is_array($settings['plugins'] ?? null) ? $settings['plugins'] : [];
         $items = [];
 
-        foreach ($pending as $row) {
-            if (!is_array($row)) {
+        foreach ($plugins as $plugin) {
+            if (!is_array($plugin)) {
                 continue;
             }
-            $plugin = is_array($row['plugin'] ?? null) ? $row['plugin'] : [];
-            $pluginId = sanitize_key((string) ($plugin['id'] ?? ($row['plugin_id'] ?? '')));
+            $pluginId = sanitize_key((string) ($plugin['id'] ?? ''));
+            if ($pluginId === '') {
+                continue;
+            }
+            $pending = get_option('fp_git_updater_pending_update_' . $pluginId, null);
+            if (!is_array($pending) || $pending === []) {
+                continue;
+            }
+
             $lockKey = 'fp_git_updater_lock_' . $pluginId;
             $items[] = [
                 'plugin_id' => $pluginId,
                 'plugin_slug' => sanitize_key((string) ($plugin['plugin_slug'] ?? '')),
-                'available_version' => sanitize_text_field((string) ($row['available_version'] ?? '')),
-                'commit_sha_short' => self::short_sha((string) ($row['commit_sha'] ?? '')),
-                'branch' => sanitize_text_field((string) ($row['branch'] ?? '')),
+                'available_version' => sanitize_text_field((string) ($pending['available_version'] ?? '')),
+                'commit_sha_short' => self::short_sha((string) ($pending['commit_sha'] ?? '')),
+                'branch' => sanitize_text_field((string) ($pending['branch'] ?? ($plugin['branch'] ?? ''))),
                 'has_update_lock' => (bool) get_transient($lockKey),
-                'detected_at' => isset($row['detected_at']) ? (string) $row['detected_at'] : null,
+                'detected_at' => isset($pending['detected_at']) ? (string) $pending['detected_at'] : null,
             ];
         }
 

@@ -6,7 +6,7 @@ All notable changes to FP Updater will be documented in this file.
 
 ### Added
 
-- **Runtime diagnostics API** (`includes/Services/Diagnostics/RuntimeDiagnostics.php` + `api.php`): `fp_gitupdater_get_runtime_diagnostics()` per FP Remote Bridge sezione `gitupdater_runtime` (Master: client collegati, deploy queue; tutti: pending, log scrubbed).
+- **Runtime diagnostics API** (`includes/Services/Diagnostics/RuntimeDiagnostics.php` + `api.php`): `fp_gitupdater_get_runtime_diagnostics()` per FP Remote Bridge sezione `gitupdater_runtime` (Master: client collegati, deploy queue; tutti: pending, log scrubbed). Pending letti da opzioni senza invocare `get_pending_updates()` (evita side-effect di pulizia).
 
 ## [1.7.1] - 2026-05-14
 ### Added
