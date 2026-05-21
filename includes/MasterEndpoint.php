@@ -34,6 +34,9 @@ class MasterEndpoint
     public const HEADER_SECRET = 'X-FP-Client-Secret';
     public const HEADER_CLIENT_ID = 'X-FP-Client-ID';
 
+    /** Slug Bridge nel registry client (cartella alternativa dopo install Master). */
+    public const BRIDGE_PLUGIN_SLUGS = ['fp-remote-bridge', 'fp-remote-bridge-update'];
+
     /** Durata finestra autorizzazione (secondi). I client aggiornano solo se il Master ha autorizzato. */
     public const DEPLOY_WINDOW_SECONDS = 7200; // 2 ore
 
@@ -748,6 +751,34 @@ class MasterEndpoint
      * @param WP_REST_Request $request Richiesta REST autenticata con secret Master.
      * @return WP_REST_Response
      */
+    /**
+     * @param array<int, string> $installed
+     */
+    private static function client_has_fp_remote_bridge(array $installed): bool
+    {
+        foreach (self::BRIDGE_PLUGIN_SLUGS as $slug) {
+            if (in_array($slug, $installed, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param array<string, mixed> $versions
+     */
+    private static function resolve_fp_remote_bridge_version(array $versions): string
+    {
+        foreach (self::BRIDGE_PLUGIN_SLUGS as $slug) {
+            if (isset($versions[$slug]) && is_scalar($versions[$slug])) {
+                return (string) $versions[$slug];
+            }
+        }
+
+        return '';
+    }
+
     public static function handle_cursor_mcp_sites(WP_REST_Request $request): WP_REST_Response
     {
         $clients = self::get_connected_clients();
@@ -759,7 +790,7 @@ class MasterEndpoint
             }
 
             $installed = $data['installed_plugins'] ?? [];
-            if (!is_array($installed) || !in_array('fp-remote-bridge', $installed, true)) {
+            if (!is_array($installed) || !self::client_has_fp_remote_bridge($installed)) {
                 continue;
             }
 
@@ -778,11 +809,8 @@ class MasterEndpoint
                 $name = (string) $client_id;
             }
 
-            $versions = $data['plugin_versions'] ?? [];
-            $bridge_version = '';
-            if (is_array($versions) && isset($versions['fp-remote-bridge'])) {
-                $bridge_version = (string) $versions['fp-remote-bridge'];
-            }
+            $versions = is_array($data['plugin_versions'] ?? null) ? $data['plugin_versions'] : [];
+            $bridge_version = self::resolve_fp_remote_bridge_version($versions);
 
             $sites[] = [
                 'client_id' => (string) $client_id,

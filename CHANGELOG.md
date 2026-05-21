@@ -1,3 +1,8 @@
+## [1.7.3] - 2026-05-21
+
+### Fixed
+
+- **cursor-mcp-sites**: include clienti con Bridge in cartella `fp-remote-bridge-update` (oltre a `fp-remote-bridge`) e versione da `plugin_versions` coerente.
 # Changelog
 
 All notable changes to FP Updater will be documented in this file.
