@@ -1466,6 +1466,40 @@
             });
         });
 
+        // Ripristina cliente rimosso (blacklist)
+        $(document).on('click', '.fp-restore-removed-client-btn', function() {
+            var $btn = $(this);
+            var clientId = $btn.data('client-id');
+            if (!clientId) return;
+            if (!confirm('Ripristinare "' + clientId + '"? Dopo il ripristino, sul sito cliente clicca «Sincronizza ora» in FP Remote Bridge.')) return;
+            $btn.prop('disabled', true);
+            $.post(fpGitUpdater.ajax_url, {
+                action: 'fp_git_updater_restore_removed_client',
+                nonce: fpGitUpdater.nonce,
+                client_id: clientId
+            }).done(function(response) {
+                if (response.success) {
+                    var rowId = 'fp-removed-row-' + clientId.replace(/[^a-zA-Z0-9_-]/g, '-');
+                    var $row = $('#' + rowId);
+                    if (!$row.length) { $row = $btn.closest('tr'); }
+                    $row.fadeOut(300, function() {
+                        $row.remove();
+                        var $card = $('#fp-master-removed-clients');
+                        if ($card.find('tbody tr').length === 0) {
+                            $card.fadeOut(300, function() { $card.remove(); });
+                        }
+                    });
+                    showNotice('success', response.data.message || 'Cliente ripristinato.');
+                } else {
+                    showNotice('error', response.data && response.data.message ? response.data.message : 'Errore.');
+                    $btn.prop('disabled', false);
+                }
+            }).fail(function() {
+                showNotice('error', 'Errore di connessione.');
+                $btn.prop('disabled', false);
+            });
+        });
+
         // Rimuovi cliente
         $(document).on('click', '.fp-remove-client-btn', function() {
             var $btn = $(this);

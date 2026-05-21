@@ -49,6 +49,7 @@ class Admin {
         add_action('wp_ajax_fp_git_updater_refresh_clients', array($this, 'ajax_refresh_clients'));
         add_action('wp_ajax_fp_git_updater_clear_update_lock', array($this, 'ajax_clear_update_lock'));
         add_action('wp_ajax_fp_git_updater_remove_client', array($this, 'ajax_remove_client'));
+        add_action('wp_ajax_fp_git_updater_restore_removed_client', array($this, 'ajax_restore_removed_client'));
         add_action('wp_ajax_fp_git_updater_refresh_client_versions', array($this, 'ajax_refresh_client_versions'));
         add_action('wp_ajax_fp_git_updater_refresh_single_client_versions', array($this, 'ajax_refresh_single_client_versions'));
         add_action('wp_ajax_fp_git_updater_sync_client_version', array($this, 'ajax_sync_client_version'));
@@ -1655,6 +1656,36 @@ class Admin {
         update_option(MasterEndpoint::OPTION_REMOVED_CLIENTS, $removed);
 
         wp_send_json_success(array('message' => sprintf(__('Cliente "%s" rimosso.', 'fp-git-updater'), $client_id)));
+    }
+
+    /**
+     * AJAX: Ripristina un cliente dalla blacklist (dopo rimozione manuale).
+     */
+    public function ajax_restore_removed_client(): void
+    {
+        check_ajax_referer('fp_git_updater_nonce', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('Accesso negato.', 'fp-git-updater')), 403);
+        }
+
+        $client_id = sanitize_text_field(wp_unslash($_POST['client_id'] ?? ''));
+        if ($client_id === '') {
+            wp_send_json_error(array('message' => __('ID cliente mancante.', 'fp-git-updater')));
+            return;
+        }
+
+        if (!MasterEndpoint::restore_removed_client($client_id)) {
+            wp_send_json_error(array('message' => __('Cliente non trovato tra i rimossi.', 'fp-git-updater')));
+            return;
+        }
+
+        wp_send_json_success(array(
+            'message' => sprintf(
+                /* translators: %s: client id or domain */
+                __('Cliente "%s" ripristinato. Sul sito cliente clicca «Sincronizza ora» in FP Remote Bridge.', 'fp-git-updater'),
+                $client_id
+            ),
+        ));
     }
 
     /**

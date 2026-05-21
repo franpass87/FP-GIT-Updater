@@ -1,3 +1,13 @@
+## [1.7.4] - 2026-05-21
+
+### Added
+
+- **Admin Master**: sezione «Clienti rimossi» con pulsante **Ripristina** per siti in blacklist (`fp_git_updater_removed_clients`) che sincronizzano con successo ma non compaiono in «Clienti collegati».
+
+### Changed
+
+- Messaggio guida quando nessun cliente collegato: rimanda alla sezione rimossi se la sync sul cliente è verde.
+
 ## [1.7.3] - 2026-05-21
 
 ### Fixed

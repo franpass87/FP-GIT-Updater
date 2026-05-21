@@ -16,6 +16,7 @@ $deploy_active = $deploy_until > time();
 $updater = \FP\GitUpdater\Updater::get_instance();
 $pending_updates = isset($pending_updates) ? $pending_updates : $updater->get_pending_updates();
 $connected_clients = MasterEndpoint::get_connected_clients();
+$removed_clients = MasterEndpoint::get_removed_clients();
 $settings = get_option('fp_git_updater_settings', []);
 $configured_plugins = isset($settings['plugins']) ? $settings['plugins'] : [];
 // Escludi self-update come in settings-page
@@ -155,6 +156,53 @@ $backup_dir_writable = $backup_dir_exists && is_writable($backup_dir);
     </div>
 </div>
 
+<!-- Clienti rimossi (blacklist) -->
+<?php if (!empty($removed_clients)) : ?>
+<div class="fp-settings-card fp-master-removed-clients-card" id="fp-master-removed-clients">
+    <h3 class="fp-master-clients-title">
+        <span class="dashicons dashicons-hidden"></span>
+        <?php esc_html_e('Clienti rimossi', 'fp-git-updater'); ?>
+        <span class="fp-master-clients-badge"><?php echo count($removed_clients); ?></span>
+    </h3>
+    <div class="fpgitupdater-callout fpgitupdater-callout--warning" style="margin-bottom:12px;">
+        <p>
+            <?php esc_html_e('Questi siti possono sincronizzarsi con successo (messaggio verde sul cliente) ma non compaiono in «Clienti collegati» finché non li ripristini.', 'fp-git-updater'); ?>
+        </p>
+    </div>
+    <table class="wp-list-table widefat fixed striped fpgitupdater-wp-table">
+        <thead>
+            <tr>
+                <th scope="col"><?php esc_html_e('Dominio / ID', 'fp-git-updater'); ?></th>
+                <th scope="col"><?php esc_html_e('Rimosso il', 'fp-git-updater'); ?></th>
+                <th scope="col" style="width:140px;"><?php esc_html_e('Azione', 'fp-git-updater'); ?></th>
+            </tr>
+        </thead>
+        <tbody id="fp-master-removed-clients-tbody">
+            <?php foreach ($removed_clients as $removed_id => $removed_at) : ?>
+                <tr id="fp-removed-row-<?php echo esc_attr(sanitize_html_class($removed_id)); ?>">
+                    <td><strong><?php echo esc_html($removed_id); ?></strong></td>
+                    <td>
+                        <?php
+                        echo $removed_at > 0
+                            ? esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), $removed_at))
+                            : esc_html('—');
+                        ?>
+                    </td>
+                    <td>
+                        <button type="button"
+                                class="button button-primary button-small fp-restore-removed-client-btn"
+                                data-client-id="<?php echo esc_attr($removed_id); ?>">
+                            <span class="dashicons dashicons-undo" style="margin-top:3px;"></span>
+                            <?php esc_html_e('Ripristina', 'fp-git-updater'); ?>
+                        </button>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
+<?php endif; ?>
+
 <!-- Client collegati -->
 <div class="fp-settings-card fp-master-clients-card">
     <div class="fp-master-clients-header">
@@ -192,7 +240,10 @@ $backup_dir_writable = $backup_dir_exists && is_writable($backup_dir);
                 <li><?php esc_html_e('Salva e clicca «Sincronizza ora» — il cliente apparirà subito in questa lista', 'fp-git-updater'); ?></li>
             </ol>
             <p class="fpgitupdater-callout__hint">
-                <?php esc_html_e('Se il cliente non appare: verifica che Modalità Master sia attiva, che la chiave segreta coincida esattamente e che il sito cliente riesca a raggiungere l\'URL del Master.', 'fp-git-updater'); ?>
+                <?php esc_html_e('Se sul cliente vedi «Sincronizzazione completata» ma il sito non è qui: controlla la sezione «Clienti rimossi» sopra e clicca Ripristina, poi «Sincronizza ora» sul sito cliente.', 'fp-git-updater'); ?>
+            </p>
+            <p class="fpgitupdater-callout__hint">
+                <?php esc_html_e('Altrimenti verifica Modalità Master attiva, secret identico e reachability verso l\'URL Master.', 'fp-git-updater'); ?>
             </p>
         </div>
     <?php else: ?>

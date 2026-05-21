@@ -665,6 +665,83 @@ class MasterEndpoint
     }
 
     /**
+     * Elenco clienti rimossi manualmente (blacklist: i ping non aggiornano «Clienti collegati»).
+     *
+     * @return array<string, int> Chiave client_id => timestamp rimozione (ordinato per data decrescente).
+     */
+    public static function get_removed_clients(): array
+    {
+        $removed = get_option(self::OPTION_REMOVED_CLIENTS, []);
+        if (!is_array($removed)) {
+            return [];
+        }
+
+        $filtered = [];
+        foreach ($removed as $client_id => $removed_at) {
+            if (!is_string($client_id) || $client_id === '') {
+                continue;
+            }
+            $filtered[$client_id] = is_numeric($removed_at) ? (int) $removed_at : 0;
+        }
+
+        uasort($filtered, static function (int $a, int $b): int {
+            return $b <=> $a;
+        });
+
+        return $filtered;
+    }
+
+    /**
+     * Ripristina un cliente rimosso: consente di nuovo la registrazione ai ping Bridge.
+     *
+     * @param string $client_id ID o dominio da ripristinare.
+     * @return bool True se almeno una voce è stata rimossa dalla blacklist.
+     */
+    public static function restore_removed_client(string $client_id): bool
+    {
+        $removed = get_option(self::OPTION_REMOVED_CLIENTS, []);
+        if (!is_array($removed) || $removed === []) {
+            return false;
+        }
+
+        $raw = trim($client_id);
+        if ($raw === '') {
+            return false;
+        }
+
+        $normalized = self::normalize_client_id($raw);
+        $resolved = self::resolve_client_id_alias($normalized);
+        $keys_to_unset = [];
+
+        foreach (array_keys($removed) as $key) {
+            if (
+                $key === $raw
+                || $key === $normalized
+                || $key === $resolved
+                || self::normalize_client_id((string) $key) === $normalized
+            ) {
+                $keys_to_unset[] = $key;
+            }
+        }
+
+        if ($keys_to_unset === []) {
+            return false;
+        }
+
+        foreach ($keys_to_unset as $key) {
+            unset($removed[$key]);
+        }
+
+        update_option(self::OPTION_REMOVED_CLIENTS, $removed);
+        Logger::log('info', 'Master: cliente ripristinato da lista rimossi', [
+            'client_id' => $normalized,
+            'keys'      => $keys_to_unset,
+        ]);
+
+        return true;
+    }
+
+    /**
      * Estrae un client_id canonico dalla request usando header/param e, quando disponibile,
      * l'host dell'URL sito inviato dal Bridge.
      *
