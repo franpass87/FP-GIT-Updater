@@ -2,7 +2,7 @@
 
 Sistema di aggiornamento automatico plugin WordPress da GitHub. Gestisce aggiornamenti, backup, deploy remoto su clienti e auto-aggiornamento.
 
-[![Version](https://img.shields.io/badge/version-1.7.1-blue.svg)](https://github.com/franpass87/FP-GIT-Updater)
+[![Version](https://img.shields.io/badge/version-1.7.2-blue.svg)](https://github.com/franpass87/FP-GIT-Updater)
 [![License](https://img.shields.io/badge/license-GPL%20v2-blue.svg)](LICENSE)
 
 ---
@@ -98,6 +98,12 @@ fp-git-updater/
 
 ## Changelog
 Vedi [CHANGELOG.md](CHANGELOG.md)
+---
+
+## Diagnostica runtime (FP Remote Bridge)
+
+API read-only (`fp_gitupdater_get_runtime_diagnostics`) per **FP Remote Bridge ≥ 1.41.0**, sezione `gitupdater_runtime`. Su **Master**: client collegati, code deploy, pending; su **client**: pending locali, log webhook. Secret e token mai esposti.
+
 ---
 
 ## Autore

@@ -16,6 +16,7 @@ return array(
     'FP\\GitUpdater\\Migration' => $baseDir . '/includes/Migration.php',
     'FP\\GitUpdater\\RateLimiter' => $baseDir . '/includes/RateLimiter.php',
     'FP\\GitUpdater\\ReceiveBackupEndpoint' => $baseDir . '/includes/ReceiveBackupEndpoint.php',
+    'FP\\GitUpdater\\Services\\Diagnostics\\RuntimeDiagnostics' => $baseDir . '/includes/Services/Diagnostics/RuntimeDiagnostics.php',
     'FP\\GitUpdater\\SettingsBackup' => $baseDir . '/includes/SettingsBackup.php',
     'FP\\GitUpdater\\Updater' => $baseDir . '/includes/Updater.php',
     'FP\\GitUpdater\\WebhookHandler' => $baseDir . '/includes/WebhookHandler.php',

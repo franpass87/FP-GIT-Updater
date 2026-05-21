@@ -2,6 +2,12 @@
 
 All notable changes to FP Updater will be documented in this file.
 
+## [1.7.2] - 2026-05-21
+
+### Added
+
+- **Runtime diagnostics API** (`includes/Services/Diagnostics/RuntimeDiagnostics.php` + `api.php`): `fp_gitupdater_get_runtime_diagnostics()` per FP Remote Bridge sezione `gitupdater_runtime` (Master: client collegati, deploy queue; tutti: pending, log scrubbed).
+
 ## [1.7.1] - 2026-05-14
 ### Added
 - Endpoint read-only `GET /wp-json/fp-git-updater/v1/cursor-mcp-sites` (secret Master) per elencare i client con `fp-remote-bridge` e sincronizzare MCP Cursor.

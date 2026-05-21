@@ -31,6 +31,7 @@ class ComposerStaticInit75d1350a44c37035fea0c999cd790686
         'FP\\GitUpdater\\Migration' => __DIR__ . '/../..' . '/includes/Migration.php',
         'FP\\GitUpdater\\RateLimiter' => __DIR__ . '/../..' . '/includes/RateLimiter.php',
         'FP\\GitUpdater\\ReceiveBackupEndpoint' => __DIR__ . '/../..' . '/includes/ReceiveBackupEndpoint.php',
+        'FP\\GitUpdater\\Services\\Diagnostics\\RuntimeDiagnostics' => __DIR__ . '/../..' . '/includes/Services/Diagnostics/RuntimeDiagnostics.php',
         'FP\\GitUpdater\\SettingsBackup' => __DIR__ . '/../..' . '/includes/SettingsBackup.php',
         'FP\\GitUpdater\\Updater' => __DIR__ . '/../..' . '/includes/Updater.php',
         'FP\\GitUpdater\\WebhookHandler' => __DIR__ . '/../..' . '/includes/WebhookHandler.php',
