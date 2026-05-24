@@ -71,6 +71,28 @@ class MasterEndpoint
             'callback'            => [self::class, 'handle_cursor_mcp_sites'],
             'permission_callback' => [self::class, 'permission_check'],
         ]);
+        register_rest_route('fp-git-updater/v1', '/deploy-update', [
+            'methods'             => 'POST',
+            'callback'            => [self::class, 'handle_deploy_update'],
+            'permission_callback' => [self::class, 'permission_check'],
+            'args'                => [
+                'plugin_ids'  => ['type' => 'array', 'required' => true],
+                'client_ids'  => ['type' => 'array', 'required' => false],
+                'blocking'    => ['type' => 'boolean', 'required' => false, 'default' => false],
+            ],
+        ]);
+        register_rest_route('fp-git-updater/v1', '/deploy-install-push', [
+            'methods'             => 'POST',
+            'callback'            => [self::class, 'handle_deploy_install_push'],
+            'permission_callback' => [self::class, 'permission_check'],
+            'args'                => [
+                'github_repo' => ['type' => 'string', 'required' => true],
+                'branch'      => ['type' => 'string', 'required' => false, 'default' => 'main'],
+                'name'        => ['type' => 'string', 'required' => false],
+                'client_ids'  => ['type' => 'array', 'required' => true],
+                'blocking'    => ['type' => 'boolean', 'required' => false, 'default' => false],
+            ],
+        ]);
     }
 
     public static function permission_check(WP_REST_Request $request): bool
@@ -342,6 +364,202 @@ class MasterEndpoint
         if (!empty($target_ids) && !$defer_remote_trigger) {
             self::push_sync_to_clients($target_ids);
         }
+    }
+
+    /**
+     * REST: autorizza aggiornamento plugin sui client e opzionalmente trigger-sync (MCP/automation).
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public static function handle_deploy_update(WP_REST_Request $request): WP_REST_Response
+    {
+        $plugin_ids = self::parse_string_list_param($request->get_param('plugin_ids'));
+        if ($plugin_ids === []) {
+            return new WP_REST_Response([
+                'success' => false,
+                'message' => __('plugin_ids obbligatorio (slug o id plugin).', 'fp-git-updater'),
+            ], 400);
+        }
+
+        $client_filter = self::parse_string_list_param($request->get_param('client_ids'));
+        $blocking        = (bool) $request->get_param('blocking');
+
+        $payload = self::orchestrate_deploy_update(
+            $plugin_ids,
+            $blocking,
+            $client_filter !== [] ? $client_filter : null
+        );
+
+        return new WP_REST_Response($payload, 200);
+    }
+
+    /**
+     * REST: autorizza installazione plugin su client selezionati + push sync (MCP/automation).
+     *
+     * @param WP_REST_Request $request
+     * @return WP_REST_Response
+     */
+    public static function handle_deploy_install_push(WP_REST_Request $request): WP_REST_Response
+    {
+        $github_repo = sanitize_text_field((string) ($request->get_param('github_repo') ?? ''));
+        $branch      = sanitize_text_field((string) ($request->get_param('branch') ?? 'main'));
+        $name        = sanitize_text_field((string) ($request->get_param('name') ?? ''));
+        $client_ids  = self::parse_string_list_param($request->get_param('client_ids'));
+        $blocking    = (bool) $request->get_param('blocking');
+
+        if ($github_repo === '' || $client_ids === []) {
+            return new WP_REST_Response([
+                'success' => false,
+                'message' => __('github_repo e client_ids obbligatori.', 'fp-git-updater'),
+            ], 400);
+        }
+
+        $parts = explode('/', $github_repo);
+        $slug  = preg_replace('/[^a-z0-9_-]/', '-', strtolower(trim((string) end($parts), '-')));
+        $plugin = [
+            'id'          => 'repo_' . $slug,
+            'name'        => $name !== '' ? $name : $slug,
+            'slug'        => $slug,
+            'github_repo' => $github_repo,
+            'branch'      => $branch !== '' ? $branch : 'main',
+        ];
+
+        $payload = self::orchestrate_deploy_install($plugin, $client_ids, $blocking);
+
+        return new WP_REST_Response($payload, 200);
+    }
+
+    /**
+     * Autorizza AGGIORNA e invia trigger-sync ai client target (automazione MCP/CI).
+     *
+     * @param array<string>     $plugin_ids     Slug o id plugin configurati sul Master
+     * @param bool              $blocking       Se true, attende risposta trigger-sync per ogni client
+     * @param array<string>|null $client_filter Sottoinsieme client (null = tutti con il plugin)
+     * @return array<string, mixed>
+     */
+    public static function orchestrate_deploy_update(array $plugin_ids, bool $blocking = false, ?array $client_filter = null): array
+    {
+        $plugin_ids = array_values(array_unique(array_map('strval', $plugin_ids)));
+        $target_ids = [];
+        foreach ($plugin_ids as $slug) {
+            foreach (self::get_clients_with_plugin($slug) as $client_id) {
+                $target_ids[] = $client_id;
+            }
+        }
+        $target_ids = array_values(array_unique($target_ids));
+
+        if ($client_filter !== null && $client_filter !== []) {
+            $allowed    = array_flip(array_map('strval', $client_filter));
+            $target_ids = array_values(array_filter(
+                $target_ids,
+                static fn (string $id): bool => isset($allowed[$id])
+            ));
+        }
+
+        self::authorize_deploy_update($plugin_ids, true);
+
+        $trigger_results = self::run_trigger_sync_for_clients($target_ids, $blocking);
+
+        return [
+            'success'         => true,
+            'mode'            => 'update',
+            'plugin_ids'      => $plugin_ids,
+            'target_clients'  => $target_ids,
+            'valid_until'     => (int) get_option(self::OPTION_DEPLOY_AUTHORIZED_UNTIL, 0),
+            'blocking'        => $blocking,
+            'trigger_results' => $trigger_results,
+        ];
+    }
+
+    /**
+     * Autorizza INSTALLA e invia trigger-sync ai client target (automazione MCP/CI).
+     *
+     * @param array<string, mixed> $plugin
+     * @param array<string>        $client_ids
+     * @param bool                 $blocking
+     * @return array<string, mixed>
+     */
+    public static function orchestrate_deploy_install(array $plugin, array $client_ids, bool $blocking = false): array
+    {
+        $client_ids = array_values(array_unique(array_map('strval', $client_ids)));
+        self::authorize_deploy_install($plugin, $client_ids, true);
+
+        $trigger_results = self::run_trigger_sync_for_clients($client_ids, $blocking);
+
+        return [
+            'success'         => true,
+            'mode'            => 'install',
+            'plugin'          => [
+                'slug'        => $plugin['slug'] ?? '',
+                'name'        => $plugin['name'] ?? '',
+                'github_repo' => $plugin['github_repo'] ?? '',
+                'branch'      => $plugin['branch'] ?? 'main',
+            ],
+            'target_clients'  => $client_ids,
+            'valid_until'     => (int) get_option(self::OPTION_DEPLOY_AUTHORIZED_UNTIL, 0),
+            'blocking'        => $blocking,
+            'trigger_results' => $trigger_results,
+        ];
+    }
+
+    /**
+     * @param array<string> $client_ids
+     * @param bool          $blocking
+     * @return array<string, array<string, mixed>>
+     */
+    private static function run_trigger_sync_for_clients(array $client_ids, bool $blocking): array
+    {
+        if ($client_ids === []) {
+            return [];
+        }
+
+        $results = [];
+        if ($blocking) {
+            foreach ($client_ids as $client_id) {
+                $results[$client_id] = self::trigger_sync_client_blocking($client_id);
+            }
+            return $results;
+        }
+
+        self::push_sync_to_clients($client_ids);
+        foreach ($client_ids as $client_id) {
+            $results[$client_id] = [
+                'ok'        => true,
+                'http_code' => 0,
+                'error'     => null,
+                'detail'    => 'push_async',
+            ];
+        }
+
+        return $results;
+    }
+
+    /**
+     * Normalizza parametro REST array|string|mixed in lista stringhe.
+     *
+     * @param mixed $raw
+     * @return array<string>
+     */
+    private static function parse_string_list_param($raw): array
+    {
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $raw = $decoded;
+            } else {
+                $raw = array_map('trim', explode(',', $raw));
+            }
+        }
+
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            static fn ($item): string => sanitize_text_field((string) $item),
+            $raw
+        )));
     }
 
     /**

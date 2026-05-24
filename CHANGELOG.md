@@ -1,3 +1,10 @@
+## [1.7.5] - 2026-05-24
+
+### Added
+
+- **REST automazione deploy (secret Master)**: `POST /wp-json/fp-git-updater/v1/deploy-update` autorizza aggiornamento plugin sui client collegati e invia `trigger-sync` (async o bloccante con `blocking: true`). `POST /deploy-install-push` per installazioni su client selezionati.
+- **`MasterEndpoint::orchestrate_deploy_update()` / `orchestrate_deploy_install()`**: pipeline usata da MCP Cursor (`fp_master_deploy_plugins`) per deploy automatico post-ottimizzazione plugin.
+
 ## [1.7.4] - 2026-05-21
 
 ### Added
