@@ -264,8 +264,14 @@ class MasterEndpoint
 
     private static function get_plugin_by_id_or_slug(string $id_or_slug, array $configured, array $pending): ?array
     {
+        $needle = strtolower(trim($id_or_slug));
+
         foreach ($configured as $p) {
             if (($p['id'] ?? '') === $id_or_slug || ($p['plugin_slug'] ?? '') === $id_or_slug) {
+                return $p;
+            }
+            $slug_from_repo = self::slug_from_github_repo((string) ($p['github_repo'] ?? ''));
+            if ($slug_from_repo !== '' && $slug_from_repo === $needle) {
                 return $p;
             }
         }
@@ -274,18 +280,42 @@ class MasterEndpoint
             if (($plugin['id'] ?? '') === $id_or_slug || ($plugin['plugin_slug'] ?? '') === $id_or_slug) {
                 return $plugin;
             }
+            $slug_from_repo = self::slug_from_github_repo((string) ($plugin['github_repo'] ?? ''));
+            if ($slug_from_repo !== '' && $slug_from_repo === $needle) {
+                return $plugin;
+            }
         }
+
         return null;
+    }
+
+    private static function slug_from_github_repo(string $github_repo): string
+    {
+        $github_repo = strtolower(trim($github_repo));
+        if ($github_repo === '') {
+            return '';
+        }
+
+        $parts = explode('/', $github_repo);
+
+        return strtolower(trim((string) end($parts)));
     }
 
     private static function find_pending_for_plugin(string $id_or_slug, array $pending): ?array
     {
+        $needle = strtolower(trim($id_or_slug));
+
         foreach ($pending as $p) {
             $plugin = $p['plugin'] ?? [];
             if (($plugin['id'] ?? '') === $id_or_slug || ($plugin['plugin_slug'] ?? '') === $id_or_slug) {
                 return $p;
             }
+            $slug_from_repo = self::slug_from_github_repo((string) ($plugin['github_repo'] ?? ''));
+            if ($slug_from_repo !== '' && $slug_from_repo === $needle) {
+                return $p;
+            }
         }
+
         return null;
     }
 

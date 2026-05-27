@@ -1,3 +1,9 @@
+## [1.7.6] - 2026-05-27
+
+### Fixed
+
+- **Deploy client MCP/slug**: `get_plugin_by_id_or_slug()` risolve anche lo slug derivato da `github_repo` (es. `fp-experiences` → `plugin_*` senza `plugin_slug` in config). Sblocca `master-updates-status` + trigger-sync quando la coda deploy usa lo slug.
+
 ## [1.7.5] - 2026-05-24
 
 ### Added
