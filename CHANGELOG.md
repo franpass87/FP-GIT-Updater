@@ -1,3 +1,9 @@
+## [1.7.7] - 2026-05-27
+
+### Fixed
+
+- **Selettore repository GitHub limitato a 30**: la modal «Seleziona Repository da GitHub» chiamava `GET /users/{username}/repos` senza paginazione, quindi GitHub restituiva solo i primi 30 repository (default API). I repo oltre il 30° (es. `FP-WooCommerce` su account con 35+ repo pubblici) non comparivano nemmeno cercandoli. Ora `ajax_load_github_repos()` scorre tutte le pagine con `per_page=100` fino a un cap di 10 pagine (1000 repo). Cache transient versionata (`_v2_`) per invalidare automaticamente la cache pre-fix.
+
 ## [1.7.6] - 2026-05-27
 
 ### Fixed

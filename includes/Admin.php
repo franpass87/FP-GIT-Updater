@@ -1105,10 +1105,10 @@ class Admin {
         $default_username = 'FranPass87';
         
         try {
-            // Controlla cache (valida per 5 minuti)
-            $cache_key = 'fp_git_updater_repos_' . md5($default_username);
+            // Controlla cache (valida per 5 minuti). Chiave versionata per invalidare cache pre-paginazione (v1.7.7+).
+            $cache_key = 'fp_git_updater_repos_v2_' . md5($default_username);
             $cached_repos = get_transient($cache_key);
-            
+
             if ($cached_repos !== false) {
                 wp_send_json_success(array(
                     'repositories' => $cached_repos,
@@ -1117,9 +1117,8 @@ class Admin {
                 ));
                 return;
             }
-            
-            // Chiama API GitHub
-            $api_url = 'https://api.github.com/users/' . urlencode($default_username) . '/repos';
+
+            // Prepara header richiesta GitHub
             $args = array(
                 'timeout' => 15,
                 'headers' => array(
@@ -1127,7 +1126,7 @@ class Admin {
                     'User-Agent' => 'FP-Updater-Plugin'
                 )
             );
-            
+
             // Usa token globale se disponibile per aumentare rate limit
             if (!empty($settings['global_github_token'])) {
                 $encryption = Encryption::get_instance();
@@ -1136,35 +1135,53 @@ class Admin {
                     $args['headers']['Authorization'] = 'token ' . $token;
                 }
             }
-            
-            $response = wp_remote_get($api_url, $args);
-            
-            if (is_wp_error($response)) {
-                wp_send_json_error(array('message' => 'Errore connessione GitHub: ' . $response->get_error_message()), 500);
-                return;
-            }
-            
-            $status_code = wp_remote_retrieve_response_code($response);
-            $body = wp_remote_retrieve_body($response);
-            
-            if ($status_code !== 200) {
-                $error_message = 'Errore API GitHub (HTTP ' . $status_code . ')';
-                if ($status_code === 404) {
-                    $error_message = 'Username GitHub "' . $default_username . '" non trovato';
-                } elseif ($status_code === 403) {
-                    $error_message = 'Rate limit GitHub raggiunto. Riprova tra qualche minuto.';
+
+            // Paginazione completa: GitHub limita a 100 per pagina, scorri finché restituisce risultati.
+            // Cap di sicurezza a 10 pagine = 1000 repository (più che sufficiente per qualsiasi account FP).
+            $repos = array();
+            $max_pages = 10;
+            for ($page = 1; $page <= $max_pages; $page++) {
+                $api_url = 'https://api.github.com/users/' . urlencode($default_username) . '/repos?per_page=100&page=' . $page;
+                $response = wp_remote_get($api_url, $args);
+
+                if (is_wp_error($response)) {
+                    wp_send_json_error(array('message' => 'Errore connessione GitHub: ' . $response->get_error_message()), 500);
+                    return;
                 }
-                wp_send_json_error(array('message' => $error_message), $status_code);
-                return;
+
+                $status_code = wp_remote_retrieve_response_code($response);
+                $body = wp_remote_retrieve_body($response);
+
+                if ($status_code !== 200) {
+                    $error_message = 'Errore API GitHub (HTTP ' . $status_code . ')';
+                    if ($status_code === 404) {
+                        $error_message = 'Username GitHub "' . $default_username . '" non trovato';
+                    } elseif ($status_code === 403) {
+                        $error_message = 'Rate limit GitHub raggiunto. Riprova tra qualche minuto.';
+                    }
+                    wp_send_json_error(array('message' => $error_message), $status_code);
+                    return;
+                }
+
+                $page_repos = json_decode($body, true);
+
+                if (!is_array($page_repos)) {
+                    wp_send_json_error(array('message' => 'Risposta API GitHub non valida'), 500);
+                    return;
+                }
+
+                if (empty($page_repos)) {
+                    break;
+                }
+
+                $repos = array_merge($repos, $page_repos);
+
+                // Se la pagina ha meno di 100 elementi, è l'ultima.
+                if (count($page_repos) < 100) {
+                    break;
+                }
             }
-            
-            $repos = json_decode($body, true);
-            
-            if (!is_array($repos)) {
-                wp_send_json_error(array('message' => 'Risposta API GitHub non valida'), 500);
-                return;
-            }
-            
+
             // Prepara lista repository (solo nome e descrizione)
             $repo_list = array();
             foreach ($repos as $repo) {
