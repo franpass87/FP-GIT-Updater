@@ -1,11 +1,13 @@
 <?php
 /**
  * Helper per Internazionalizzazione
- * 
+ *
  * Fornisce funzioni helper per traduzioni e formattazione
- * 
+ *
  * @package FP\GitUpdater
  */
+
+declare(strict_types=1);
 
 namespace FP\GitUpdater;
 

@@ -1,11 +1,13 @@
 <?php
 /**
  * Sistema di Logging
- * 
+ *
  * Gestisce il logging delle operazioni del plugin
- * 
+ *
  * @package FP\GitUpdater
  */
+
+declare(strict_types=1);
 
 namespace FP\GitUpdater;
 

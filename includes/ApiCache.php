@@ -1,11 +1,13 @@
 <?php
 /**
  * Sistema di Caching per API GitHub
- * 
+ *
  * Riduce le chiamate API e migliora le performance
- * 
+ *
  * @package FP\GitUpdater
  */
+
+declare(strict_types=1);
 
 namespace FP\GitUpdater;
 

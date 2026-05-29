@@ -23,6 +23,7 @@ class ComposerStaticInit75d1350a44c37035fea0c999cd790686
     public static $classMap = array (
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
         'FP\\GitUpdater\\Admin' => __DIR__ . '/../..' . '/includes/Admin.php',
+        'FP\\GitUpdater\\AjaxSecurityHelper' => __DIR__ . '/../..' . '/includes/AjaxSecurityHelper.php',
         'FP\\GitUpdater\\ApiCache' => __DIR__ . '/../..' . '/includes/ApiCache.php',
         'FP\\GitUpdater\\Encryption' => __DIR__ . '/../..' . '/includes/Encryption.php',
         'FP\\GitUpdater\\I18nHelper' => __DIR__ . '/../..' . '/includes/I18nHelper.php',

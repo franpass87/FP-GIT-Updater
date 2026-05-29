@@ -1,3 +1,24 @@
+## [1.9.0] - 2026-05-29
+
+### Added
+
+- **`AjaxSecurityHelper`** (`includes/AjaxSecurityHelper.php`): nuova classe utility che centralizza il boilerplate AJAX duplicato in oltre 15 handler di `Admin.php`:
+  - `AjaxSecurityHelper::verify(array $opts)` — verifica nonce + capability + metodo HTTP in una sola chiamata, termina la richiesta con `wp_send_json_error` (403/400/405) in caso di fail.
+  - `AjaxSecurityHelper::check(array $opts)` — variante "soft" che ritorna `true|WP_Error` invece di terminare.
+  - `AjaxSecurityHelper::parse_string_list($raw)` — sanitizza un input che può essere array nativo, JSON stringificato o CSV (pattern duplicato in REST endpoint).
+  Adozione opt-in: i metodi esistenti continuano a funzionare invariati; nuovi handler (e refactor futuri) possono ridurre il codice del 60% chiamando l'helper.
+
+### Changed
+
+- **`declare(strict_types=1)`** aggiunto ai file core a basso rischio:
+  - `Logger.php`, `Encryption.php`, `RateLimiter.php`, `ApiCache.php`, `Migration.php`, `I18nHelper.php`, `SettingsBackup.php`.
+  - Volutamente NON aggiunto ad `Admin.php`, `Updater.php`, `WebhookHandler.php`, `MasterEndpoint.php`, `ReceiveBackupEndpoint.php` per evitare esposizione di type juggling latente in flussi critici (REST/upload/update). Verrà fatto incrementalmente.
+- **Classmap Composer rigenerato** (`vendor/composer/autoload_*.php`) con `--optimize --classmap-authoritative` per registrare `AjaxSecurityHelper` (15 classi totali). Necessario perché il classmap è authoritative (vedi memory `fp_woo_composer_authoritative_pitfall`).
+
+### Deferred
+
+- **Split di `Admin.php` (2070 righe, god class)** in `AjaxHandler` + `PageRenderer` + `AssetEnqueuer` come suggerito dall'audit architetturale è stato **deliberatamente rimandato** a una release futura. Motivazione: senza la possibilità di testare manualmente nel browser ogni AJAX handler (computer-use MCP disconnesso in questa sessione), spezzare i `add_action('wp_ajax_*', [$this, 'method'])` rischia regressioni silenziose in produzione. La preparazione (AjaxSecurityHelper) è già in mano: lo split potrà avvenire incrementalmente nelle prossime versioni con test manuali per ogni gruppo di handler estratto.
+
 ## [1.8.2] - 2026-05-29
 
 ### Security

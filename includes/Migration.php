@@ -1,10 +1,11 @@
 <?php
 /**
  * Gestione Migrazioni
- * 
+ *
  * Gestisce la migrazione dei dati tra versioni del plugin
  */
 
+declare(strict_types=1);
 
 namespace FP\GitUpdater;
 

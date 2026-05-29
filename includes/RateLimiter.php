@@ -1,11 +1,13 @@
 <?php
 /**
  * Rate Limiter per Webhook
- * 
+ *
  * Previene abusi limitando il numero di richieste per IP
- * 
+ *
  * @package FP\GitUpdater
  */
+
+declare(strict_types=1);
 
 namespace FP\GitUpdater;
 

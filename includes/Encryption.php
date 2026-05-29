@@ -1,11 +1,13 @@
 <?php
 /**
  * Sistema di Criptazione
- * 
+ *
  * Gestisce la criptazione sicura dei token e dati sensibili
- * 
+ *
  * @package FP\GitUpdater
  */
+
+declare(strict_types=1);
 
 namespace FP\GitUpdater;
 

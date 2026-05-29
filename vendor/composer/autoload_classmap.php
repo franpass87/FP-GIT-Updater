@@ -8,6 +8,7 @@ $baseDir = dirname($vendorDir);
 return array(
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
     'FP\\GitUpdater\\Admin' => $baseDir . '/includes/Admin.php',
+    'FP\\GitUpdater\\AjaxSecurityHelper' => $baseDir . '/includes/AjaxSecurityHelper.php',
     'FP\\GitUpdater\\ApiCache' => $baseDir . '/includes/ApiCache.php',
     'FP\\GitUpdater\\Encryption' => $baseDir . '/includes/Encryption.php',
     'FP\\GitUpdater\\I18nHelper' => $baseDir . '/includes/I18nHelper.php',

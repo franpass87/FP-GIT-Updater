@@ -1,11 +1,13 @@
 <?php
 /**
  * Gestione Backup e Ripristino Impostazioni
- * 
+ *
  * Gestisce il backup automatico e il ripristino delle impostazioni del plugin
- * 
+ *
  * @package FP\GitUpdater
  */
+
+declare(strict_types=1);
 
 namespace FP\GitUpdater;
 
