@@ -1,3 +1,9 @@
+## [1.8.1] - 2026-05-29
+
+### Fixed
+
+- **Bottoni azione tabella «Clienti collegati» che traboccavano dal bordo destro della card**: la colonna «Azione» della tabella `.fp-master-clients-table` aveva `width: 80px` ma contiene 3 bottoni (aggiorna versioni / modifica / rimuovi cliente) che richiedono ~140px. Allargata la colonna a 140px con classe dedicata `.fp-master-clients-actions-col`, allineamento a destra e `white-space: nowrap`. Ribilanciate le altre colonne (28% / 35% / auto / 140px). Aggiunto safety net responsive: sotto i 900px la card scrolla orizzontalmente. Rimosso lo header vuoto della colonna, sostituito con `screen-reader-text` per accessibilità.
+
 ## [1.8.0] - 2026-05-29
 
 ### Added

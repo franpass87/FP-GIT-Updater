@@ -2933,6 +2933,29 @@ html {
     margin-top: 0;
 }
 
+/* Colonna "Azioni" tabella clienti: spazio garantito per i 3 bottoni
+   (aggiorna versioni / modifica / rimuovi) — evita overflow su card. */
+.fp-master-clients-table .fp-master-clients-actions-col {
+    width: 140px;
+    min-width: 140px;
+    text-align: right;
+}
+.fp-master-clients-table tbody tr > td:last-child {
+    white-space: nowrap;
+    text-align: right;
+}
+/* Safety net responsive: su schermi stretti la tabella scrolla
+   orizzontalmente invece di tagliare i bottoni della colonna azioni. */
+@media (max-width: 900px) {
+    .fp-master-clients-card {
+        overflow-x: auto;
+    }
+    .fp-master-clients-table .fp-master-clients-actions-col {
+        width: 130px;
+        min-width: 130px;
+    }
+}
+
 .fp-master-quick-setup {
     border-left: 4px solid var(--fp-primary);
 }

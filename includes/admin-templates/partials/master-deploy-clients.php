@@ -250,10 +250,10 @@ $backup_dir_writable = $backup_dir_exists && is_writable($backup_dir);
         <table class="wp-list-table widefat fixed striped fp-master-clients-table fpgitupdater-wp-table">
             <thead>
                 <tr>
-                    <th scope="col" style="width: 32%;"><?php _e('Sito cliente', 'fp-git-updater'); ?></th>
-                    <th scope="col" style="width: 33%;"><?php _e('Plugin installati', 'fp-git-updater'); ?></th>
+                    <th scope="col" style="width: 28%;"><?php _e('Sito cliente', 'fp-git-updater'); ?></th>
+                    <th scope="col" style="width: 35%;"><?php _e('Plugin installati', 'fp-git-updater'); ?></th>
                     <th scope="col"><?php _e('Ultima connessione', 'fp-git-updater'); ?></th>
-                    <th scope="col" style="width: 80px;"></th>
+                    <th scope="col" class="fp-master-clients-actions-col"><span class="screen-reader-text"><?php esc_html_e('Azioni', 'fp-git-updater'); ?></span></th>
                 </tr>
             </thead>
             <tbody>
