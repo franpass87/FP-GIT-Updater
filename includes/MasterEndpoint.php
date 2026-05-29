@@ -44,6 +44,144 @@ class MasterEndpoint
     public const CLIENT_STALE_SECONDS = 2592000;
 
     /**
+     * Registra i filtri di cifratura del Master client secret. Idempotente.
+     * Deve essere chiamato al boot (prima di qualunque get/update_option
+     * sul secret) perché trasforma in modo trasparente lettura/scrittura:
+     *   - al SALVATAGGIO  (Settings API o update_option diretto) il valore
+     *     in chiaro viene cifrato con AES-256-CBC via Encryption.
+     *   - alla LETTURA tramite get_option() il valore cifrato viene decifrato
+     *     in modo trasparente per il chiamante.
+     * Migration automatica: secret salvati in chiaro (legacy) continuano a
+     * funzionare e vengono cifrati al primo salvataggio successivo.
+     *
+     * @return void
+     */
+    public static function register_secret_filters(): void
+    {
+        static $registered = false;
+        if ($registered) {
+            return;
+        }
+        $registered = true;
+
+        if (class_exists('\\FP\\GitUpdater\\Encryption')) {
+            // Lettura trasparente: get_option() restituisce sempre il valore in chiaro
+            add_filter('option_' . self::OPTION_MASTER_CLIENT_SECRET, [self::class, 'filter_decrypt_secret'], 1);
+            // Scrittura trasparente: update_option() salva sempre il valore cifrato
+            add_filter('pre_update_option_' . self::OPTION_MASTER_CLIENT_SECRET, [self::class, 'filter_encrypt_secret'], 1, 2);
+        }
+
+        // Auto-invalidazione cache in-memory della lista client su ogni update
+        // della option, da qualsiasi chiamante (Master endpoint, Admin handlers, …).
+        add_action('updated_option', [self::class, 'on_option_updated'], 10, 1);
+        add_action('added_option', [self::class, 'on_option_updated'], 10, 1);
+        add_action('deleted_option', [self::class, 'on_option_updated'], 10, 1);
+    }
+
+    /**
+     * Invalida la cache in-memory dei client quando l'option viene modificata.
+     *
+     * @param string $option_name
+     */
+    public static function on_option_updated($option_name): void
+    {
+        if ($option_name === self::OPTION_CONNECTED_CLIENTS) {
+            self::flush_connected_clients_cache();
+        }
+    }
+
+    /**
+     * Filter callback: decripta in lettura.
+     *
+     * @param mixed $value
+     * @return string
+     */
+    public static function filter_decrypt_secret($value): string
+    {
+        if (!is_string($value) || $value === '') {
+            return is_string($value) ? $value : '';
+        }
+        $enc = \FP\GitUpdater\Encryption::get_instance();
+        if (!$enc->is_encrypted($value)) {
+            return $value; // legacy plaintext: backward compat
+        }
+        $decrypted = $enc->decrypt($value);
+        return is_string($decrypted) ? $decrypted : '';
+    }
+
+    /**
+     * Filter callback: cripta in scrittura (se non già cifrato).
+     *
+     * @param mixed $new_value
+     * @param mixed $old_value
+     * @return string|mixed
+     */
+    public static function filter_encrypt_secret($new_value, $old_value)
+    {
+        if (!is_string($new_value) || $new_value === '') {
+            return $new_value;
+        }
+        $enc = \FP\GitUpdater\Encryption::get_instance();
+        if ($enc->is_encrypted($new_value)) {
+            // Già cifrato (es. roundtrip): nessuna doppia cifratura
+            return $new_value;
+        }
+        $encrypted = $enc->encrypt($new_value);
+        return is_string($encrypted) ? $encrypted : $new_value;
+    }
+
+    /**
+     * Verifica se un URL è sicuro per richieste outbound (SSRF protection).
+     * Rifiuta:
+     *   - schemi diversi da http/https
+     *   - host vuoti o malformati
+     *   - host che risolvono a IP loopback/privati/link-local (defense in depth
+     *     contro client_id malicioso che punta a 127.0.0.1, 10.x, 169.254.x).
+     *
+     * @param string $url
+     * @return bool true se l'URL è sicuro da chiamare
+     */
+    public static function is_safe_outbound_url(string $url): bool
+    {
+        if ($url === '') {
+            return false;
+        }
+        $parts = wp_parse_url($url);
+        if (!is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) {
+            return false;
+        }
+        $scheme = strtolower((string) $parts['scheme']);
+        if ($scheme !== 'http' && $scheme !== 'https') {
+            return false;
+        }
+        $host = strtolower((string) $parts['host']);
+
+        // Reject IP letterali in range privati/loopback
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            $public = filter_var(
+                $host,
+                FILTER_VALIDATE_IP,
+                FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+            );
+            if ($public === false) {
+                return false;
+            }
+        }
+
+        // Reject hostname locali noti
+        $blocked_hosts = ['localhost', 'localhost.localdomain', 'ip6-localhost'];
+        if (in_array($host, $blocked_hosts, true)) {
+            return false;
+        }
+        // Reject hostname senza dominio (es. "intranet", "router")
+        if (strpos($host, '.') === false) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Registra l'endpoint REST (chiamare da rest_api_init)
      */
     public static function register(): void
@@ -614,7 +752,18 @@ class MasterEndpoint
             $site_url = $host;
         }
 
-        return rtrim($site_url, '/') . '/wp-json/fp-remote-bridge/v1/trigger-sync';
+        $endpoint = rtrim($site_url, '/') . '/wp-json/fp-remote-bridge/v1/trigger-sync';
+
+        // SSRF guard: rifiuta URL verso loopback / IP privati / hostname non risolvibili.
+        if (!self::is_safe_outbound_url($endpoint)) {
+            Logger::log('warning', 'Master: URL trigger-sync rifiutato (SSRF guard)', [
+                'client_id' => $client_id,
+                'endpoint'  => $endpoint,
+            ]);
+            return null;
+        }
+
+        return $endpoint;
     }
 
     /**
@@ -925,6 +1074,7 @@ class MasterEndpoint
         ];
 
         update_option(self::OPTION_CONNECTED_CLIENTS, $clients);
+        // Cache invalidata automaticamente via hook 'updated_option'.
         Logger::log('info', 'Master: client registrato', ['client_id' => $resolved_id, 'plugins_count' => count($installed_plugins)]);
     }
 
@@ -1199,11 +1349,22 @@ class MasterEndpoint
      *
      * @return array<string, array{last_seen: int, first_seen: int}>
      */
+    /** In-memory cache per request della lista client filtrata. null = non popolata. */
+    private static ?array $connected_clients_cache = null;
+
     public static function get_connected_clients(): array
     {
+        // In-memory cache per request: la stessa page-load admin invoca
+        // questa funzione 5+ volte (Admin enqueue, settings page, render
+        // tabelle deploy, ecc.). Evita N letture autoload-option.
+        if (self::$connected_clients_cache !== null) {
+            return self::$connected_clients_cache;
+        }
+
         $clients = get_option(self::OPTION_CONNECTED_CLIENTS, []);
         if (!is_array($clients)) {
-            return [];
+            self::$connected_clients_cache = [];
+            return self::$connected_clients_cache;
         }
 
         $cutoff = time() - self::CLIENT_STALE_SECONDS;
@@ -1221,6 +1382,16 @@ class MasterEndpoint
             return ($b['last_seen'] ?? 0) <=> ($a['last_seen'] ?? 0);
         });
 
-        return $filtered;
+        self::$connected_clients_cache = $filtered;
+        return self::$connected_clients_cache;
+    }
+
+    /**
+     * Invalida la cache in-memory dei client connessi. Da chiamare dopo ogni
+     * scrittura sull'option OPTION_CONNECTED_CLIENTS (register, remove).
+     */
+    public static function flush_connected_clients_cache(): void
+    {
+        self::$connected_clients_cache = null;
     }
 }

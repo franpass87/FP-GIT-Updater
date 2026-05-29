@@ -80,37 +80,57 @@ class Logger {
      */
     public static function clear_old_logs($days = 30) {
         global $wpdb;
-        
+
+        // Lock anti-overlap: previene due cron paralleli che lockerebbero
+        // la tabella con OPTIMIZE simultanei.
+        $cleanup_lock = 'fp_git_updater_logs_cleanup_lock';
+        if (get_transient($cleanup_lock)) {
+            return;
+        }
+        set_transient($cleanup_lock, time(), 600);
+
         $table_name = $wpdb->prefix . 'fp_git_updater_logs';
-        
+
         try {
             // Elimina log più vecchi di X giorni
             $deleted = $wpdb->query($wpdb->prepare(
                 "DELETE FROM $table_name WHERE log_date < DATE_SUB(NOW(), INTERVAL %d DAY)",
                 $days
             ));
-            
-            // Mantieni solo gli ultimi 1000 log comunque
+
+            // Hard limit: mantieni solo gli ultimi 1000 log comunque.
             $count = (int) $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
-            
+
             if ($count > 1000) {
                 $wpdb->query($wpdb->prepare(
                     "DELETE FROM $table_name ORDER BY log_date ASC LIMIT %d",
                     $count - 1000
                 ));
             }
-            
+
+            // Safety hard cap: se per qualche motivo (cron saltato per mesi)
+            // siamo sopra le 10k righe, TRUNCATE invece di DELETE incrementale
+            // (più veloce e libera spazio subito).
+            $final_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+            if ($final_count > 10000) {
+                $wpdb->query("TRUNCATE TABLE $table_name"); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+                self::log('warning', 'Log table aveva ' . $final_count . ' righe — TRUNCATE eseguito (cap 10k).');
+                $final_count = 0;
+            }
+
             // Ottimizza la tabella dopo la pulizia (OPTIMIZE TABLE non supporta placeholder)
             $wpdb->query("OPTIMIZE TABLE $table_name"); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-            
+
             self::log('info', 'Pulizia log automatica completata', array(
                 'logs_eliminati' => $deleted,
-                'totale_rimanenti' => $count
+                'totale_rimanenti' => $final_count
             ));
         } catch (\Exception $e) {
             if (defined('WP_DEBUG') && WP_DEBUG && function_exists('error_log')) {
                 error_log('FP Updater - Errore pulizia log: ' . $e->getMessage());
             }
+        } finally {
+            delete_transient($cleanup_lock);
         }
     }
     

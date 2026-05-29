@@ -13,14 +13,41 @@ if (!defined('ABSPATH')) {
 }
 
 class Admin {
-    
+
+    /**
+     * Username GitHub di default (fallback storico). Configurabile via:
+     *   - costante  FP_GIT_UPDATER_DEFAULT_GITHUB_USERNAME
+     *   - filtro    apply_filters('fp_git_updater_default_github_username', ...)
+     */
+    public const DEFAULT_GITHUB_USERNAME = 'FranPass87';
+
     private static $instance = null;
-    
+
     public static function get_instance() {
         if (null === self::$instance) {
             self::$instance = new self();
         }
         return self::$instance;
+    }
+
+    /**
+     * Restituisce l'username GitHub di default (per auto-completare i repo
+     * inseriti senza prefisso "owner/"). In ordine di priorità:
+     *   1. costante FP_GIT_UPDATER_DEFAULT_GITHUB_USERNAME (wp-config.php)
+     *   2. filtro 'fp_git_updater_default_github_username'
+     *   3. costante di classe DEFAULT_GITHUB_USERNAME (storico)
+     */
+    public static function get_default_github_username(): string
+    {
+        if (defined('FP_GIT_UPDATER_DEFAULT_GITHUB_USERNAME')) {
+            $u = (string) constant('FP_GIT_UPDATER_DEFAULT_GITHUB_USERNAME');
+            if ($u !== '') {
+                return $u;
+            }
+        }
+        /** @var string $filtered */
+        $filtered = apply_filters('fp_git_updater_default_github_username', self::DEFAULT_GITHUB_USERNAME);
+        return is_string($filtered) && $filtered !== '' ? $filtered : self::DEFAULT_GITHUB_USERNAME;
     }
     
     private function __construct() {
@@ -178,8 +205,8 @@ class Admin {
         $output = array();
         $encryption = Encryption::get_instance();
         
-        // Username hardcodato a FranPass87
-        $output['default_github_username'] = 'FranPass87';
+        // Username GitHub di default (configurabile via costante/filtro, fallback FranPass87)
+        $output['default_github_username'] = self::get_default_github_username();
         
         // Sanitizza token GitHub globale
         $global_github_token = isset($input['global_github_token']) ? sanitize_text_field($input['global_github_token']) : '';
@@ -208,9 +235,9 @@ class Admin {
                 $github_repo = isset($plugin['github_repo']) ? sanitize_text_field($plugin['github_repo']) : '';
                 $branch = isset($plugin['branch']) ? sanitize_text_field($plugin['branch']) : 'main';
 
-                // Auto-completa repository con username predefinito (FranPass87) se manca lo slash
+                // Auto-completa repository con username predefinito se manca lo slash
                 if (!empty($github_repo) && strpos($github_repo, '/') === false) {
-                    $github_repo = 'FranPass87/' . $github_repo;
+                    $github_repo = self::get_default_github_username() . '/' . $github_repo;
                     Logger::log('info', 'Repository auto-completato: ' . $github_repo);
                 }
 
@@ -1100,9 +1127,9 @@ class Admin {
             wp_send_json_error(array('message' => 'Permessi insufficienti'), 403);
         }
         
-        // Username hardcodato a FranPass87
+        // Username GitHub di default (configurabile via costante/filtro)
         $settings = get_option('fp_git_updater_settings', array());
-        $default_username = 'FranPass87';
+        $default_username = self::get_default_github_username();
         
         try {
             // Controlla cache (valida per 5 minuti). Chiave versionata per invalidare cache pre-paginazione (v1.7.7+).

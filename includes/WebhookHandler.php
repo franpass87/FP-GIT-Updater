@@ -130,6 +130,13 @@ class WebhookHandler {
                 'message' => 'Repository non configurato o disabilitato: ' . $repository
             ), 200);
         }
+
+        // Invalida la cache "versione GitHub" così l'admin vede subito la
+        // versione nuova senza attendere il TTL transient di 5 minuti.
+        if (isset($matched_plugin['id'])) {
+            delete_transient('fp_git_updater_github_version_' . $matched_plugin['id']);
+            delete_transient('fp_git_updater_commit_info_' . $matched_plugin['id']);
+        }
         
         // Verifica il branch
         $target_branch = isset($matched_plugin['branch']) ? $matched_plugin['branch'] : 'main';
@@ -253,32 +260,41 @@ class WebhookHandler {
             return false;
         }
         
-        // Supporta varianti header e legacy 'X-Hub-Signature'
+        // Accetta SOLO firma SHA-256. La vecchia X-Hub-Signature (HMAC-SHA-1)
+        // è stata deprecata da GitHub ed è considerata insicura: la rifiutiamo
+        // esplicitamente per evitare downgrade attack.
         $signature = $request->get_header('X-Hub-Signature-256');
         if (empty($signature)) {
             $signature = $request->get_header('x-hub-signature-256');
         }
-        if (empty($signature)) {
-            $signature = $request->get_header('X-Hub-Signature');
-        }
-        if (empty($signature)) {
-            $signature = $request->get_header('x-hub-signature');
-        }
-        
-        if (empty($signature)) {
-            Logger::log('warning', 'Webhook: firma mancante nell\'header');
+
+        // Rifiuta esplicitamente la firma legacy SHA-1 anche se presente
+        $legacy_sha1 = $request->get_header('X-Hub-Signature') ?: $request->get_header('x-hub-signature');
+        if (empty($signature) && !empty($legacy_sha1)) {
+            Logger::log('warning', 'Webhook: ricevuta firma legacy SHA-1 (X-Hub-Signature) — rifiutata. Riconfigurare il webhook GitHub per usare SHA-256.');
             return false;
         }
-        
+
+        if (empty($signature)) {
+            Logger::log('warning', 'Webhook: firma mancante nell\'header X-Hub-Signature-256');
+            return false;
+        }
+
+        // La firma DEVE avere prefisso "sha256=" (GitHub spec).
+        if (stripos($signature, 'sha256=') !== 0) {
+            Logger::log('warning', 'Webhook: firma con prefisso non valido (atteso sha256=)');
+            return false;
+        }
+
         $body = $request->get_body();
         $expected_signature = 'sha256=' . hash_hmac('sha256', $body, $secret);
-        
+
         $is_valid = hash_equals($expected_signature, $signature);
-        
+
         if (!$is_valid) {
             Logger::log('error', 'Webhook: firma non valida - possibile tentativo di accesso non autorizzato');
         }
-        
+
         return $is_valid;
     }
     

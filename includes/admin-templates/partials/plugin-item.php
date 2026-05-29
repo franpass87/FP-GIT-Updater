@@ -375,8 +375,8 @@ $fp_item_toggle_label = sprintf(
                 <th><label><?php _e('Repository GitHub', 'fp-git-updater'); ?></label></th>
                 <td>
                     <?php 
-                    // Username hardcodato a FranPass87
-                    $default_username = 'FranPass87';
+                    // Username GitHub di default (configurabile via costante/filtro)
+                    $default_username = \FP\GitUpdater\Admin::get_default_github_username();
                     $repo_placeholder = sprintf(__('FP-Forms oppure %s/FP-Forms', 'fp-git-updater'), $default_username);
                     $repo_description = sprintf(__('Inserisci solo il nome (es: FP-Forms) o il formato completo. Username predefinito: <strong>%s</strong>', 'fp-git-updater'), $default_username);
                     ?>

@@ -1,3 +1,29 @@
+## [1.8.2] - 2026-05-29
+
+### Security
+
+- **SSRF protection sui webhook trigger-sync verso i client** (`MasterEndpoint.php`): nuovo helper `is_safe_outbound_url()` che rifiuta URL non-http/https, hostname senza dominio (es. `intranet`), loopback (`localhost`, `127.x`) e IP in range privati/link-local (`10.x`, `192.168.x`, `169.254.x`). Applicato a `get_trigger_sync_endpoint_for_client()` → coperti automaticamente `trigger_sync_client_blocking()` e `push_sync_to_clients()`. Blocca un client_id maliziono che punti a Redis interno o AWS IMDS.
+- **Master client secret cifrato in DB** (`MasterEndpoint.php` + `fp-git-updater.php`): nuovi filtri trasparenti `pre_update_option_*` (cifra al salvataggio) e `option_*` (decifra in lettura) sul `fp_git_updater_master_client_secret`. Usa l'esistente `Encryption` AES-256-CBC. Migration automatica: secret legacy in chiaro continuano a funzionare e vengono cifrati al primo save successivo. Codice chiamante invariato.
+- **Path traversal defense in profondità su plugin_slug** (`Updater.php:1387+`): dopo il `preg_replace`, ulteriore check su `..`, `/`, `\\`, `\0`; `basename()` esplicito; doppia verifica via `realpath()` che il path risolto sia dentro `WP_PLUGIN_DIR`. Throw + log + cleanup tmp dir se sospetto.
+- **Webhook signature SHA-256 only** (`WebhookHandler.php:256+`): rimosso il fallback alla legacy `X-Hub-Signature` (HMAC-SHA-1) deprecato da GitHub. Verifica esplicita del prefisso `sha256=`. Loggata e rifiutata qualunque firma SHA-1 ricevuta (downgrade attack protection).
+- **MIME type + magic bytes check sugli upload ZIP** (`ReceiveBackupEndpoint.php:111+`): dopo `move_uploaded_file()` verifica `finfo_file()` con whitelist mime (`application/zip` + varianti) e signature ZIP (`PK\x03\x04` o varianti). File rifiutati → unlink + 415 Unsupported Media Type.
+
+### Fixed
+
+- **Lock transient: rilascio garantito anche su eccezioni non gestite** (`Updater.php:run_plugin_update`): wrap try/finally globale attorno al body del metodo. Idempotente con i `delete_transient` esistenti nei branch normali. Risolve il caso in cui un'eccezione fatal lasciava il lock attivo per 10 minuti bloccando ogni successivo update dello stesso plugin.
+- **Race condition cron pulizia backup** (`Updater.php:cleanup_old_backups`): nuovo transient lock `fp_git_updater_cleanup_backups_lock` (10 min) per prevenire due esecuzioni concorrenti del cron che tentavano di eliminare gli stessi file. Rilascio in `finally`.
+- **Cache "versione GitHub" non invalidata sui webhook push** (`WebhookHandler.php:handle_webhook`): dopo match plugin → `delete_transient('fp_git_updater_github_version_*')` + `fp_git_updater_commit_info_*` per il plugin coinvolto. L'admin vede subito la nuova versione disponibile senza attendere il TTL di 5 minuti.
+- **Logger: hard cap 10k righe + lock anti-overlap** (`Logger.php:clear_old_logs`): se la tabella supera le 10.000 righe (cron saltato per mesi), `TRUNCATE` invece di `DELETE` incrementale. Nuovo lock transient `fp_git_updater_logs_cleanup_lock` previene `OPTIMIZE TABLE` paralleli che lockerebbero la tabella.
+
+### Performance
+
+- **In-memory cache della lista client connessi** (`MasterEndpoint.php`): nuova proprietà statica `$connected_clients_cache` evita 5+ letture autoload-option per ogni page-load admin (Admin enqueue + render tabelle deploy + ecc.). Auto-invalidata via hook `updated_option` / `added_option` / `deleted_option` quando un qualsiasi chiamante modifica `OPTION_CONNECTED_CLIENTS` (Master endpoint o handler Admin).
+
+### Changed
+
+- **GitHub username predefinito configurabile** (`Admin::get_default_github_username()`): rimosso il valore hardcoded `FranPass87` da 6 punti diversi (Admin.php, Updater.php, 3 partial template). Nuovo helper centrale con fallback a 3 livelli: 1) costante `FP_GIT_UPDATER_DEFAULT_GITHUB_USERNAME` in `wp-config.php`, 2) filtro `fp_git_updater_default_github_username`, 3) default storico `FranPass87`. Comportamento invariato per chi non configura nulla.
+- **Archiviati 9 file di documentazione storica** (BUGFIX-CHANGELOG, BUGFIX-DEEP-AUDIT-2025-11-03, BUGFIX-v1.2.4, CHANGELOG-v1.2.1, CHANGELOG-v1.2.2, FEATURE-*, RELEASE-v1.2.3-FINALE, REFACTORING_PSR4) spostati in `docs/archived/` per pulire la root del repo. Mantenuti in root solo README.md e CHANGELOG.md.
+
 ## [1.8.1] - 2026-05-29
 
 ### Fixed

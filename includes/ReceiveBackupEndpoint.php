@@ -115,6 +115,42 @@ class ReceiveBackupEndpoint
             ], 500);
         }
 
+        // Verifica MIME type reale del file appena spostato (non fidarsi del
+        // Content-Type del client). Rifiuta tutto ciò che non è uno zip valido.
+        if (function_exists('finfo_open')) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            if ($finfo) {
+                $mime = (string) finfo_file($finfo, $dest_path);
+                finfo_close($finfo);
+                $allowed_mimes = [
+                    'application/zip',
+                    'application/x-zip',
+                    'application/x-zip-compressed',
+                    'application/octet-stream', // alcuni client/server non identificano correttamente
+                ];
+                if ($mime !== '' && !in_array($mime, $allowed_mimes, true)) {
+                    @unlink($dest_path);
+                    return new WP_REST_Response([
+                        'success' => false,
+                        'message' => sprintf(__('File rifiutato: tipo non valido (%s). Atteso application/zip.', 'fp-git-updater'), $mime),
+                    ], 415);
+                }
+                // Ulteriore controllo: i file ZIP iniziano con "PK\x03\x04" o "PK\x05\x06"/"PK\x07\x08"
+                $fh = @fopen($dest_path, 'rb');
+                if ($fh) {
+                    $sig = (string) fread($fh, 4);
+                    fclose($fh);
+                    if (substr($sig, 0, 2) !== 'PK') {
+                        @unlink($dest_path);
+                        return new WP_REST_Response([
+                            'success' => false,
+                            'message' => __('File rifiutato: signature ZIP non valida.', 'fp-git-updater'),
+                        ], 415);
+                    }
+                }
+            }
+        }
+
         $size = (int) filesize($dest_path);
 
         return new WP_REST_Response([

@@ -10,8 +10,8 @@ if (!defined('ABSPATH')) {
     return;
 }
 
-// Username hardcodato a FranPass87
-$default_github_username = 'FranPass87';
+// Username GitHub di default (configurabile via costante/filtro)
+$default_github_username = \FP\GitUpdater\Admin::get_default_github_username();
 $global_github_token = isset($settings['global_github_token']) ? $settings['global_github_token'] : '';
 $webhook_secret = isset($settings['webhook_secret']) ? $settings['webhook_secret'] : '';
 $auto_update = isset($settings['auto_update']) ? $settings['auto_update'] : false;

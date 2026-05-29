@@ -58,8 +58,8 @@ if (!defined('ABSPATH')) {
                     <th><label><?php _e('Repository GitHub', 'fp-git-updater'); ?></label></th>
                     <td>
                         <?php 
-                        // Username hardcodato a FranPass87
-                        $default_username = 'FranPass87';
+                        // Username GitHub di default (configurabile via costante/filtro)
+                        $default_username = \FP\GitUpdater\Admin::get_default_github_username();
                         $repo_placeholder_new = sprintf(__('FP-Forms oppure %s/FP-Forms', 'fp-git-updater'), $default_username);
                         ?>
                         <div style="display: flex; gap: 10px; align-items: flex-start;">

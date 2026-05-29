@@ -192,10 +192,13 @@ class Updater {
         
         // Fallback per il self-update (escluso dalla lista plugins dal sanitize_settings)
         if ($plugin_id === 'fp_git_updater_self') {
+            $self_username = class_exists('\\FP\\GitUpdater\\Admin')
+                ? \FP\GitUpdater\Admin::get_default_github_username()
+                : 'FranPass87';
             return array(
                 'id' => 'fp_git_updater_self',
                 'name' => 'FP Git Updater',
-                'github_repo' => 'FranPass87/FP-GIT-Updater',
+                'github_repo' => $self_username . '/FP-GIT-Updater',
                 'plugin_slug' => 'fp-git-updater',
                 'branch' => 'main',
                 'enabled' => true,
@@ -1031,7 +1034,10 @@ class Updater {
 
         // Imposta il lock (scade dopo 10 minuti come failsafe)
         set_transient($lock_key, time(), 600);
-        
+
+        // Safety net: garantisce il rilascio del lock anche se un'eccezione
+        // non catturata scappa dal flusso (oltre i delete_transient interni).
+        try {
         try {
             Logger::log('info', 'Inizio aggiornamento per: ' . $plugin['name']);
             
@@ -1383,16 +1389,42 @@ class Updater {
         // Sanitizza lo slug (rimuovi caratteri non validi per nomi directory)
         $plugin_slug = preg_replace('/[^a-zA-Z0-9_-]/', '-', $plugin_slug);
         $plugin_slug = trim($plugin_slug, '-');
-        
-        if (empty($plugin_slug)) {
-            Logger::log('error', 'Plugin slug non valido dopo sanitizzazione');
+
+        // Defense-in-depth contro path traversal:
+        // anche se il preg_replace rimuove "/" e ".", forziamo basename()
+        // e rifiutiamo qualunque slug che contenga residui sospetti.
+        $plugin_slug = basename($plugin_slug);
+        if (
+            empty($plugin_slug)
+            || strpos($plugin_slug, '..') !== false
+            || strpos($plugin_slug, '/') !== false
+            || strpos($plugin_slug, '\\') !== false
+            || strpos($plugin_slug, "\0") !== false
+        ) {
+            Logger::log('error', 'Plugin slug non valido dopo sanitizzazione (path traversal block)', [
+                'plugin_slug_raw' => $plugin_slug,
+            ]);
             $wp_filesystem->delete($temp_extract_dir, true);
             $this->send_notification('Errore aggiornamento', 'Nome plugin non valido');
             delete_transient($lock_key);
             return false;
         }
-        
+
         $plugin_dir = WP_PLUGIN_DIR . '/' . $plugin_slug;
+
+        // Doppia verifica: il path risultante DEVE risiedere dentro WP_PLUGIN_DIR.
+        $resolved_plugin_dir = realpath(dirname($plugin_dir)) ?: dirname($plugin_dir);
+        $resolved_plugins_root = realpath(WP_PLUGIN_DIR) ?: WP_PLUGIN_DIR;
+        if (strpos($resolved_plugin_dir, $resolved_plugins_root) !== 0) {
+            Logger::log('error', 'Plugin dir fuori da WP_PLUGIN_DIR (path traversal block)', [
+                'plugin_dir' => $plugin_dir,
+                'resolved'   => $resolved_plugin_dir,
+            ]);
+            $wp_filesystem->delete($temp_extract_dir, true);
+            $this->send_notification('Errore aggiornamento', 'Path plugin non sicuro');
+            delete_transient($lock_key);
+            return false;
+        }
         
         // Verifica se stiamo cercando di aggiornare il plugin stesso
         $is_self_plugin = ($plugin_slug === 'fp-git-updater' || $plugin_slug === dirname(FP_GIT_UPDATER_PLUGIN_BASENAME));
@@ -1648,8 +1680,13 @@ class Updater {
         
         // Rilascia il lock
         delete_transient($lock_key);
-        
+
         return true;
+        } finally {
+            // Safety net: garantisce il rilascio del lock anche su eccezioni
+            // non gestite (defense-in-depth). delete_transient è idempotente.
+            delete_transient($lock_key);
+        }
     }
 
     /**
@@ -1687,15 +1724,25 @@ class Updater {
      */
     public function cleanup_old_backups($respect_max_limit = true, $force_delete_count = 0) {
         $upgrade_dir = WP_CONTENT_DIR . '/upgrade';
-        
+
         if (!is_dir($upgrade_dir)) {
             return 0;
         }
-        
+
+        // Lock anti-overlap: previene due cron paralleli che eliminano
+        // contemporaneamente gli stessi file generando warning glob/unlink.
+        $cleanup_lock = 'fp_git_updater_cleanup_backups_lock';
+        if (get_transient($cleanup_lock)) {
+            return 0;
+        }
+        set_transient($cleanup_lock, time(), 600); // 10 minuti safety
+
+        try {
+
         // Trova tutti i backup
         $backup_pattern = $upgrade_dir . '/fp-git-updater-backup-*';
         $backups = glob($backup_pattern, GLOB_ONLYDIR);
-        
+
         if (empty($backups)) {
             return 0;
         }
@@ -1801,8 +1848,12 @@ class Updater {
                 'max_age_days' => $max_backup_age_days
             ));
         }
-        
+
         return $deleted_count;
+        } finally {
+            // Sempre rilascio del lock anti-overlap, anche su eccezioni.
+            delete_transient($cleanup_lock);
+        }
     }
     
     /**
