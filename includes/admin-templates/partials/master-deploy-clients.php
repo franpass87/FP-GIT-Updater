@@ -293,27 +293,38 @@ $backup_dir_writable = $backup_dir_exists && is_writable($backup_dir);
                         </td>
                         <td><?php echo esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), $data['last_seen'] ?? 0)); ?></td>
                         <td style="white-space:nowrap;">
+                            <?php
+                            /* translators: %s: client identifier */
+                            $fp_refresh_label = sprintf(__('Aggiorna versioni plugin del cliente %s', 'fp-git-updater'), $client_id);
+                            /* translators: %s: client identifier */
+                            $fp_edit_label    = sprintf(__('Modifica cliente %s', 'fp-git-updater'), $client_id);
+                            /* translators: %s: client identifier */
+                            $fp_remove_label  = sprintf(__('Rimuovi cliente %s dalla lista', 'fp-git-updater'), $client_id);
+                            ?>
                             <button type="button"
                                     class="button button-small fp-refresh-client-versions-btn"
                                     data-client-id="<?php echo esc_attr($client_id); ?>"
-                                    title="<?php esc_attr_e('Aggiorna versioni plugin da questo sito', 'fp-git-updater'); ?>"
+                                    title="<?php echo esc_attr($fp_refresh_label); ?>"
+                                    aria-label="<?php echo esc_attr($fp_refresh_label); ?>"
                                     style="margin-right:4px;">
-                                <span class="dashicons dashicons-update" style="margin-top:3px;"></span>
+                                <span class="dashicons dashicons-update" style="margin-top:3px;" aria-hidden="true"></span>
                             </button>
                             <button type="button"
                                     class="button button-small fp-edit-client-btn"
                                     data-client-id="<?php echo esc_attr($client_id); ?>"
                                     data-client-url="<?php echo esc_attr($data['url'] ?? ''); ?>"
-                                    title="<?php esc_attr_e('Modifica cliente', 'fp-git-updater'); ?>"
+                                    title="<?php echo esc_attr($fp_edit_label); ?>"
+                                    aria-label="<?php echo esc_attr($fp_edit_label); ?>"
                                     style="margin-right:4px;">
-                                <span class="dashicons dashicons-edit" style="margin-top:3px;"></span>
+                                <span class="dashicons dashicons-edit" style="margin-top:3px;" aria-hidden="true"></span>
                             </button>
                             <button type="button"
                                     class="button button-small fp-remove-client-btn"
                                     data-client-id="<?php echo esc_attr($client_id); ?>"
-                                    title="<?php esc_attr_e('Rimuovi cliente', 'fp-git-updater'); ?>"
+                                    title="<?php echo esc_attr($fp_remove_label); ?>"
+                                    aria-label="<?php echo esc_attr($fp_remove_label); ?>"
                                     style="color:#b32d2e; border-color:#b32d2e;">
-                                <span class="dashicons dashicons-trash" style="margin-top:3px;"></span>
+                                <span class="dashicons dashicons-trash" style="margin-top:3px;" aria-hidden="true"></span>
                             </button>
                         </td>
                     </tr>

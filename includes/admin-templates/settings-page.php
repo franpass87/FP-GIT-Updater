@@ -39,6 +39,10 @@ if (!defined('ABSPATH')) {
     include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/partials/self-update-section.php';
     ?>
     
+    <h2 class="fp-step-heading">
+        <span class="fp-step-heading-num" aria-hidden="true">1</span>
+        <?php esc_html_e('Configura il Master', 'fp-git-updater'); ?>
+    </h2>
     <?php
     // Form Master separato (prima del form principale per evitare form annidati)
     include FP_GIT_UPDATER_PLUGIN_DIR . 'includes/admin-templates/partials/master-config-card.php';
@@ -85,14 +89,33 @@ if (!defined('ABSPATH')) {
         
         <!-- Tab: Plugin e Distribuzione (unificato con Master) -->
         <div id="fp-tab-plugins" class="fp-tab-content active">
+            <h2 class="fp-step-heading">
+                <span class="fp-step-heading-num" aria-hidden="true">2</span>
+                <?php esc_html_e('Gestisci plugin e distribuisci', 'fp-git-updater'); ?>
+            </h2>
             <div class="fp-section-header fp-plugins-section-header">
-                <span class="fp-step-badge" aria-hidden="true">2</span>
-                <h2 class="fp-section-title"><?php _e('Plugin gestiti e distribuzione', 'fp-git-updater'); ?></h2>
+                <h3 class="fp-section-title"><?php _e('Plugin gestiti e distribuzione', 'fp-git-updater'); ?></h3>
                 <p class="fp-section-description">
-                    <?php _e('Aggiungi i plugin da GitHub. Per ogni plugin puoi controllare aggiornamenti, installare su questo sito e distribuire ai clienti (seleziona i siti e clicca «Installa»).', 'fp-git-updater'); ?>
+                    <?php _e('Aggiungi i plugin da GitHub. Per ogni plugin puoi controllare aggiornamenti, installare su questo sito e distribuire ai clienti (seleziona i siti e clicca «Distribuisci»).', 'fp-git-updater'); ?>
                 </p>
             </div>
-            
+
+            <?php if (!empty($plugins)): ?>
+            <div class="fp-plugins-list-toolbar" role="toolbar" aria-label="<?php esc_attr_e('Controlli lista plugin', 'fp-git-updater'); ?>">
+                <button type="button" class="button button-small fp-plugins-expand-all">
+                    <span class="dashicons dashicons-arrow-down-alt2" aria-hidden="true"></span>
+                    <?php esc_html_e('Espandi tutti', 'fp-git-updater'); ?>
+                </button>
+                <button type="button" class="button button-small fp-plugins-collapse-all">
+                    <span class="dashicons dashicons-arrow-up-alt2" aria-hidden="true"></span>
+                    <?php esc_html_e('Comprimi tutti', 'fp-git-updater'); ?>
+                </button>
+                <span class="fp-plugins-list-toolbar-hint">
+                    <?php esc_html_e('Clicca sull\'header di una card per espanderla/comprimerla.', 'fp-git-updater'); ?>
+                </span>
+            </div>
+            <?php endif; ?>
+
             <div id="fp-plugins-list">
                 <?php if (!empty($plugins)): ?>
                     <?php foreach ($plugins as $index => $plugin): 

@@ -1,3 +1,27 @@
+## [1.8.0] - 2026-05-29
+
+### Added
+
+- **Card plugin collassabili (accordion)**: nel tab «Plugin e Distribuzione» ogni card plugin è ora collassabile cliccando l'header o il chevron a sinistra. Stato persistito in `localStorage` per id plugin. Default intelligente: se ci sono più di 3 card, parte tutto collassato tranne le card con aggiornamento pending (così le azioni urgenti restano in vista). Aggiunti pulsanti «Espandi tutti» / «Comprimi tutti» nella toolbar sopra la lista. Riduce drasticamente lo scroll per chi gestisce molti plugin.
+- **Dialog di conferma personalizzato** (`fpConfirmDialog`): sostituisce i popup `confirm()`/`alert()` nativi del browser. Modal con titolo, messaggio contestuale (es. nome plugin/cliente), pulsanti «Annulla» / azione, varianti `warning` / `danger`, focus trap minimale (Tab/Shift+Tab tra i bottoni), chiusura con Esc o click su backdrop, restore del focus al pulsante originario. Esposto come `window.fpConfirmDialog` per estensioni future.
+- **Heading espliciti «Step 1: Configura il Master»** e **«Step 2: Gestisci plugin e distribuisci»** sopra le rispettive sezioni, per chiarire la sequenza di setup ai nuovi utenti.
+- **Spinner CSS via `aria-busy="true"`**: aggiunto stile globale `.button[aria-busy="true"]::after` che mostra uno spinner rotante accanto al testo del bottone durante operazioni AJAX. Migliora il feedback visivo durante deploy massivi e sincronizzazioni.
+
+### Changed
+
+- **Microcopy uniformata** sui bottoni di installazione/distribuzione:
+  - «Installa su questo sito» (plugin non ancora installato) / «Aggiorna su questo sito» (versione presente) / «Aggiorna ora» (update GitHub pendente, CTA enfatica).
+  - «Distribuisci ai selezionati» nella sezione clienti (prima «Installa sui selezionati») per distinguere chiaramente l'installazione locale dalla distribuzione remota.
+- **Token CSS riorganizzati e documentati** in `:root`: le due famiglie `--fp-*` (WordPress native palette) e `--fpdms-*` (brand FP Digital Marketing Suite) sono ora separate da commenti chiari che spiegano quando usare ciascun set. Nessun valore cambiato per evitare regressioni visive.
+- **Header del Master** semplificato: rimosso il badge numerato interno «1» (ridondante con il nuovo heading Step 1 sopra).
+
+### Accessibility
+
+- **aria-label espliciti** sui pulsanti icona «Rimuovi», «Modifica», «Aggiorna versioni» di plugin e clienti — i nomi includono il contesto (es. «Rimuovi cliente villa-dianella dalla lista») per gli screen reader.
+- **Focus visibile** sul chevron accordion e sui pulsanti del dialog di conferma (outline 2px in `--fpdms-primary`).
+- **`prefers-reduced-motion`** rispettato per animazioni di accordion, spinner e dialog.
+- **Toggle accordion accessibile da tastiera** con `aria-expanded` e `aria-controls` corretti.
+
 ## [1.7.8] - 2026-05-29
 
 ### Fixed

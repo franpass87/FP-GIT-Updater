@@ -116,35 +116,224 @@
             }
         });
         
+        // ===== PLUGIN ACCORDION (collassabile) =====
+        // Persiste lo stato collassato in localStorage per ogni plugin id.
+        // Default: se ci sono >3 card, parte tutto collassato per ridurre lo scroll.
+        const FP_COLLAPSE_STORAGE_KEY = 'fpGitUpdater.collapsedPlugins';
+
+        function fpReadCollapsedSet() {
+            try {
+                const raw = window.localStorage.getItem(FP_COLLAPSE_STORAGE_KEY);
+                if (!raw) return null;
+                const arr = JSON.parse(raw);
+                return Array.isArray(arr) ? new Set(arr) : null;
+            } catch (e) { return null; }
+        }
+        function fpWriteCollapsedSet(set) {
+            try {
+                window.localStorage.setItem(FP_COLLAPSE_STORAGE_KEY, JSON.stringify(Array.from(set)));
+            } catch (e) { /* quota piena o storage disabilitato: ignora */ }
+        }
+        function fpGetPluginIdFromItem($item) {
+            return $item.data('plugin-id') || $item.data('plugin-name') || ('idx-' + $item.data('index'));
+        }
+        function fpSetItemCollapsed($item, collapsed) {
+            const $toggle = $item.find('> .fp-plugin-header .fp-plugin-toggle-collapsible');
+            if (collapsed) {
+                $item.addClass('is-collapsed');
+                $toggle.attr('aria-expanded', 'false');
+            } else {
+                $item.removeClass('is-collapsed');
+                $toggle.attr('aria-expanded', 'true');
+            }
+        }
+        function fpInitAccordion() {
+            const $items = $('.fp-plugin-item--collapsible');
+            if (!$items.length) return;
+
+            const stored = fpReadCollapsedSet();
+            let defaultCollapse = null;
+            if (!stored) {
+                // Prima visita: se >3 card collassiamo tutte tranne quelle con update pending
+                defaultCollapse = $items.length > 3;
+            }
+
+            $items.each(function() {
+                const $item = $(this);
+                const id = fpGetPluginIdFromItem($item);
+                let collapsed;
+                if (stored) {
+                    collapsed = stored.has(id);
+                } else if (defaultCollapse) {
+                    // Lascia aperte le card con aggiornamento pending
+                    collapsed = !$item.hasClass('has-update');
+                } else {
+                    collapsed = false;
+                }
+                fpSetItemCollapsed($item, collapsed);
+            });
+        }
+
+        function fpPersistCollapsedState() {
+            const set = new Set();
+            $('.fp-plugin-item--collapsible.is-collapsed').each(function() {
+                set.add(String(fpGetPluginIdFromItem($(this))));
+            });
+            fpWriteCollapsedSet(set);
+        }
+
+        // Toggle al click sul chevron O su qualsiasi area dell'header che NON sia un pulsante azione
+        $(document).on('click', '.fp-plugin-toggle-collapsible', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const $item = $(this).closest('.fp-plugin-item--collapsible');
+            fpSetItemCollapsed($item, !$item.hasClass('is-collapsed'));
+            fpPersistCollapsedState();
+        });
+        $(document).on('click', '.fp-plugin-item--collapsible > .fp-plugin-header', function(e) {
+            // Ignora click su pulsanti, link, input, label all'interno dell'header
+            if ($(e.target).closest('button, a, input, label, .fp-plugin-actions').length) {
+                return;
+            }
+            const $item = $(this).closest('.fp-plugin-item--collapsible');
+            fpSetItemCollapsed($item, !$item.hasClass('is-collapsed'));
+            fpPersistCollapsedState();
+        });
+
+        $(document).on('click', '.fp-plugins-expand-all', function(e) {
+            e.preventDefault();
+            $('.fp-plugin-item--collapsible').each(function() { fpSetItemCollapsed($(this), false); });
+            fpPersistCollapsedState();
+        });
+        $(document).on('click', '.fp-plugins-collapse-all', function(e) {
+            e.preventDefault();
+            $('.fp-plugin-item--collapsible').each(function() { fpSetItemCollapsed($(this), true); });
+            fpPersistCollapsedState();
+        });
+
+        fpInitAccordion();
+
+        // ===== DIALOG DI CONFERMA CUSTOM (sostituto di confirm()) =====
+        function fpConfirmDialog(opts) {
+            opts = opts || {};
+            const title = opts.title || 'Conferma azione';
+            const message = opts.message || 'Sei sicuro di voler procedere?';
+            const confirmLabel = opts.confirmLabel || 'Conferma';
+            const cancelLabel = opts.cancelLabel || 'Annulla';
+            const variant = opts.variant === 'danger' ? 'danger' : 'warning';
+            const icon = variant === 'danger' ? 'dashicons-warning' : 'dashicons-info';
+
+            return new Promise(function(resolve) {
+                $('.fp-confirm-dialog').remove();
+                const dialogId = 'fp-confirm-dialog-' + Date.now();
+                const titleId = dialogId + '-title';
+                const descId = dialogId + '-desc';
+
+                // message può contenere HTML semplice (es. <code>); lo sanitizziamo lato chiamante
+                const $dialog = $(
+                    '<div class="fp-confirm-dialog fp-confirm-dialog--' + variant + '" id="' + dialogId + '" ' +
+                        'role="dialog" aria-modal="true" aria-labelledby="' + titleId + '" aria-describedby="' + descId + '">' +
+                        '<div class="fp-confirm-dialog__backdrop"></div>' +
+                        '<div class="fp-confirm-dialog__panel" role="document">' +
+                            '<div class="fp-confirm-dialog__header">' +
+                                '<span class="fp-confirm-dialog__icon"><span class="dashicons ' + icon + '" aria-hidden="true"></span></span>' +
+                                '<h2 class="fp-confirm-dialog__title" id="' + titleId + '"></h2>' +
+                            '</div>' +
+                            '<p class="fp-confirm-dialog__message" id="' + descId + '"></p>' +
+                            '<div class="fp-confirm-dialog__actions">' +
+                                '<button type="button" class="fp-confirm-dialog__btn fp-confirm-dialog__btn--cancel"></button>' +
+                                '<button type="button" class="fp-confirm-dialog__btn fp-confirm-dialog__btn--primary"></button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>'
+                );
+                $dialog.find('.fp-confirm-dialog__title').text(title);
+                $dialog.find('.fp-confirm-dialog__message').html(opts.allowHtml ? message : $('<span>').text(message).html());
+                $dialog.find('.fp-confirm-dialog__btn--cancel').text(cancelLabel);
+                $dialog.find('.fp-confirm-dialog__btn--primary').text(confirmLabel);
+
+                const $previouslyFocused = $(document.activeElement);
+
+                function close(result) {
+                    $(document).off('keydown.fpConfirmDialog');
+                    $dialog.fadeOut(120, function() {
+                        $dialog.remove();
+                        if ($previouslyFocused && $previouslyFocused.length) {
+                            try { $previouslyFocused.trigger('focus'); } catch (e) {}
+                        }
+                        resolve(result);
+                    });
+                }
+
+                $dialog.find('.fp-confirm-dialog__btn--primary').on('click', function() { close(true); });
+                $dialog.find('.fp-confirm-dialog__btn--cancel').on('click', function() { close(false); });
+                $dialog.find('.fp-confirm-dialog__backdrop').on('click', function() { close(false); });
+
+                $(document).on('keydown.fpConfirmDialog', function(ev) {
+                    if (ev.key === 'Escape') { ev.preventDefault(); close(false); return; }
+                    if (ev.key === 'Tab') {
+                        // Focus trap minimale tra i 2 bottoni
+                        const focusables = $dialog.find('button:visible').toArray();
+                        if (!focusables.length) return;
+                        const first = focusables[0];
+                        const last = focusables[focusables.length - 1];
+                        if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
+                        else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+                    }
+                });
+
+                $('body').append($dialog);
+                // Focus iniziale sul pulsante "Annulla" (non-distruttivo)
+                setTimeout(function() {
+                    $dialog.find('.fp-confirm-dialog__btn--cancel').trigger('focus');
+                }, 30);
+            });
+        }
+        // Esponi anche globalmente per debug e estensione (opzionale)
+        window.fpConfirmDialog = fpConfirmDialog;
+
         // ===== PLUGIN MANAGEMENT =====
         let pluginIndex = $('.fp-plugin-item').length;
-        
+
         // Aggiungi nuovo plugin
         $('#fp-add-plugin').on('click', function(e) {
             e.preventDefault();
-            
+
             const template = $('#fp-plugin-template').html();
             const newId = 'plugin_' + Date.now();
             const newPlugin = template
                 .replace(/\{\{INDEX\}\}/g, pluginIndex)
                 .replace(/\{\{ID\}\}/g, newId);
-            
+
             $('#fp-plugins-list').append(newPlugin);
             pluginIndex++;
-            
+
+            // Nuovo plugin: sempre espanso (l'utente lo sta configurando)
+            const $newItem = $('.fp-plugin-item:last');
+            if ($newItem.hasClass('fp-plugin-item--collapsible')) {
+                fpSetItemCollapsed($newItem, false);
+            }
+
             // Scroll al nuovo plugin
             $('html, body').animate({
-                scrollTop: $('.fp-plugin-item:last').offset().top - 100
+                scrollTop: $newItem.offset().top - 100
             }, 500);
         });
         
         // Toggle dettagli plugin
         $(document).on('click', '.fp-toggle-plugin', function(e) {
             e.preventDefault();
+            // Se la card è collassata, prima la espandiamo per rendere
+            // visibile il form di dettaglio.
+            const $item = $(this).closest('.fp-plugin-item--collapsible');
+            if ($item.length && $item.hasClass('is-collapsed')) {
+                fpSetItemCollapsed($item, false);
+                fpPersistCollapsedState();
+            }
             const target = $(this).data('target');
             const $target = $('#' + target);
             $target.toggleClass('active');
-            
+
             if ($target.hasClass('active')) {
                 $target.css('display', 'block');
             } else {
@@ -157,28 +346,45 @@
             e.preventDefault();
             var $item = $(this).closest('.fp-plugin-item');
             var name = $item.data('plugin-name') || 'questo plugin';
-            if (!confirm('Rimuovere «' + name + '» dalla configurazione?')) {
-                return;
-            }
-            $item.fadeOut(function() {
-                $(this).remove();
+            fpConfirmDialog({
+                title: 'Rimuovere il plugin dalla configurazione?',
+                message: 'Stai per rimuovere «' + name + '» dalla lista dei plugin gestiti. Il plugin resterà installato sul sito, ma non riceverà più aggiornamenti automatici.',
+                confirmLabel: 'Sì, rimuovi',
+                cancelLabel: 'Annulla',
+                variant: 'danger'
+            }).then(function(ok) {
+                if (!ok) return;
+                $item.fadeOut(function() {
+                    $(this).remove();
+                });
             });
         });
         
         // Installa aggiornamento per plugin specifico
         $(document).on('click', '.fp-install-update', function(e) {
             e.preventDefault();
-            
+
             const $button = $(this);
             const pluginId = $button.data('plugin-id');
-            
-            if (!confirm('Sei sicuro di voler installare l\'aggiornamento per questo plugin?')) {
-                return;
-            }
-            
+            const $item = $button.closest('.fp-plugin-item');
+            const pluginName = $item.data('plugin-name') || 'questo plugin';
+
+            fpConfirmDialog({
+                title: 'Installare l\'aggiornamento adesso?',
+                message: 'Verrà scaricata l\'ultima versione di «' + pluginName + '» da GitHub e installata su questo sito. L\'operazione può richiedere qualche secondo.',
+                confirmLabel: 'Installa adesso',
+                cancelLabel: 'Annulla',
+                variant: 'warning'
+            }).then(function(ok) {
+                if (!ok) return;
+                fpInstallUpdateRun($button, pluginId);
+            });
+        });
+
+        function fpInstallUpdateRun($button, pluginId) {
             const originalText = $button.html();
-            
-            $button.prop('disabled', true);
+
+            $button.prop('disabled', true).attr('aria-busy', 'true');
             $button.html('<span class="dashicons dashicons-update spin"></span> Installazione...');
             
             $.ajax({
@@ -200,7 +406,7 @@
                     } else {
                         let errorMessage = response.data.message || response.data || 'Errore durante l\'aggiornamento.';
                         showNotice('error', errorMessage);
-                        $button.prop('disabled', false);
+                        $button.prop('disabled', false).attr('aria-busy', 'false');
                         $button.html(originalText);
                     }
                 },
@@ -218,12 +424,12 @@
                         message = 'Errore del server. Controlla i log per maggiori dettagli.';
                     }
                     showNotice('error', message);
-                    $button.prop('disabled', false);
+                    $button.prop('disabled', false).attr('aria-busy', 'false');
                     $button.html(originalText);
                 }
             });
-        });
-        
+        }
+
         // Aggiorna versione GitHub
         $(document).on('click', '.fp-refresh-github-version', function(e) {
             e.preventDefault();
@@ -400,15 +606,22 @@
         // Pulisci log
         $('#fp-clear-logs').on('click', function(e) {
             e.preventDefault();
-            
-            if (!confirm('Sei sicuro di voler eliminare tutti i log?')) {
-                return;
-            }
-            
             const $button = $(this);
+            fpConfirmDialog({
+                title: 'Eliminare tutti i log?',
+                message: 'I log degli aggiornamenti e degli errori saranno eliminati definitivamente. Tienili almeno qualche giorno se stai investigando un problema.',
+                confirmLabel: 'Sì, elimina i log',
+                cancelLabel: 'Annulla',
+                variant: 'danger'
+            }).then(function(ok) {
+                if (!ok) return;
+                fpClearLogsRun($button);
+            });
+        });
+
+        function fpClearLogsRun($button) {
             const originalText = $button.html();
-            
-            $button.prop('disabled', true);
+            $button.prop('disabled', true).attr('aria-busy', 'true');
             $button.html('<span class="dashicons dashicons-update spin"></span> Pulizia in corso...');
             
             $.ajax({
@@ -440,12 +653,12 @@
                     showNotice('error', errorMessage);
                 },
                 complete: function() {
-                    $button.prop('disabled', false);
+                    $button.prop('disabled', false).attr('aria-busy', 'false');
                     $button.html(originalText);
                 }
             });
-        });
-        
+        }
+
         // Carica repository da GitHub
         $(document).on('click', '.fp-load-repos-btn', function(e) {
             e.preventDefault();
@@ -637,6 +850,8 @@
                 });
             }, 5000);
         }
+        // Esposizione globale per essere usata fuori dall'IIFE (es. sezione backup).
+        window.fpShowNotice = showNotice;
 
         /**
          * Modal barra avanzamento: contatto sequenziale trigger-sync sui client.
@@ -1412,7 +1627,7 @@
             var newUrl = $('#fp-edit-client-url').val().trim();
 
             if (!newId) {
-                alert('Il Client ID non può essere vuoto.');
+                showNotice('error', 'Il Client ID non può essere vuoto.');
                 return;
             }
 
@@ -1471,8 +1686,21 @@
             var $btn = $(this);
             var clientId = $btn.data('client-id');
             if (!clientId) return;
-            if (!confirm('Ripristinare "' + clientId + '"? Dopo il ripristino, sul sito cliente clicca «Sincronizza ora» in FP Remote Bridge.')) return;
-            $btn.prop('disabled', true);
+            fpConfirmDialog({
+                title: 'Ripristinare questo cliente?',
+                message: 'Stai per ripristinare il cliente <code>' + $('<span>').text(clientId).html() + '</code> nella lista. Dopo il ripristino, sul sito cliente clicca «Sincronizza ora» in FP Remote Bridge.',
+                confirmLabel: 'Ripristina',
+                cancelLabel: 'Annulla',
+                variant: 'warning',
+                allowHtml: true
+            }).then(function(ok) {
+                if (!ok) return;
+                fpRestoreRemovedClientRun($btn, clientId);
+            });
+        });
+
+        function fpRestoreRemovedClientRun($btn, clientId) {
+            $btn.prop('disabled', true).attr('aria-busy', 'true');
             $.post(fpGitUpdater.ajax_url, {
                 action: 'fp_git_updater_restore_removed_client',
                 nonce: fpGitUpdater.nonce,
@@ -1492,21 +1720,34 @@
                     showNotice('success', response.data.message || 'Cliente ripristinato.');
                 } else {
                     showNotice('error', response.data && response.data.message ? response.data.message : 'Errore.');
-                    $btn.prop('disabled', false);
+                    $btn.prop('disabled', false).attr('aria-busy', 'false');
                 }
             }).fail(function() {
                 showNotice('error', 'Errore di connessione.');
-                $btn.prop('disabled', false);
+                $btn.prop('disabled', false).attr('aria-busy', 'false');
             });
-        });
+        }
 
         // Rimuovi cliente
         $(document).on('click', '.fp-remove-client-btn', function() {
             var $btn = $(this);
             var clientId = $btn.data('client-id');
             if (!clientId) return;
-            if (!confirm('Rimuovere il cliente "' + clientId + '" dalla lista?')) return;
-            $btn.prop('disabled', true);
+            fpConfirmDialog({
+                title: 'Rimuovere questo cliente dalla lista?',
+                message: 'Il cliente <code>' + $('<span>').text(clientId).html() + '</code> sarà rimosso dalla lista del Master. Potrai ripristinarlo in seguito dalla sezione «Clienti rimossi».',
+                confirmLabel: 'Sì, rimuovi',
+                cancelLabel: 'Annulla',
+                variant: 'danger',
+                allowHtml: true
+            }).then(function(ok) {
+                if (!ok) return;
+                fpRemoveClientRun($btn, clientId);
+            });
+        });
+
+        function fpRemoveClientRun($btn, clientId) {
+            $btn.prop('disabled', true).attr('aria-busy', 'true');
             $.post(fpGitUpdater.ajax_url, {
                 action: 'fp_git_updater_remove_client',
                 nonce: fpGitUpdater.nonce,
@@ -1524,13 +1765,13 @@
                     showNotice('success', response.data.message || 'Cliente rimosso.');
                 } else {
                     showNotice('error', response.data && response.data.message ? response.data.message : 'Errore.');
-                    $btn.prop('disabled', false);
+                    $btn.prop('disabled', false).attr('aria-busy', 'false');
                 }
             }).fail(function() {
                 showNotice('error', 'Errore di connessione.');
-                $btn.prop('disabled', false);
+                $btn.prop('disabled', false).attr('aria-busy', 'false');
             });
-        });
+        }
 
         // Animazioni disabilitate - nessuna animazione spin
     });
@@ -1599,36 +1840,53 @@
     // Pulsante pulizia backup
     jQuery(document).on('click', '#fp-cleanup-backups-now', function(e) {
         e.preventDefault();
-        
-        if (!confirm('Sei sicuro di voler eliminare i backup vecchi? Questa azione non può essere annullata.')) {
-            return;
-        }
-        
         const button = jQuery(this);
-        const originalText = button.html();
-        button.prop('disabled', true).html('<span class="dashicons dashicons-update" style="animation: dashicons-spin 1s linear infinite;"></span> Pulizia in corso...');
-        
-        jQuery.ajax({
-            url: ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'fp_git_updater_cleanup_backups',
-                nonce: fpGitUpdater.nonce
-            },
-            success: function(response) {
-                if (response.success) {
-                    alert(response.data.message);
-                    loadBackupStats();
-                } else {
-                    alert('Errore: ' + (response.data && response.data.message ? response.data.message : 'Errore sconosciuto'));
+        const runCleanup = function() {
+            const originalText = button.html();
+            button.prop('disabled', true).attr('aria-busy', 'true').html('<span class="dashicons dashicons-update spin"></span> Pulizia in corso...');
+
+            jQuery.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'fp_git_updater_cleanup_backups',
+                    nonce: fpGitUpdater.nonce
+                },
+                success: function(response) {
+                    if (response.success) {
+                        if (window.fpShowNotice) {
+                            window.fpShowNotice('success', response.data.message || 'Backup vecchi eliminati.');
+                        }
+                        loadBackupStats();
+                    } else {
+                        const msg = 'Errore: ' + (response.data && response.data.message ? response.data.message : 'Errore sconosciuto');
+                        if (window.fpShowNotice) { window.fpShowNotice('error', msg); }
+                    }
+                    button.prop('disabled', false).attr('aria-busy', 'false').html(originalText);
+                },
+                error: function() {
+                    if (window.fpShowNotice) { window.fpShowNotice('error', 'Errore durante la pulizia dei backup.'); }
+                    button.prop('disabled', false).attr('aria-busy', 'false').html(originalText);
                 }
-                button.prop('disabled', false).html(originalText);
-            },
-            error: function() {
-                alert('Errore durante la pulizia dei backup.');
-                button.prop('disabled', false).html(originalText);
+            });
+        };
+
+        if (typeof window.fpConfirmDialog === 'function') {
+            window.fpConfirmDialog({
+                title: 'Eliminare i backup vecchi?',
+                message: 'I file di backup oltre il limite di retention saranno eliminati definitivamente. L\'operazione non è reversibile.',
+                confirmLabel: 'Sì, elimina',
+                cancelLabel: 'Annulla',
+                variant: 'danger'
+            }).then(function(ok) {
+                if (ok) runCleanup();
+            });
+        } else {
+            // Fallback nel caso lo script principale non sia ancora caricato
+            if (confirm('Eliminare i backup vecchi? Operazione non reversibile.')) {
+                runCleanup();
             }
-        });
+        }
     });
     
 })(jQuery);

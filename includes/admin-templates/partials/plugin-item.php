@@ -13,12 +13,39 @@ if (!defined('ABSPATH')) {
 }
 ?>
 
-<div class="fp-plugin-item <?php echo $has_pending_update ? 'has-update' : ''; ?>" 
+<?php
+$fp_item_collapsible_id = 'fp-plugin-body-' . $index;
+$fp_item_plugin_id = isset($plugin['id']) ? (string) $plugin['id'] : '';
+$fp_item_remove_label = sprintf(
+    /* translators: %s: plugin name */
+    __('Rimuovi %s dalla configurazione', 'fp-git-updater'),
+    $plugin['name'] ?? $plugin['id'] ?? ''
+);
+$fp_item_edit_label = sprintf(
+    /* translators: %s: plugin name */
+    __('Modifica impostazioni di %s', 'fp-git-updater'),
+    $plugin['name'] ?? $plugin['id'] ?? ''
+);
+$fp_item_toggle_label = sprintf(
+    /* translators: %s: plugin name */
+    __('Espandi o comprimi la card di %s', 'fp-git-updater'),
+    $plugin['name'] ?? $plugin['id'] ?? ''
+);
+?>
+<div class="fp-plugin-item fp-plugin-item--collapsible <?php echo $has_pending_update ? 'has-update' : ''; ?>"
      data-index="<?php echo $index; ?>"
+     data-plugin-id="<?php echo esc_attr($fp_item_plugin_id); ?>"
      data-plugin-name="<?php echo esc_attr($plugin['name'] ?? $plugin['id'] ?? ''); ?>">
-    
+
     <div class="fp-plugin-header">
-        <h3>
+        <button type="button"
+                class="fp-plugin-toggle-collapsible"
+                aria-expanded="true"
+                aria-controls="<?php echo esc_attr($fp_item_collapsible_id); ?>"
+                aria-label="<?php echo esc_attr($fp_item_toggle_label); ?>">
+            <span class="dashicons dashicons-arrow-down-alt2 fp-plugin-toggle-icon" aria-hidden="true"></span>
+        </button>
+        <h3 class="fp-plugin-title">
             <?php echo esc_html($plugin['name'] ?? $plugin['id'] ?? ''); ?>
             <?php if ($has_pending_update): ?>
                 <span class="log-badge log-badge-error">
@@ -27,14 +54,24 @@ if (!defined('ABSPATH')) {
             <?php endif; ?>
         </h3>
         <div class="fp-plugin-actions">
-            <button type="button" class="button fp-toggle-plugin" data-target="plugin-details-<?php echo $index; ?>">
-                <span class="dashicons dashicons-edit"></span> <?php _e('Modifica', 'fp-git-updater'); ?>
+            <button type="button"
+                    class="button fp-toggle-plugin"
+                    data-target="plugin-details-<?php echo $index; ?>"
+                    aria-label="<?php echo esc_attr($fp_item_edit_label); ?>">
+                <span class="dashicons dashicons-edit" aria-hidden="true"></span>
+                <span class="fp-btn-text"><?php _e('Modifica', 'fp-git-updater'); ?></span>
             </button>
-            <button type="button" class="button fp-remove-plugin" data-index="<?php echo $index; ?>">
-                <span class="dashicons dashicons-trash"></span> <?php _e('Rimuovi', 'fp-git-updater'); ?>
+            <button type="button"
+                    class="button fp-remove-plugin"
+                    data-index="<?php echo $index; ?>"
+                    aria-label="<?php echo esc_attr($fp_item_remove_label); ?>">
+                <span class="dashicons dashicons-trash" aria-hidden="true"></span>
+                <span class="fp-btn-text"><?php _e('Rimuovi', 'fp-git-updater'); ?></span>
             </button>
         </div>
     </div>
+
+    <div class="fp-plugin-collapsible-body" id="<?php echo esc_attr($fp_item_collapsible_id); ?>">
     
     <?php if ($has_pending_update && $pending_info): ?>
         <div class="fp-notice fp-notice-error fp-plugin-update-notice">
@@ -227,14 +264,27 @@ if (!defined('ABSPATH')) {
     </div>
     
     <div class="fp-plugin-quick-actions">
-        <button type="button" 
-                class="button button-small <?php echo $has_pending_update ? 'button-primary' : ''; ?> fp-install-update" 
+        <?php
+        // Microcopy uniformata:
+        //  - "Installa su questo sito"  → quando il plugin non è ancora installato localmente
+        //  - "Aggiorna su questo sito"  → quando esiste già una versione installata
+        //  - "Aggiorna ora"             → CTA enfatica quando c'è un update GitHub pendente
+        if ($has_pending_update) {
+            $fp_install_label = __('Aggiorna ora', 'fp-git-updater');
+            $fp_install_icon  = 'download';
+        } elseif (!empty($current_version)) {
+            $fp_install_label = __('Aggiorna su questo sito', 'fp-git-updater');
+            $fp_install_icon  = 'update';
+        } else {
+            $fp_install_label = __('Installa su questo sito', 'fp-git-updater');
+            $fp_install_icon  = 'download';
+        }
+        ?>
+        <button type="button"
+                class="button button-small <?php echo $has_pending_update ? 'button-primary' : ''; ?> fp-install-update"
                 data-plugin-id="<?php echo esc_attr($plugin['id']); ?>">
-            <span class="dashicons dashicons-<?php echo $has_pending_update ? 'download' : 'update'; ?>"></span> 
-            <?php echo $has_pending_update 
-                ? __('Installa Aggiornamento Ora', 'fp-git-updater')
-                : __('Installa Aggiornamento', 'fp-git-updater'); 
-            ?>
+            <span class="dashicons dashicons-<?php echo esc_attr($fp_install_icon); ?>" aria-hidden="true"></span>
+            <?php echo esc_html($fp_install_label); ?>
         </button>
     </div>
     <?php
@@ -294,7 +344,8 @@ if (!defined('ABSPATH')) {
                     <?php _e('Sincronizza versioni', 'fp-git-updater'); ?>
                 </button>
                 <button type="button" class="button button-primary button-small fp-deploy-install-inline">
-                    <span class="dashicons dashicons-download"></span> <?php _e('Installa sui selezionati', 'fp-git-updater'); ?>
+                    <span class="dashicons dashicons-download" aria-hidden="true"></span>
+                    <?php _e('Distribuisci ai selezionati', 'fp-git-updater'); ?>
                 </button>
             </div>
         </div>
@@ -384,9 +435,9 @@ if (!defined('ABSPATH')) {
                 <th><label><?php _e('Abilitato', 'fp-git-updater'); ?></label></th>
                 <td>
                     <label>
-                        <input type="checkbox" 
-                               name="fp_git_updater_settings[plugins][<?php echo $index; ?>][enabled]" 
-                               value="1" 
+                        <input type="checkbox"
+                               name="fp_git_updater_settings[plugins][<?php echo $index; ?>][enabled]"
+                               value="1"
                                <?php checked($plugin['enabled'], true); ?>>
                         <?php _e('Abilita aggiornamenti per questo plugin', 'fp-git-updater'); ?>
                     </label>
@@ -394,4 +445,5 @@ if (!defined('ABSPATH')) {
             </tr>
         </table>
     </div>
+    </div><!-- /.fp-plugin-collapsible-body -->
 </div>

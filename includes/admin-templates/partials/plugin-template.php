@@ -9,18 +9,34 @@ if (!defined('ABSPATH')) {
 ?>
 
 <script type="text/template" id="fp-plugin-template">
-    <div class="fp-plugin-item new-plugin" data-index="{{INDEX}}" data-plugin-name="<?php echo esc_attr__('Nuovo Plugin', 'fp-git-updater'); ?>">
+    <div class="fp-plugin-item fp-plugin-item--collapsible new-plugin" data-index="{{INDEX}}" data-plugin-id="" data-plugin-name="<?php echo esc_attr__('Nuovo Plugin', 'fp-git-updater'); ?>">
         <div class="fp-plugin-header">
-            <h3><?php _e('Nuovo Plugin', 'fp-git-updater'); ?></h3>
+            <button type="button"
+                    class="fp-plugin-toggle-collapsible"
+                    aria-expanded="true"
+                    aria-controls="fp-plugin-body-{{INDEX}}"
+                    aria-label="<?php esc_attr_e('Espandi o comprimi la card del nuovo plugin', 'fp-git-updater'); ?>">
+                <span class="dashicons dashicons-arrow-down-alt2 fp-plugin-toggle-icon" aria-hidden="true"></span>
+            </button>
+            <h3 class="fp-plugin-title"><?php _e('Nuovo Plugin', 'fp-git-updater'); ?></h3>
             <div class="fp-plugin-actions">
-                <button type="button" class="button fp-toggle-plugin" data-target="plugin-details-{{INDEX}}">
-                    <span class="dashicons dashicons-edit"></span> <?php _e('Modifica', 'fp-git-updater'); ?>
+                <button type="button"
+                        class="button fp-toggle-plugin"
+                        data-target="plugin-details-{{INDEX}}"
+                        aria-label="<?php esc_attr_e('Modifica impostazioni del nuovo plugin', 'fp-git-updater'); ?>">
+                    <span class="dashicons dashicons-edit" aria-hidden="true"></span>
+                    <span class="fp-btn-text"><?php _e('Modifica', 'fp-git-updater'); ?></span>
                 </button>
-                <button type="button" class="button fp-remove-plugin" data-index="{{INDEX}}">
-                    <span class="dashicons dashicons-trash"></span> <?php _e('Rimuovi', 'fp-git-updater'); ?>
+                <button type="button"
+                        class="button fp-remove-plugin"
+                        data-index="{{INDEX}}"
+                        aria-label="<?php esc_attr_e('Rimuovi il nuovo plugin dalla configurazione', 'fp-git-updater'); ?>">
+                    <span class="dashicons dashicons-trash" aria-hidden="true"></span>
+                    <span class="fp-btn-text"><?php _e('Rimuovi', 'fp-git-updater'); ?></span>
                 </button>
             </div>
         </div>
+        <div class="fp-plugin-collapsible-body" id="fp-plugin-body-{{INDEX}}">
         <div class="fp-plugin-info">
             <span class="description"><?php _e('Configura i dettagli del plugin', 'fp-git-updater'); ?></span>
         </div>
@@ -107,8 +123,8 @@ if (!defined('ABSPATH')) {
                     <th><label><?php _e('Abilitato', 'fp-git-updater'); ?></label></th>
                     <td>
                         <label>
-                            <input type="checkbox" 
-                                   name="fp_git_updater_settings[plugins][{{INDEX}}][enabled]" 
+                            <input type="checkbox"
+                                   name="fp_git_updater_settings[plugins][{{INDEX}}][enabled]"
                                    value="1" checked>
                             <?php _e('Abilita aggiornamenti per questo plugin', 'fp-git-updater'); ?>
                         </label>
@@ -116,5 +132,6 @@ if (!defined('ABSPATH')) {
                 </tr>
             </table>
         </div>
+        </div><!-- /.fp-plugin-collapsible-body -->
     </div>
 </script>

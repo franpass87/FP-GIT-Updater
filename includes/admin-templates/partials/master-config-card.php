@@ -18,9 +18,8 @@ $master_url = MasterEndpoint::get_endpoint_url();
 
 <div class="fp-settings-card fp-master-config-card">
     <div class="fp-master-config-header">
-        <span class="fp-step-badge" aria-hidden="true">1</span>
         <h3 class="fp-master-config-title">
-            <span class="dashicons dashicons-networking"></span>
+            <span class="dashicons dashicons-networking" aria-hidden="true"></span>
             <?php _e('Configurazione Master', 'fp-git-updater'); ?>
         </h3>
         <span class="fp-master-status fp-master-status--<?php echo $master_mode ? 'active' : 'inactive'; ?>"
