@@ -716,6 +716,23 @@ class MasterEndpoint
     }
 
     /**
+     * Restituisce gli alias di cartella sotto cui un plugin può essere installato sui client.
+     * Es. il Bridge dopo self-update finisce in `fp-remote-bridge-update/` invece di `fp-remote-bridge/`,
+     * quindi entrambe le chiavi vanno considerate equivalenti nelle lookup.
+     *
+     * @param string $plugin_slug Slug richiesto dal chiamante (già lowercase)
+     * @return array<string> Lista di slug accettati (lo slug richiesto è sempre incluso)
+     */
+    public static function get_plugin_slug_aliases(string $plugin_slug): array
+    {
+        $plugin_slug = strtolower($plugin_slug);
+        if (in_array($plugin_slug, self::BRIDGE_PLUGIN_SLUGS, true)) {
+            return self::BRIDGE_PLUGIN_SLUGS;
+        }
+        return [$plugin_slug];
+    }
+
+    /**
      * Restituisce i client che hanno installato un determinato plugin (slug).
      *
      * @param string $plugin_slug Slug del plugin (es. fp-forms)
@@ -723,12 +740,15 @@ class MasterEndpoint
      */
     public static function get_clients_with_plugin(string $plugin_slug): array
     {
-        $plugin_slug = strtolower($plugin_slug);
+        $aliases = self::get_plugin_slug_aliases($plugin_slug);
         $clients = self::get_connected_clients();
         $result = [];
         foreach ($clients as $id => $data) {
             $installed = $data['installed_plugins'] ?? [];
-            if (in_array($plugin_slug, $installed, true)) {
+            if (!is_array($installed)) {
+                continue;
+            }
+            if (array_intersect($aliases, $installed)) {
                 $result[] = $id;
             }
         }
@@ -749,7 +769,15 @@ class MasterEndpoint
             return '';
         }
         $versions = $clients[$client_id]['plugin_versions'] ?? [];
-        return $versions[$plugin_slug] ?? '';
+        if (!is_array($versions)) {
+            return '';
+        }
+        foreach (self::get_plugin_slug_aliases($plugin_slug) as $alias) {
+            if (isset($versions[$alias]) && is_scalar($versions[$alias]) && $versions[$alias] !== '') {
+                return (string) $versions[$alias];
+            }
+        }
+        return '';
     }
 
     /**
@@ -761,15 +789,23 @@ class MasterEndpoint
      */
     public static function get_clients_plugin_versions(string $plugin_slug): array
     {
-        $plugin_slug = strtolower($plugin_slug);
+        $aliases = self::get_plugin_slug_aliases($plugin_slug);
         $clients = self::get_connected_clients();
         $result = [];
         foreach ($clients as $id => $data) {
             $installed = $data['installed_plugins'] ?? [];
-            if (in_array($plugin_slug, $installed, true)) {
-                $version = $data['plugin_versions'][$plugin_slug] ?? '';
-                $result[$id] = $version;
+            if (!is_array($installed) || !array_intersect($aliases, $installed)) {
+                continue;
             }
+            $versions = is_array($data['plugin_versions'] ?? null) ? $data['plugin_versions'] : [];
+            $version = '';
+            foreach ($aliases as $alias) {
+                if (isset($versions[$alias]) && is_scalar($versions[$alias]) && $versions[$alias] !== '') {
+                    $version = (string) $versions[$alias];
+                    break;
+                }
+            }
+            $result[$id] = $version;
         }
         return $result;
     }

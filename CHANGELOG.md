@@ -1,3 +1,9 @@
+## [1.7.8] - 2026-05-29
+
+### Fixed
+
+- **Versione FP-Remote-Bridge non visualizzata sui client** (regressione UI): la card del plugin Bridge e i badge versione mostravano `—` su molti siti anche se il Bridge era installato e aggiornato. Causa: `MasterEndpoint::get_clients_plugin_versions()` cercava solo lo slug richiesto, ma il Bridge dopo self-update vive nella cartella `fp-remote-bridge-update/` invece di `fp-remote-bridge/`, quindi i client inviano la versione sotto la chiave alternativa. Aggiunto helper `get_plugin_slug_aliases()` che riconosce entrambi gli slug Bridge come equivalenti; applicato anche a `get_clients_with_plugin()` e `get_client_plugin_version()` per coerenza. Nessuna chiamata REST aggiuntiva: legge i dati già presenti nel registry `fp_git_updater_connected_clients`.
+
 ## [1.7.7] - 2026-05-27
 
 ### Fixed
