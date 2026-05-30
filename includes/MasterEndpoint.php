@@ -731,6 +731,44 @@ class MasterEndpoint
     }
 
     /**
+     * Costruisce l'URL REST completo verso un client registrato, preservando
+     * eventuali sottocartelle dell'installazione WordPress (es. core in /cms/).
+     *
+     * Preferisce la base REST canonica annunciata dal client (header X-FP-REST-URL =
+     * get_rest_url(), basata su home_url, quindi sempre raggiungibile). Ricade sul
+     * vecchio comportamento (url del sito + /wp-json/) solo per client che non hanno
+     * ancora ri-pingato col Bridge aggiornato. NON applica la SSRF guard: i chiamanti
+     * che la richiedono (push trigger-sync) devono verificarla a parte.
+     *
+     * @param string $client_id ID client (come in elenco collegati)
+     * @param string $rest_path Percorso REST senza slash iniziale, es. 'fp-remote-bridge/v1/trigger-sync'
+     * @return string URL assoluto, oppure stringa vuota se non ricavabile alcuna base
+     */
+    public static function build_client_rest_endpoint(string $client_id, string $rest_path): string
+    {
+        $clients = self::get_connected_clients();
+        $client  = isset($clients[$client_id]) && is_array($clients[$client_id]) ? $clients[$client_id] : [];
+
+        $rest_base = trim((string) ($client['rest_url'] ?? ''));
+
+        if ($rest_base === '') {
+            $site_url = trim((string) ($client['url'] ?? ''));
+            if ($site_url === '') {
+                $host = preg_replace('#^https?://#', '', $client_id);
+                if ($host !== '' && preg_match('#^[a-z0-9]([a-z0-9\-\.]+)?[a-z0-9]\.[a-z]{2,}(/.*)?$#i', $host)) {
+                    $site_url = 'https://' . ltrim($host, '/');
+                }
+            }
+            if ($site_url === '') {
+                return '';
+            }
+            $rest_base = rtrim($site_url, '/') . '/wp-json/';
+        }
+
+        return rtrim($rest_base, '/') . '/' . ltrim($rest_path, '/');
+    }
+
+    /**
      * URL completo POST trigger-sync per un client registrato.
      *
      * @param string $client_id ID client (come in elenco collegati)
@@ -743,16 +781,10 @@ class MasterEndpoint
             return null;
         }
 
-        $site_url = $clients[$client_id]['url'] ?? '';
-        if ($site_url === '') {
-            $host = $client_id;
-            if (!preg_match('#^https?://#', $host)) {
-                $host = 'https://' . $host;
-            }
-            $site_url = $host;
+        $endpoint = self::build_client_rest_endpoint($client_id, 'fp-remote-bridge/v1/trigger-sync');
+        if ($endpoint === '') {
+            return null;
         }
-
-        $endpoint = rtrim($site_url, '/') . '/wp-json/fp-remote-bridge/v1/trigger-sync';
 
         // SSRF guard: rifiuta URL verso loopback / IP privati / hostname non risolvibili.
         if (!self::is_safe_outbound_url($endpoint)) {
@@ -1063,6 +1095,10 @@ class MasterEndpoint
         }
         $site_url = esc_url_raw($site_url);
         $site_name = sanitize_text_field($request->get_header('X-FP-Site-Name') ?? '');
+        // Base REST canonica annunciata dal client (get_rest_url, basata su home_url):
+        // necessaria per raggiungere le REST di installazioni WordPress in sottocartella
+        // (es. core in /cms/ con Site Address alla root). Vedi build_client_rest_endpoint().
+        $rest_url = esc_url_raw($request->get_header('X-FP-REST-URL') ?? '');
 
         $clients[$resolved_id] = [
             'last_seen'         => $now,
@@ -1070,6 +1106,7 @@ class MasterEndpoint
             'installed_plugins' => array_values(array_unique($slugs)),
             'plugin_versions'   => $plugin_versions,
             'url'               => $site_url ?: ($clients[$resolved_id]['url'] ?? $clients[$client_id]['url'] ?? ''),
+            'rest_url'          => $rest_url ?: ($clients[$resolved_id]['rest_url'] ?? $clients[$client_id]['rest_url'] ?? ''),
             'site_name'         => $site_name ?: ($clients[$resolved_id]['site_name'] ?? $clients[$client_id]['site_name'] ?? ''),
         ];
 

@@ -1,3 +1,17 @@
+## [1.10.0] - 2026-05-30
+
+### Fixed
+
+- **Installazioni WordPress in sottocartella (es. core in `/cms/`) non ricevevano deploy/trigger-sync dal Master**: il Master costruiva gli endpoint REST dei client concatenando `/wp-json/…` all'URL salvato (che è `site_url()`, quindi con la sottocartella `/cms`), ma su questi siti l'API REST è servita alla **root** (`get_rest_url()` è basato su `home_url()`). Risultato: il Master chiamava `https://sito/cms/wp-json/…` (morto) invece di `https://sito/wp-json/…` (funzionante) e l'installazione non partiva mai (install-log vuoto). Caso reale: Casale Certosa (vinilacertosa.it). Vedi anche FP Remote Bridge 1.112.0 (lato client).
+
+### Added
+
+- **`MasterEndpoint::build_client_rest_endpoint(string $client_id, string $rest_path): string`**: helper che costruisce l'URL REST verso un client preservando le sottocartelle. Preferisce la base REST canonica annunciata dal client (header `X-FP-REST-URL` = `get_rest_url()`, salvata come `rest_url` nel registro `fp_git_updater_connected_clients`) e ricade sul vecchio comportamento (`url` + `/wp-json/`) per i client non ancora aggiornati.
+
+### Changed
+
+- I 6 punti che costruivano URL REST verso i client (`get_trigger_sync_endpoint_for_client`, callback deploy+reload in `fp-git-updater.php`, i 3 refresh versioni in `Admin.php`) usano ora `build_client_rest_endpoint()`. Retrocompatibile: con un Bridge che non invia ancora `X-FP-REST-URL` il comportamento resta identico a prima.
+
 ## [1.9.1] - 2026-05-30
 
 ### Fixed

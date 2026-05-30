@@ -1775,7 +1775,7 @@ class Admin {
         }
 
         // Chiama l'endpoint /plugin-versions sul Bridge del cliente
-        $endpoint = rtrim($site_url, '/') . '/wp-json/fp-remote-bridge/v1/plugin-versions';
+        $endpoint = MasterEndpoint::build_client_rest_endpoint($client_id, 'fp-remote-bridge/v1/plugin-versions') ?: rtrim($site_url, '/') . '/wp-json/fp-remote-bridge/v1/plugin-versions';
         $response = wp_remote_get($endpoint, [
             'timeout' => 15,
             'headers' => [
@@ -1866,7 +1866,7 @@ class Admin {
             return;
         }
 
-        $endpoint = rtrim($site_url, '/') . '/wp-json/fp-remote-bridge/v1/plugin-versions';
+        $endpoint = MasterEndpoint::build_client_rest_endpoint($client_id, 'fp-remote-bridge/v1/plugin-versions') ?: rtrim($site_url, '/') . '/wp-json/fp-remote-bridge/v1/plugin-versions';
         $response = wp_remote_get($endpoint, [
             'timeout' => 15,
             'headers' => [
@@ -1965,7 +1965,7 @@ class Admin {
             return;
         }
 
-        $endpoint = rtrim($site_url, '/') . '/wp-json/fp-remote-bridge/v1/plugin-versions';
+        $endpoint = MasterEndpoint::build_client_rest_endpoint($client_id, 'fp-remote-bridge/v1/plugin-versions') ?: rtrim($site_url, '/') . '/wp-json/fp-remote-bridge/v1/plugin-versions';
         $response = wp_remote_get($endpoint, [
             'timeout' => 15,
             'headers' => [ 'X-FP-Client-Secret' => $secret ],

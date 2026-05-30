@@ -3,7 +3,7 @@
  * Plugin Name: FP Updater
  * Plugin URI: https://francescopasseri.com
  * Description: Gestione sicura degli aggiornamenti dei plugin da GitHub. Supporta sia aggiornamenti automatici che manuali tramite webhook, proteggendo i tuoi siti da aggiornamenti problematici.
- * Version: 1.9.1
+ * Version: 1.10.0
  * Author: Francesco Passeri
  * Author URI: https://francescopasseri.com
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if (substr_count($self_basename, '/') > 1) {
 }
 
 // Definisci costanti del plugin
-define('FP_GIT_UPDATER_VERSION', '1.9.1');
+define('FP_GIT_UPDATER_VERSION', '1.10.0');
 define('FP_GIT_UPDATER_PLUGIN_DIR', dirname(__FILE__) . '/');
 define('FP_GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FP_GIT_UPDATER_PLUGIN_FILE', __FILE__);
@@ -222,8 +222,8 @@ class FP_Git_Updater {
         $is_bridge = ($slug === 'fp-remote-bridge');
 
         foreach ($client_ids as $client_id) {
-            $site_url = $clients[$client_id]['url'] ?? ('https://' . $client_id);
-            $trigger_url = rtrim($site_url, '/') . '/wp-json/fp-remote-bridge/v1/trigger-sync';
+            // Usa la base REST canonica del client (gestisce WordPress in sottocartella, es. /cms/).
+            $trigger_url = \FP\GitUpdater\MasterEndpoint::build_client_rest_endpoint($client_id, 'fp-remote-bridge/v1/trigger-sync');
 
             // Trigger-sync bloccante
             $r = wp_remote_post($trigger_url, array(
@@ -244,7 +244,7 @@ class FP_Git_Updater {
 
             // Se il Bridge è stato installato, chiama /reload per forzare ricaricamento
             if ($is_bridge && isset($installed['fp-remote-bridge']) && $installed['fp-remote-bridge'] === 'ok') {
-                $reload_url = rtrim($site_url, '/') . '/wp-json/fp-remote-bridge/v1/reload';
+                $reload_url = \FP\GitUpdater\MasterEndpoint::build_client_rest_endpoint($client_id, 'fp-remote-bridge/v1/reload');
                 $reload_r = wp_remote_post($reload_url, array(
                     'timeout' => 15,
                     'blocking' => true,
