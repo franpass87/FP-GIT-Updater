@@ -1,3 +1,9 @@
+## [1.9.1] - 2026-05-30
+
+### Fixed
+
+- **Cron orfano `fp_git_updater_cleanup_backup` (hook legacy)**: aggiunta la pulizia dell'hook single-event legacy (versioni < 1.9) in `deactivate()` (`fp-git-updater.php`) e `uninstall.php`. In precedenza veniva ripulito solo `fp_git_updater_cleanup_old_backups` (plurale): il vecchio evento per-backup restava schedulato e, a plugin disattivo, WordPress lo ritentava a ogni page-load generando in loop `Errore nell'evento Cron non programmato … codice di errore: could_not_set` nel log (riscontrato su Villa Piaggia). Il fix evita che il residuo si ripresenti sui siti dove il plugin viene disattivato.
+
 ## [1.9.0] - 2026-05-29
 
 ### Added

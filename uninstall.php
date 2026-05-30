@@ -51,6 +51,8 @@ if ($timestamp) {
 wp_clear_scheduled_hook('fp_git_updater_run_update');
 wp_clear_scheduled_hook('fp_git_updater_cleanup_old_logs');
 wp_clear_scheduled_hook('fp_git_updater_cleanup_old_backups');
+// Hook legacy (versioni < 1.9): single-event per-backup non più registrato.
+wp_clear_scheduled_hook('fp_git_updater_cleanup_backup');
 
 // Rimuovi la tabella dei log
 global $wpdb;

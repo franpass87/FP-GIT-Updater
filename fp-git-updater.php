@@ -3,7 +3,7 @@
  * Plugin Name: FP Updater
  * Plugin URI: https://francescopasseri.com
  * Description: Gestione sicura degli aggiornamenti dei plugin da GitHub. Supporta sia aggiornamenti automatici che manuali tramite webhook, proteggendo i tuoi siti da aggiornamenti problematici.
- * Version: 1.9.0
+ * Version: 1.9.1
  * Author: Francesco Passeri
  * Author URI: https://francescopasseri.com
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if (substr_count($self_basename, '/') > 1) {
 }
 
 // Definisci costanti del plugin
-define('FP_GIT_UPDATER_VERSION', '1.9.0');
+define('FP_GIT_UPDATER_VERSION', '1.9.1');
 define('FP_GIT_UPDATER_PLUGIN_DIR', dirname(__FILE__) . '/');
 define('FP_GIT_UPDATER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FP_GIT_UPDATER_PLUGIN_FILE', __FILE__);
@@ -326,7 +326,11 @@ class FP_Git_Updater {
         wp_clear_scheduled_hook('fp_git_updater_check_update');
         wp_clear_scheduled_hook('fp_git_updater_cleanup_old_logs');
         wp_clear_scheduled_hook('fp_git_updater_cleanup_old_backups');
-        
+        // Hook legacy (versioni < 1.9): single-event per-backup non più registrato.
+        // Senza questa pulizia restava orfano e WP lo ritentava a ogni page-load
+        // con errore "could_not_set" finché il plugin era disattivo.
+        wp_clear_scheduled_hook('fp_git_updater_cleanup_backup');
+
         flush_rewrite_rules();
     }
     
